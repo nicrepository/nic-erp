@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.*;
 import com.niclabs.erp.helpdesk.domain.TicketComment;
 import com.niclabs.erp.helpdesk.dto.TicketCommentRequestDTO;
 import com.niclabs.erp.helpdesk.service.TicketCommentService;
+import com.niclabs.erp.helpdesk.domain.TicketStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.UUID;
@@ -54,5 +56,27 @@ public class TicketController {
     @GetMapping("/{ticketId}/comments")
     public ResponseEntity<List<TicketComment>> getComments(@PathVariable UUID ticketId) {
         return ResponseEntity.ok(commentService.getCommentsByTicket(ticketId));
+    }
+
+    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PutMapping("/{id}/assign")
+    public ResponseEntity<Ticket> assignTicket(@PathVariable UUID id) {
+        Ticket updatedTicket = ticketService.assignTicket(id);
+        return ResponseEntity.ok(updatedTicket);
+    }
+
+    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Ticket> updateTicketStatus(
+            @PathVariable UUID id,
+            @RequestParam TicketStatus status) {
+
+        Ticket updatedTicket = ticketService.updateTicketStatus(id, status);
+        return ResponseEntity.ok(updatedTicket);
+    }
+
+    @GetMapping("/my")
+    public ResponseEntity<List<Ticket>> getMyTickets() {
+        return ResponseEntity.ok(ticketService.getMyTickets());
     }
 }

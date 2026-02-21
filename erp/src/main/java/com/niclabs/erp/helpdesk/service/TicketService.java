@@ -43,4 +43,37 @@ public class TicketService {
     public List<Ticket> listTicketsByDepartment(TicketDepartment department) {
         return ticketRepository.findByDepartment(department);
     }
+
+    @Transactional
+    public Ticket assignTicket(UUID ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Chamado não encontrado."));
+
+        // Pegamos o técnico que está clicando em "Assumir"
+        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        ticket.setAssigneeId(loggedInUser.getId());
+
+        // Se o chamado estava apenas "Aberto", ele passa automaticamente para "Em Atendimento"
+        if (ticket.getStatus() == TicketStatus.OPEN) {
+            ticket.setStatus(TicketStatus.IN_PROGRESS);
+        }
+
+        return ticketRepository.save(ticket);
+    }
+
+    @Transactional
+    public Ticket updateTicketStatus(UUID ticketId, TicketStatus newStatus) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Chamado não encontrado."));
+
+        ticket.setStatus(newStatus);
+
+        return ticketRepository.save(ticket);
+    }
+
+    public List<Ticket> getMyTickets() {
+        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ticketRepository.findByRequesterIdOrderByCreatedAtDesc(loggedInUser.getId());
+    }
 }

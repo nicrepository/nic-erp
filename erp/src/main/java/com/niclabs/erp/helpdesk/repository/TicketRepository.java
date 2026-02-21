@@ -12,4 +12,7 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     // O Spring cria o comando SQL automaticamente (SELECT * FROM tickets WHERE department = ?)
     List<Ticket> findByDepartment(TicketDepartment department);
 
+    // Busca os chamados do usuário logado e ordena do mais recente para o mais antigo
+    List<Ticket> findByRequesterIdOrderByCreatedAtDesc(UUID requesterId);
+
 }
