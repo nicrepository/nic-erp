@@ -73,4 +73,8 @@ public class StockItemService {
 
         movementRepository.save(movement);
     }
+
+    public java.util.List<StockItem> findAllItems() {
+        return itemRepository.findAll();
+    }
 }

@@ -28,4 +28,24 @@ public class ITAssetService {
 
         return assetRepository.save(asset);
     }
+
+    public java.util.List<ITAsset> findAllAssets() {
+        return assetRepository.findAll();
+    }
+
+    @Transactional
+    public ITAsset assignAssetToUser(UUID assetId, UUID userId) {
+        ITAsset asset = assetRepository.findById(assetId)
+                .orElseThrow(() -> new RuntimeException("Ativo de TI não encontrado."));
+
+        if (asset.getStatus() != AssetStatus.AVAILABLE) {
+            throw new RuntimeException("Este equipamento não está disponível para atribuição. Status atual: " + asset.getStatus());
+        }
+
+        // Muda o status para Em Uso e vincula ao ID do usuário
+        asset.setStatus(AssetStatus.IN_USE);
+        asset.setAssignedTo(userId);
+
+        return assetRepository.save(asset);
+    }
 }

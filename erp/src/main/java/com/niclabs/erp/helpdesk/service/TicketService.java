@@ -1,0 +1,46 @@
+package com.niclabs.erp.helpdesk.service;
+
+import com.niclabs.erp.auth.domain.User;
+import com.niclabs.erp.helpdesk.domain.Ticket;
+import com.niclabs.erp.helpdesk.domain.TicketDepartment;
+import com.niclabs.erp.helpdesk.domain.TicketStatus;
+import com.niclabs.erp.helpdesk.dto.TicketRequestDTO;
+import com.niclabs.erp.helpdesk.repository.TicketRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class TicketService {
+
+    private final TicketRepository ticketRepository;
+
+    @Transactional
+    public Ticket openTicket(TicketRequestDTO dto) {
+        // Mágica do JWT: Pegamos o usuário logado diretamente do contexto de segurança
+        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        Ticket ticket = new Ticket();
+        ticket.setId(UUID.randomUUID());
+        ticket.setTitle(dto.title());
+        ticket.setDescription(dto.description());
+        ticket.setPriority(dto.priority());
+        ticket.setDepartment(dto.department()); // Agora o chamado sabe de qual departamento ele é!
+
+        // Regras de negócio padrão para um novo chamado
+        ticket.setStatus(TicketStatus.OPEN);
+        ticket.setRequesterId(loggedInUser.getId());
+
+        return ticketRepository.save(ticket);
+    }
+
+    // Método para listar chamados filtrando pelo departamento
+    public List<Ticket> listTicketsByDepartment(TicketDepartment department) {
+        return ticketRepository.findByDepartment(department);
+    }
+}

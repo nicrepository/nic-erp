@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import java.util.List;
 
 import java.util.UUID;
 
@@ -47,6 +49,11 @@ public class InventoryController {
         }
     }
 
+    @GetMapping("/administrative/items")
+    public ResponseEntity<List<StockItem>> getAllStockItems() {
+        return ResponseEntity.ok(stockItemService.findAllItems());
+    }
+
     // ==========================================
     // ESTOQUE DE TI
     // ==========================================
@@ -55,5 +62,21 @@ public class InventoryController {
     public ResponseEntity<ITAsset> registerITAsset(@RequestBody ITAssetDTO dto) {
         ITAsset created = itAssetService.registerAsset(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @GetMapping("/it/assets")
+    public ResponseEntity<List<ITAsset>> getAllITAssets() {
+        return ResponseEntity.ok(itAssetService.findAllAssets());
+    }
+
+    // Veja a anotação @PreAuthorize blindando a rota!
+    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PutMapping("/it/assets/{id}/assign")
+    public ResponseEntity<ITAsset> assignAsset(
+            @PathVariable UUID id,
+            @RequestParam UUID userId) {
+
+        ITAsset updatedAsset = itAssetService.assignAssetToUser(id, userId);
+        return ResponseEntity.ok(updatedAsset);
     }
 }
