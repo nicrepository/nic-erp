@@ -49,8 +49,15 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Por enquanto, vamos retornar uma role básica. Na próxima fase, mapearemos as roles reais do banco.
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        // Prevenção contra erro caso o usuário não tenha nenhuma role ainda
+        if (this.roles == null || this.roles.isEmpty()) {
+            return List.of();
+        }
+
+        // Agora sim! Lendo as roles REAIS que vêm da tabela do banco de dados
+        return this.roles.stream()
+                .map(role -> new SimpleGrantedAuthority(role.getName()))
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
