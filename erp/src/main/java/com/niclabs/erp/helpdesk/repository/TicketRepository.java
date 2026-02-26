@@ -15,4 +15,7 @@ public interface TicketRepository extends JpaRepository<Ticket, UUID> {
     // Busca os chamados do usuário logado e ordena do mais recente para o mais antigo
     List<Ticket> findByRequesterIdOrderByCreatedAtDesc(UUID requesterId);
 
+    // Conta os chamados por status específico
+    long countByStatus(com.niclabs.erp.helpdesk.domain.TicketStatus status);
+
 }
