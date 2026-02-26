@@ -10,6 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.niclabs.erp.helpdesk.dto.TicketResponseDTO;
 
 import java.util.List;
 import java.util.UUID;
@@ -40,8 +43,9 @@ public class TicketService {
     }
 
     // Método para listar chamados filtrando pelo departamento
-    public List<Ticket> listTicketsByDepartment(TicketDepartment department) {
-        return ticketRepository.findByDepartment(department);
+    public Page<TicketResponseDTO> listTicketsByDepartment(TicketDepartment department, Pageable pageable) {
+        return ticketRepository.findByDepartment(department, pageable)
+                .map(TicketResponseDTO::fromEntity);
     }
 
     @Transactional
@@ -72,8 +76,15 @@ public class TicketService {
         return ticketRepository.save(ticket);
     }
 
-    public List<Ticket> getMyTickets() {
+    public Page<TicketResponseDTO> getMyTickets(Pageable pageable) {
         User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return ticketRepository.findByRequesterIdOrderByCreatedAtDesc(loggedInUser.getId());
+        return ticketRepository.findByRequesterIdOrderByCreatedAtDesc(loggedInUser.getId(), pageable)
+                .map(TicketResponseDTO::fromEntity);
+    }
+
+    // Método novo para a fila geral de TI
+    public Page<TicketResponseDTO> getAllTickets(Pageable pageable) {
+        return ticketRepository.findAll(pageable)
+                .map(TicketResponseDTO::fromEntity);
     }
 }

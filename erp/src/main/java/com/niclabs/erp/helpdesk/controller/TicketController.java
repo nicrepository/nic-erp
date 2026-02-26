@@ -13,6 +13,10 @@ import com.niclabs.erp.helpdesk.dto.TicketCommentRequestDTO;
 import com.niclabs.erp.helpdesk.service.TicketCommentService;
 import com.niclabs.erp.helpdesk.domain.TicketStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import com.niclabs.erp.helpdesk.dto.TicketResponseDTO;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,14 +36,13 @@ public class TicketController {
     }
 
     @GetMapping("/department/{department}")
-    public ResponseEntity<List<Ticket>> listTicketsByDepartment(@PathVariable String department) {
+    public ResponseEntity<Page<TicketResponseDTO>> listTicketsByDepartment(
+            @PathVariable String department,
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
         try {
-            // Converte a string da URL para o nosso Enum (ex: "IT", "ADMIN")
             TicketDepartment deptEnum = TicketDepartment.valueOf(department.toUpperCase());
-            List<Ticket> tickets = ticketService.listTicketsByDepartment(deptEnum);
-            return ResponseEntity.ok(tickets);
+            return ResponseEntity.ok(ticketService.listTicketsByDepartment(deptEnum, pageable));
         } catch (IllegalArgumentException e) {
-            // Se o usuário digitar um departamento que não existe no Enum, retorna 400 Bad Request
             return ResponseEntity.badRequest().build();
         }
     }
@@ -76,7 +79,15 @@ public class TicketController {
     }
 
     @GetMapping("/my")
-    public ResponseEntity<List<Ticket>> getMyTickets() {
-        return ResponseEntity.ok(ticketService.getMyTickets());
+    public ResponseEntity<Page<TicketResponseDTO>> getMyTickets(
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        return ResponseEntity.ok(ticketService.getMyTickets(pageable));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_TI') or hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<Page<TicketResponseDTO>> getAllTickets(
+            @PageableDefault(size = 10, page = 0) Pageable pageable) {
+        return ResponseEntity.ok(ticketService.getAllTickets(pageable));
     }
 }
