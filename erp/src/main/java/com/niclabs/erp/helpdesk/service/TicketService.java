@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.niclabs.erp.helpdesk.dto.TicketResponseDTO;
+import org.springframework.web.multipart.MultipartFile;
+import com.niclabs.erp.storage.service.StorageService;
+import com.niclabs.erp.helpdesk.dto.TicketResponseDTO;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,6 +25,7 @@ import java.util.UUID;
 public class TicketService {
 
     private final TicketRepository ticketRepository;
+    private final StorageService storageService;
 
     @Transactional
     public Ticket openTicket(TicketRequestDTO dto) {
@@ -86,5 +90,21 @@ public class TicketService {
     public Page<TicketResponseDTO> getAllTickets(Pageable pageable) {
         return ticketRepository.findAll(pageable)
                 .map(TicketResponseDTO::fromEntity);
+    }
+
+    @Transactional
+    public TicketResponseDTO addAttachmentToTicket(UUID ticketId, MultipartFile file) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Chamado não encontrado."));
+
+        // 1. Manda o motor salvar o arquivo fisicamente no HD
+        String generatedFileName = storageService.store(file);
+
+        // 2. Adiciona o nome gerado na lista do chamado
+        ticket.getAttachments().add(generatedFileName);
+
+        ticketRepository.save(ticket);
+
+        return TicketResponseDTO.fromEntity(ticket);
     }
 }

@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import com.niclabs.erp.helpdesk.dto.TicketResponseDTO;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -89,5 +90,13 @@ public class TicketController {
     public ResponseEntity<Page<TicketResponseDTO>> getAllTickets(
             @PageableDefault(size = 10, page = 0) Pageable pageable) {
         return ResponseEntity.ok(ticketService.getAllTickets(pageable));
+    }
+
+    @PostMapping(value = "/{id}/attachments", consumes = "multipart/form-data")
+    public ResponseEntity<TicketResponseDTO> uploadAttachment(
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file) {
+
+        return ResponseEntity.ok(ticketService.addAttachmentToTicket(id, file));
     }
 }

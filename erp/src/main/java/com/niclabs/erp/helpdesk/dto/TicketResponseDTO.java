@@ -15,7 +15,8 @@ public record TicketResponseDTO(
         TicketDepartment department,
         TicketStatus status,
         UUID requesterId,
-        UUID assigneeId
+        UUID assigneeId,
+        java.util.List<String> attachments
 ) {
     // Método auxiliar para facilitar a conversão da Page no Service
     public static TicketResponseDTO fromEntity(Ticket ticket) {
@@ -27,7 +28,8 @@ public record TicketResponseDTO(
                 ticket.getDepartment(),
                 ticket.getStatus(),
                 ticket.getRequesterId(),
-                ticket.getAssigneeId()
+                ticket.getAssigneeId(),
+                ticket.getAttachments()
         );
     }
 }

@@ -61,4 +61,13 @@ public class Ticket {
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    @ElementCollection
+    @CollectionTable(
+            name = "ticket_attachments",
+            schema = "helpdesk",
+            joinColumns = @JoinColumn(name = "ticket_id")
+    )
+    @Column(name = "file_name", nullable = false)
+    private java.util.List<String> attachments = new java.util.ArrayList<>();
 }
