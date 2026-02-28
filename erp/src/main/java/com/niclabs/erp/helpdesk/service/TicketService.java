@@ -1,11 +1,13 @@
 package com.niclabs.erp.helpdesk.service;
 
 import com.niclabs.erp.auth.domain.User;
+import com.niclabs.erp.auth.repository.UserRepository;
 import com.niclabs.erp.helpdesk.domain.Ticket;
 import com.niclabs.erp.helpdesk.domain.TicketDepartment;
 import com.niclabs.erp.helpdesk.domain.TicketStatus;
 import com.niclabs.erp.helpdesk.dto.TicketRequestDTO;
 import com.niclabs.erp.helpdesk.repository.TicketRepository;
+import com.niclabs.erp.notification.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,8 @@ public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final StorageService storageService;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
 
     @Transactional
     public Ticket openTicket(TicketRequestDTO dto) {
@@ -76,8 +80,23 @@ public class TicketService {
                 .orElseThrow(() -> new RuntimeException("Chamado não encontrado."));
 
         ticket.setStatus(newStatus);
+        ticket = ticketRepository.save(ticket);
 
-        return ticketRepository.save(ticket);
+        // Se o novo status for RESOLVIDO, dispara o e-mail em segundo plano
+        if (newStatus == TicketStatus.RESOLVED) {
+
+            // Busca o usuário no banco para descobrir o e-mail dele
+            User requester = userRepository.findById(ticket.getRequesterId())
+                    .orElseThrow(() -> new RuntimeException("Usuário solicitante não encontrado."));
+
+            // Pega os primeiros 8 caracteres do UUID para ficar um "Número de Chamado" mais amigável
+            String shortId = ticket.getId().toString().substring(0, 8).toUpperCase();
+
+            // Aciona o motor assíncrono
+            emailService.sendTicketResolvedEmail(requester.getEmail(), shortId, ticket.getTitle());
+        }
+
+        return ticket;
     }
 
     public Page<TicketResponseDTO> getMyTickets(Pageable pageable) {
