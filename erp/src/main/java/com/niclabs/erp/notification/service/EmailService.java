@@ -75,4 +75,32 @@ public class EmailService {
             System.err.println("❌ Erro ao enviar aviso em massa: " + e.getMessage());
         }
     }
+
+    @Async
+    public void sendPasswordResetEmail(String destinatario, String token) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(remetente);
+            message.setTo(destinatario);
+            message.setSubject("Nic-ERP | Recuperação de Senha");
+
+            // Dica de Arquitetura: No futuro, esse link apontará para a tela do seu front-end em React (ex: localhost:3000)
+            // Por enquanto, vamos apontar para a própria API apenas para visualizarmos o token
+            String resetUrl = "http://localhost:8080/auth/reset-password?token=" + token;
+
+            String texto = "Olá!\n\nVocê solicitou a recuperação da sua senha.\n\n" +
+                    "Clique no link abaixo para criar uma nova senha:\n" +
+                    resetUrl + "\n\n" +
+                    "Este link expira em 2 horas.\nSe você não solicitou a alteração, ignore este e-mail.";
+
+            message.setText(texto);
+
+            mailSender.send(message);
+
+            System.out.println("✅ E-mail de recuperação enviado com sucesso para: " + destinatario);
+
+        } catch (Exception e) {
+            System.err.println("❌ Erro ao enviar e-mail de recuperação: " + e.getMessage());
+        }
+    }
 }
