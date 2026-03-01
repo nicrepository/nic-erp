@@ -1,0 +1,49 @@
+# ==========================================
+# GERAL (Sistemas Operacionais e Logs)
+# ==========================================
+.DS_Store
+Thumbs.db
+*.log
+logs/
+log/
+
+# ==========================================
+# IDEs e Editores
+# ==========================================
+.idea/
+*.iml
+*.iws
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ==========================================
+# FRONT-END (React / Vite / Node)
+# ==========================================
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.env
+frontend/.env.*
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# ==========================================
+# BACK-END (Spring Boot / Maven / Java)
+# ==========================================
+erp/target/
+erp/pom.xml.tag
+erp/pom.xml.releaseBackup
+erp/pom.xml.versionsBackup
+erp/pom.xml.next
+erp/release.properties
+erp/dependency-reduced-pom.xml
+erp/buildNumber.properties
+erp/.mvn/timing.properties
+# Ignorar arquivos JAR, exceto o wrapper do Maven
+*.jar
+!erp/.mvn/wrapper/maven-wrapper.jar
