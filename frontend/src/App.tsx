@@ -1,21 +1,27 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { Login } from "./pages/Login"
 import { Dashboard } from "./pages/Dashboard"
-import { PrivateRoute } from "@/components/PrivateRoute"
+import { Helpdesk } from "./pages/Helpdesk"
+import { PrivateRoute } from "./components/PrivateRoute"
+import { AppLayout } from "./components/AppLayout"
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rotas Públicas (Qualquer um acessa) */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
 
-        {/* Rotas Protegidas (O Leão de Chácara toma conta) */}
+        {/* A Guarita de Segurança */}
         <Route element={<PrivateRoute />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          
-          {/* No futuro, as rotas do Helpdesk, Inventário e Mural entrarão todas aqui dentro! */}
+          {/* O Molde Visual (Sidebar + Topbar) */}
+          <Route element={<AppLayout />}>
+            {/* Todas as telas do sistema entram aqui dentro! */}
+            <Route path="/dashboard" element={<Dashboard />} />
+            {/* Futuras rotas: */}
+            <Route path="/helpdesk" element={<Helpdesk />} />
+            {/* <Route path="/inventario" element={<Inventario />} /> */}
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>
