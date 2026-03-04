@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -18,51 +18,105 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 
-const tickets = [
-  { id: "TCK-001", title: "AnyDesk não gera código de acesso", requester: "Setor de Vendas", status: "Aberto", priority: "Alta", date: "2026-03-03" },
-  { id: "TCK-002", title: "Migração do servidor de impressão Scanservjs", requester: "Diretoria", status: "Em Andamento", priority: "Média", date: "2026-03-02" },
-  { id: "TCK-003", title: "Montagem de nova estação de trabalho", requester: "RH", status: "Resolvido", priority: "Baixa", date: "2026-02-28" },
-]
-
 export function Helpdesk() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // 1. Estados para capturar os dados do formulário
+  // 1. Nosso novo estado que guarda a lista real do banco de dados
+  const [tickets, setTickets] = useState<any[]>([])
+
   const [title, setTitle] = useState("")
-  const [category, setCategory] = useState("")
+  const [department, setDepartment] = useState("")
   const [priority, setPriority] = useState("")
   const [description, setDescription] = useState("")
 
+  // 2. A função que busca os chamados lá no Spring Boot
+  const fetchTickets = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      // Vamos usar a rota /my que está mapeada no seu TicketController
+      const response = await fetch('/helpdesk/tickets/my', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        // O Spring Boot Page coloca a lista dentro do atributo "content"
+        setTickets(data.content || [])
+      }
+    } catch (error) {
+      console.error("Erro ao buscar chamados:", error)
+    }
+  }
+
+  // 3. O useEffect dispara a busca assim que você entra na tela do Helpdesk
+  useEffect(() => {
+    fetchTickets()
+  }, [])
+
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Aberto": return <Badge variant="destructive">Aberto</Badge>
-      case "Em Andamento": return <Badge className="bg-yellow-500 hover:bg-yellow-600">Em Andamento</Badge>
-      case "Resolvido": return <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">Resolvido</Badge>
+    switch (status?.toUpperCase()) {
+      case "OPEN": return <Badge variant="destructive">Aberto</Badge>
+      case "IN_PROGRESS": return <Badge className="bg-yellow-500 hover:bg-yellow-600">Em Andamento</Badge>
+      case "RESOLVED": return <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">Resolvido</Badge>
+      case "CLOSED": return <Badge variant="outline" className="text-zinc-500">Fechado</Badge>
       default: return <Badge variant="outline">{status}</Badge>
     }
   }
 
-  // 2. Função que empacota e "envia" os dados
-  const handleCreateTicket = (e: React.FormEvent) => {
-    e.preventDefault() // Impede a página de recarregar
-    
-    const newTicketPayload = {
-      title,
-      category,
-      priority,
-      description
+  const translatePriority = (priority: string) => {
+    switch (priority?.toUpperCase()) {
+      case "LOW": return "Baixa"
+      case "MEDIUM": return "Média"
+      case "HIGH": return "Alta"
+      case "URGENT": return "Urgente"
+      default: return priority
     }
+  }
 
-    // Por enquanto, vamos apenas imprimir no console para provar que funciona
-    console.log("🚀 Chamado pronto para a API:", newTicketPayload)
-    alert("Chamado capturado com sucesso! Olhe o console (F12).")
+  const translateDepartment = (dept: string) => {
+    switch (dept?.toUpperCase()) {
+      case "IT": return "TI"
+      case "ADMIN": return "Administrativo"
+      case "HR": return "RH"
+      case "MAINTENANCE": return "Manutenção"
+      default: return dept
+    }
+  }
 
-    // 3. Limpar o formulário e fechar o modal
-    setTitle("")
-    setCategory("")
-    setPriority("")
-    setDescription("")
-    setIsModalOpen(false)
+  const handleCreateTicket = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    const newTicketPayload = { title, description, priority, department }
+    const token = localStorage.getItem("token")
+
+    try {
+      const response = await fetch('/helpdesk/tickets', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newTicketPayload)
+      })
+
+      if (response.ok) {
+        // Removemos o alert() para ficar uma experiência mais fluida
+        setTitle("")
+        setDepartment("")
+        setPriority("")
+        setDescription("")
+        setIsModalOpen(false)
+        
+        // 4. A MÁGICA: Assim que salva no banco, manda o React buscar a lista atualizada!
+        fetchTickets()
+      } else {
+        alert("Erro ao criar chamado. Verifique se os dados estão corretos.")
+      }
+    } catch (error) {
+      alert("Erro de conexão. O servidor Spring Boot está rodando?")
+    }
   }
 
   return (
@@ -85,112 +139,112 @@ export function Helpdesk() {
               <DialogDescription>Descreva o problema detalhadamente. Um técnico será atribuído em breve.</DialogDescription>
             </DialogHeader>
             
-            {/* --- ADICIONAMOS A TAG FORM AQUI --- */}
             <form onSubmit={handleCreateTicket}>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="title">Título do Problema</Label>
-                  <Input 
-                    id="title" 
-                    placeholder="Ex: Erro DXGI_ERROR_DEVICE_HUNG" 
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                  />
+                  <Input id="title" placeholder="Ex: Erro no sistema" value={title} onChange={(e) => setTitle(e.target.value)} required />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="category">Categoria</Label>
-                    <Select value={category} onValueChange={setCategory} required>
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="infra">Infraestrutura</SelectItem>
-                        <SelectItem value="software">Sistemas/Software</SelectItem>
-                        <SelectItem value="hardware">Hardware</SelectItem>
-                        <SelectItem value="acesso">Acessos/Senha</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="department">Departamento</Label>
+                      <Select value={department} onValueChange={setDepartment} required>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="IT">Tecnologia da Informação (TI)</SelectItem>
+                          <SelectItem value="ADMIN">Administrativo / Financeiro</SelectItem>
+                          <SelectItem value="HR">Recursos Humanos</SelectItem>
+                          <SelectItem value="MAINTENANCE">Manutenção Predial</SelectItem>
+                        </SelectContent>
+                      </Select>
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="priority">Prioridade</Label>
-                    <Select value={priority} onValueChange={setPriority} required>
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Baixa</SelectItem>
-                        <SelectItem value="medium">Média</SelectItem>
-                        <SelectItem value="high">Alta</SelectItem>
-                        <SelectItem value="urgent">Urgente</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <Select value={priority} onValueChange={setPriority} required>
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LOW">Baixa</SelectItem>
+                          <SelectItem value="MEDIUM">Média</SelectItem>
+                          <SelectItem value="HIGH">Alta</SelectItem>
+                          <SelectItem value="URGENT">Urgente</SelectItem>
+                        </SelectContent>
+                      </Select>
                   </div>
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="description">Descrição Detalhada</Label>
-                  <Textarea 
-                    id="description" 
-                    placeholder="Descreva o que está acontecendo..." 
-                    className="min-h-[100px]"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    required
-                  />
+                  <Textarea id="description" placeholder="Descreva o que está acontecendo..." className="min-h-[100px]" value={description} onChange={(e) => setDescription(e.target.value)} required />
                 </div>
               </div>
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                {/* O botão agora é do tipo submit para disparar o form */}
                 <Button type="submit">Criar Chamado</Button>
               </DialogFooter>
             </form>
-
           </DialogContent>
         </Dialog>
       </div>
 
       <div className="rounded-md border bg-white shadow-sm">
-        {/* ... (A Tabela continua idêntica aqui, eu omiti no texto para focar no modal, mas o código acima tem tudo) */}
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-[100px]">ID</TableHead>
               <TableHead>Título</TableHead>
-              <TableHead>Solicitante</TableHead>
+              <TableHead>Departamento</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Prioridade</TableHead>
-              <TableHead>Data</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tickets.map((ticket) => (
-              <TableRow key={ticket.id}>
-                <TableCell className="font-medium text-zinc-900">{ticket.id}</TableCell>
-                <TableCell className="text-zinc-700">{ticket.title}</TableCell>
-                <TableCell className="text-zinc-600">{ticket.requester}</TableCell>
-                <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                <TableCell className="text-zinc-600">{ticket.priority}</TableCell>
-                <TableCell className="text-zinc-500">{ticket.date}</TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-zinc-100">
-                        <MoreHorizontal className="h-4 w-4 text-zinc-500" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-[160px]">
-                      <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                      <DropdownMenuItem className="cursor-pointer">Ver detalhes</DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer">Atribuir a mim</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600 cursor-pointer focus:text-red-600 focus:bg-red-50">Encerrar chamado</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {/* 5. Fazemos o loop na lista real que veio do banco */}
+            {tickets.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-zinc-500">
+                  Nenhum chamado encontrado.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              tickets.map((ticket) => (
+                <TableRow key={ticket.id}>
+                  {/* Como o seu ID é um UUID gigante, vamos mostrar só os 8 primeiros caracteres para ficar elegante */}
+                  <TableCell className="font-medium text-zinc-900 uppercase">
+                    {ticket.id ? ticket.id.substring(0, 8) : 'TCK-NEW'}
+                  </TableCell>
+                  <TableCell className="text-zinc-700">{ticket.title}</TableCell>
+                  
+                  {/* Aplicando o tradutor de Departamento */}
+                  <TableCell className="text-zinc-600">{translateDepartment(ticket.department)}</TableCell>
+                  
+                  {/* Aplicando as cores do Status */}
+                  <TableCell>{getStatusBadge(ticket.status)}</TableCell>
+                  
+                  {/* Aplicando o tradutor de Prioridade */}
+                  <TableCell className="text-zinc-600">{translatePriority(ticket.priority)}</TableCell>
+                  
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-zinc-100">
+                          <MoreHorizontal className="h-4 w-4 text-zinc-500" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-[160px]">
+                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuItem className="cursor-pointer">Ver detalhes</DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer">Atribuir a mim</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600 cursor-pointer focus:text-red-600 focus:bg-red-50">Encerrar chamado</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
