@@ -20,14 +20,15 @@ import {
 
 export function Helpdesk() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-
-  // 1. Nosso novo estado que guarda a lista real do banco de dados
   const [tickets, setTickets] = useState<any[]>([])
-
   const [title, setTitle] = useState("")
   const [department, setDepartment] = useState("")
   const [priority, setPriority] = useState("")
   const [description, setDescription] = useState("")
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [selectedTicket, setSelectedTicket] = useState<any>(null)
+  const [comments, setComments] = useState<any[]>([])
+  const [newComment, setNewComment] = useState("")
 
   // 2. A função que busca os chamados lá no Spring Boot
   const fetchTickets = async () => {
@@ -49,6 +50,58 @@ export function Helpdesk() {
       console.error("Erro ao buscar chamados:", error)
     }
   }
+
+  // Busca o histórico de comentários de um chamado específico
+  const fetchComments = async (ticketId: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/helpdesk/tickets/${ticketId}/comments`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setComments(data)
+      }
+    } catch (error) {
+      console.error("Erro ao buscar comentários:", error)
+    }
+  }
+
+  // Envia um novo comentário
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !selectedTicket) return
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/helpdesk/tickets/${selectedTicket.id}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        // ATENÇÃO: Verifique se a sua classe TicketCommentRequestDTO no Java espera a chave "content" ou outro nome!
+        body: JSON.stringify({ content: newComment })
+      })
+
+      if (response.ok) {
+        setNewComment("") // Limpa o campo de texto
+        fetchComments(selectedTicket.id) // Atualiza a lista de comentários na hora!
+      } else {
+        alert("Erro ao enviar comentário.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  // O gatilho: Toda vez que o usuário abrir o modal de detalhes, o React busca os comentários daquele chamado
+  useEffect(() => {
+    if (isDetailModalOpen && selectedTicket) {
+      fetchComments(selectedTicket.id)
+    } else {
+      setComments([]) // Limpa a memória ao fechar o modal
+    }
+  }, [isDetailModalOpen, selectedTicket])
 
   // 3. O useEffect dispara a busca assim que você entra na tela do Helpdesk
   useEffect(() => {
@@ -186,6 +239,107 @@ export function Helpdesk() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* --- INÍCIO DO MODAL DE DETALHES --- */}
+        <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Detalhes do Chamado</DialogTitle>
+              <DialogDescription>
+                Informações completas do ticket selecionado.
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Só renderiza o conteúdo se tiver um chamado selecionado na memória */}
+            {selectedTicket && (
+              <div className="space-y-4 py-4">
+                
+                {/* Grid com as informações curtas */}
+                <div className="grid grid-cols-2 gap-4 bg-zinc-50 p-4 rounded-lg border border-zinc-100">
+                  <div>
+                    <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">ID do Chamado</h4>
+                    <p className="text-sm font-medium text-zinc-900 uppercase">
+                      {selectedTicket.id ? selectedTicket.id.substring(0, 8) : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Status</h4>
+                    <div className="mt-1">{getStatusBadge(selectedTicket.status)}</div>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Departamento</h4>
+                    <p className="text-sm text-zinc-900">{translateDepartment(selectedTicket.department)}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Prioridade</h4>
+                    <p className="text-sm text-zinc-900">{translatePriority(selectedTicket.priority)}</p>
+                  </div>
+                </div>
+
+                {/* Título e Descrição */}
+                <div className="pt-2">
+                  <h4 className="text-sm font-semibold text-zinc-900 mb-1">Título</h4>
+                  <p className="text-base text-zinc-800">{selectedTicket.title}</p>
+                </div>
+
+                <div className="pt-2">
+                  <h4 className="text-sm font-semibold text-zinc-900 mb-2">Descrição do Problema</h4>
+                  <div className="bg-white p-3 rounded-md border text-sm text-zinc-700 min-h-[120px] whitespace-pre-wrap">
+                    {selectedTicket.description || "Nenhuma descrição fornecida no momento da abertura do chamado."}
+                  </div>
+                </div>
+
+                {/* --- SEÇÃO DE COMENTÁRIOS (INTERAÇÕES) --- */}
+                <div className="pt-4 border-t mt-4">
+                  <h4 className="text-sm font-semibold text-zinc-900 mb-4">Interações do Chamado</h4>
+                  
+                  {/* Lista de Comentários (Scrollável) */}
+                  <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2 mb-4">
+                    {comments.length === 0 ? (
+                      <p className="text-sm text-zinc-500 italic text-center py-4 bg-zinc-50 rounded-md border border-dashed">
+                        Nenhum comentário registrado ainda.
+                      </p>
+                    ) : (
+                      comments.map((comment, index) => (
+                        <div key={index} className="bg-zinc-50 p-3 rounded-md border text-sm text-zinc-800">
+                          {/* No futuro podemos colocar o nome de quem comentou e a data aqui! */}
+                          <div className="font-semibold text-xs text-zinc-500 mb-1">Analista / Solicitante</div>
+                          <div className="whitespace-pre-wrap">{comment.content}</div> 
+                          {/* Lembrete: ajuste comment.content para o nome do campo de texto que o seu Java devolve */}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Campo para adicionar novo comentário */}
+                  <div className="flex gap-2">
+                    <Textarea 
+                      placeholder="Adicione um comentário ou atualização..." 
+                      className="min-h-[60px] resize-none"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                    />
+                    <Button 
+                      className="h-auto bg-zinc-900 text-zinc-50" 
+                      onClick={handleAddComment}
+                      disabled={!newComment.trim()} // Desabilita o botão se o campo estiver vazio
+                    >
+                      Enviar
+                    </Button>
+                  </div>
+                </div>
+                {/* --- FIM DA SEÇÃO DE COMENTÁRIOS --- */}
+
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>Fechar</Button>
+              {/* No futuro, colocaremos o botão de 'Assumir Chamado' aqui! */}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* --- FIM DO MODAL DE DETALHES --- */}
       </div>
 
       <div className="rounded-md border bg-white shadow-sm">
@@ -235,7 +389,15 @@ export function Helpdesk() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-[160px]">
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem className="cursor-pointer">Ver detalhes</DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="cursor-pointer" 
+                          onClick={() => {
+                            setSelectedTicket(ticket)
+                            setIsDetailModalOpen(true)
+                          }}
+                        >
+                          Ver detalhes
+                        </DropdownMenuItem>
                         <DropdownMenuItem className="cursor-pointer">Atribuir a mim</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600 cursor-pointer focus:text-red-600 focus:bg-red-50">Encerrar chamado</DropdownMenuItem>
