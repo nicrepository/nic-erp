@@ -94,6 +94,68 @@ export function Helpdesk() {
     }
   }
 
+  // Função que obriga a nota de resolução antes de fechar o chamado
+  const handleResolveTicket = async () => {
+    // Verifica se a caixa de texto está vazia
+    if (!newComment.trim()) {
+      alert("Atenção: É obrigatório detalhar o que foi feito na caixa de comentários antes de marcar como resolvido.");
+      // Coloca o cursor piscando na caixa de texto para o usuário
+      document.getElementById("nota-resolucao")?.focus();
+      return; // Para a execução aqui, não deixa fechar!
+    }
+
+    // Se tem texto, a mágica acontece em duas etapas:
+    // 1. Dispara a função que já temos de salvar o comentário
+    await handleAddComment();
+    
+    // 2. Dispara a mudança de status para Resolvido
+    await handleUpdateStatus(selectedTicket.id, 'RESOLVED');
+  }
+
+  // Assume o chamado para o usuário logado
+  const handleAssignTicket = async (ticketId: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/helpdesk/tickets/${ticketId}/assign`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        fetchTickets() // Atualiza a tabela imediatamente
+        // Opcional: alert("Chamado atribuído a você com sucesso!")
+      } else {
+        alert("Erro ao atribuir chamado. Verifique suas permissões.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  // Atualiza o status do chamado (Em Andamento, Resolvido, Fechado)
+  const handleUpdateStatus = async (ticketId: string, newStatus: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/helpdesk/tickets/${ticketId}/status?status=${newStatus}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        fetchTickets() // Atualiza a tabela
+        
+        // Se o modal estiver aberto, atualiza o status na tela do modal também sem precisar fechar
+        if (selectedTicket && selectedTicket.id === ticketId) {
+          setSelectedTicket({ ...selectedTicket, status: newStatus })
+        }
+      } else {
+        alert("Erro ao atualizar o status do chamado.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
   // O gatilho: Toda vez que o usuário abrir o modal de detalhes, o React busca os comentários daquele chamado
   useEffect(() => {
     if (isDetailModalOpen && selectedTicket) {
@@ -314,6 +376,7 @@ export function Helpdesk() {
                   {/* Campo para adicionar novo comentário */}
                   <div className="flex gap-2">
                     <Textarea 
+                      id="nota-resolucao"
                       placeholder="Adicione um comentário ou atualização..." 
                       className="min-h-[60px] resize-none"
                       value={newComment}
@@ -334,8 +397,33 @@ export function Helpdesk() {
             )}
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>Fechar</Button>
-              {/* No futuro, colocaremos o botão de 'Assumir Chamado' aqui! */}
+              <DialogFooter className="flex justify-between w-full sm:justify-between items-center mt-6">
+                {/* Lado Esquerdo: Botões de Ação de Status */}
+                <div className="flex gap-2">
+                  {selectedTicket?.status === 'OPEN' && (
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => handleUpdateStatus(selectedTicket.id, 'IN_PROGRESS')}
+                    >
+                      Iniciar Atendimento
+                    </Button>
+                  )}
+                  
+                {selectedTicket?.status === 'IN_PROGRESS' && (
+                  <Button 
+                    className="bg-green-600 text-white hover:bg-green-700" 
+                    onClick={handleResolveTicket}
+                  >
+                    Marcar como Resolvido
+                  </Button>
+                )}
+                </div>
+                
+                {/* Lado Direito: Botão Fechar */}
+                <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>
+                  Fechar
+                </Button>
+              </DialogFooter>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -389,6 +477,7 @@ export function Helpdesk() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-[160px]">
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        
                         <DropdownMenuItem 
                           className="cursor-pointer" 
                           onClick={() => {
@@ -398,9 +487,14 @@ export function Helpdesk() {
                         >
                           Ver detalhes
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">Atribuir a mim</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600 cursor-pointer focus:text-red-600 focus:bg-red-50">Encerrar chamado</DropdownMenuItem>
+                        
+                        <DropdownMenuItem 
+                          className="cursor-pointer"
+                          onClick={() => handleAssignTicket(ticket.id)}
+                        >
+                          Atribuir a mim
+                        </DropdownMenuItem>
+                        
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
