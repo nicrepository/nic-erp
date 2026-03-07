@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { Login } from "./pages/Login"
 import { Dashboard } from "./pages/Dashboard"
 import { Helpdesk } from "./pages/Helpdesk"
+import { Inventario } from "./pages/Inventario"
 import { PrivateRoute } from "./components/PrivateRoute"
 import { AppLayout } from "./components/AppLayout"
 
@@ -20,7 +21,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             {/* Futuras rotas: */}
             <Route path="/helpdesk" element={<Helpdesk />} />
-            {/* <Route path="/inventario" element={<Inventario />} /> */}
+            <Route path="/inventario" element={<Inventario />} />
           </Route>
         </Route>
       </Routes>

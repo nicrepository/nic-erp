@@ -1,0 +1,1 @@
+ALTER TABLE inventory.it_assets ADD COLUMN details TEXT;

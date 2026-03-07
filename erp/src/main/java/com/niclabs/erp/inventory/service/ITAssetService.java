@@ -14,7 +14,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ITAssetService {
 
-    private final ITAssetRepository assetRepository;
+    private final ITAssetRepository assetRepository; // <-- Nome correto da variável
 
     @Transactional
     public ITAsset registerAsset(ITAssetDTO dto) {
@@ -24,6 +24,10 @@ public class ITAssetService {
         asset.setAssetTag(dto.assetTag());
         asset.setModel(dto.model());
         asset.setBrand(dto.brand());
+
+        // Salvando o nosso novo campo de texto livre (observações/hardware)!
+        asset.setDetails(dto.details());
+
         asset.setStatus(AssetStatus.AVAILABLE); // Todo equipamento novo entra como DISPONÍVEL
 
         return assetRepository.save(asset);
@@ -45,6 +49,34 @@ public class ITAssetService {
         // Muda o status para Em Uso e vincula ao ID do usuário
         asset.setStatus(AssetStatus.IN_USE);
         asset.setAssignedTo(userId);
+
+        return assetRepository.save(asset);
+    }
+
+    // Função para desvincular o equipamento e devolvê-lo para a TI
+    @Transactional
+    public ITAsset unassignAsset(UUID assetId) {
+        // Usando o nome correto: assetRepository
+        ITAsset asset = assetRepository.findById(assetId)
+                .orElseThrow(() -> new RuntimeException("Equipamento não encontrado"));
+
+        asset.setAssignedTo(null); // Remove o dono
+        asset.setStatus(AssetStatus.AVAILABLE); // Volta o status para Disponível
+
+        return assetRepository.save(asset);
+    }
+
+    // Função para atualizar os dados do equipamento
+    @Transactional
+    public ITAsset updateAsset(UUID assetId, ITAssetDTO dto) {
+        ITAsset asset = assetRepository.findById(assetId)
+                .orElseThrow(() -> new RuntimeException("Equipamento não encontrado"));
+
+        asset.setSerialNumber(dto.serialNumber());
+        asset.setAssetTag(dto.assetTag());
+        asset.setModel(dto.model());
+        asset.setBrand(dto.brand());
+        asset.setDetails(dto.details()); // Atualiza as especificações!
 
         return assetRepository.save(asset);
     }

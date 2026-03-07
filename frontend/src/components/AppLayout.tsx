@@ -39,7 +39,11 @@ export function AppLayout() {
             <Ticket className="h-4 w-4" /> Helpdesk
           </Button>
 
-          <Button variant="ghost" className="w-full justify-start gap-3 text-zinc-500 hover:text-zinc-900">
+          <Button 
+            variant={location.pathname === '/inventario' ? 'secondary' : 'ghost'} 
+            className={`w-full justify-start gap-3 ${location.pathname === '/inventario' ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+            onClick={() => navigate('/inventario')}
+          >
             <Package className="h-4 w-4" /> Inventário
           </Button>
         </nav>

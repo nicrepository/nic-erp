@@ -79,4 +79,22 @@ public class InventoryController {
         ITAsset updatedAsset = itAssetService.assignAssetToUser(id, userId);
         return ResponseEntity.ok(updatedAsset);
     }
+
+    // DESVINCULAR EQUIPAMENTO
+    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PutMapping("/it/assets/{id}/unassign")
+    public ResponseEntity<ITAsset> unassignAsset(@PathVariable UUID id) {
+        ITAsset updatedAsset = itAssetService.unassignAsset(id);
+        return ResponseEntity.ok(updatedAsset);
+    }
+
+    // EDITAR EQUIPAMENTO
+    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PutMapping("/it/assets/{id}")
+    public ResponseEntity<ITAsset> updateITAsset(
+            @PathVariable UUID id,
+            @RequestBody ITAssetDTO dto) {
+        ITAsset updatedAsset = itAssetService.updateAsset(id, dto);
+        return ResponseEntity.ok(updatedAsset);
+    }
 }

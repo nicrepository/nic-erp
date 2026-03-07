@@ -18,7 +18,7 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')") // Só Admin pode ver a lista completa
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_TI', 'ROLE_RH')")
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.listAllUsers());
     }

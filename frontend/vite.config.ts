@@ -21,6 +21,14 @@ export default defineConfig({
       '/helpdesk': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      '/inventory': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/users': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       }
     }
   }

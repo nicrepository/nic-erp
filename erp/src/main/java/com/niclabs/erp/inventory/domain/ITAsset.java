@@ -31,6 +31,9 @@ public class ITAsset {
     @Column(nullable = false)
     private String brand;
 
+    @Column(columnDefinition = "TEXT")
+    private String details;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AssetStatus status;
