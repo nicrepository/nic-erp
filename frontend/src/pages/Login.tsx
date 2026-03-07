@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "../contexts/AuthContext" // <-- Importamos o Hook do nosso contexto
 
 export function Login() {
   const [email, setEmail] = useState("")
@@ -11,7 +12,8 @@ export function Login() {
   const [erro, setErro] = useState("")
   const [loading, setLoading] = useState(false)
   
-  const navigate = useNavigate() // O "motorista" da nossa navegação!
+  const navigate = useNavigate()
+  const { login } = useAuth() // <-- Puxamos a função "login" lá do Cérebro (AuthContext)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,8 +29,11 @@ export function Login() {
 
       if (response.ok) {
         const data = await response.json()
-        localStorage.setItem("token", data.token) 
-        // Sucesso! Vamos direto para a tela principal
+        
+        // Em vez de usarmos o localStorage direto, mandamos para o nosso Contexto.
+        // Ele vai salvar o token, decodificar a Role do usuário e deixar na memória global!
+        login(data.token) 
+        
         navigate('/dashboard') 
       } else {
         setErro("Credenciais inválidas. Tente novamente.")

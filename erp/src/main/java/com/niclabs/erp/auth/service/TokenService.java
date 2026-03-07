@@ -3,6 +3,7 @@ package com.niclabs.erp.auth.service;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTCreationException;
+import com.niclabs.erp.auth.domain.Role;
 import com.niclabs.erp.auth.domain.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 @Service
 public class TokenService {
@@ -21,9 +23,15 @@ public class TokenService {
     public String generateToken(User user) {
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
+
+            List<String> roleNames = user.getRoles().stream()
+                    .map(Role::getName)
+                    .collect(java.util.stream.Collectors.toList());
+
             return JWT.create()
                     .withIssuer("nic-erp") // Quem está emitindo
                     .withSubject(user.getEmail()) // De quem é o token
+                    .withClaim("roles", roleNames)
                     .withExpiresAt(genExpirationDate()) // Tempo de expiração
                     .sign(algorithm);
         } catch (JWTCreationException exception) {

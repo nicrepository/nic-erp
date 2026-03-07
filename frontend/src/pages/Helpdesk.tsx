@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useAuth } from "../contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -6,7 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { PlusCircle, MoreHorizontal } from "lucide-react"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
@@ -19,6 +20,8 @@ import {
 } from "@/components/ui/select"
 
 export function Helpdesk() {
+  const { user } = useAuth()
+
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tickets, setTickets] = useState<any[]>([])
   const [title, setTitle] = useState("")
@@ -34,8 +37,26 @@ export function Helpdesk() {
   const fetchTickets = async () => {
     try {
       const token = localStorage.getItem("token")
-      // Vamos usar a rota /my que está mapeada no seu TicketController
-      const response = await fetch('/helpdesk/tickets/my', {
+      
+      // 2. A MÁGICA DO ROTEAMENTO DE FILAS:
+      // O padrão é mostrar apenas os chamados abertos pelo próprio usuário
+      let endpoint = '/helpdesk/tickets/my'
+
+      // Se o usuário for Admin, vê TUDO
+      if (user?.roles?.includes('ROLE_ADMIN')) {
+        endpoint = '/helpdesk/tickets'
+      } 
+      // Se for da TI, vê a fila inteira de Infra/Sistemas/Hardware/Acessos
+      else if (user?.roles?.includes('ROLE_TI')) {
+        endpoint = '/helpdesk/tickets/department/IT'
+      } 
+      // Se for do RH, vê a fila do Recursos Humanos
+      else if (user?.roles?.includes('ROLE_RH')) {
+        endpoint = '/helpdesk/tickets/department/HR'
+      }
+      // Se tivermos Manutenção, Administrativo, basta adicionar os "else if" correspondentes!
+
+      const response = await fetch(endpoint, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -43,7 +64,6 @@ export function Helpdesk() {
       
       if (response.ok) {
         const data = await response.json()
-        // O Spring Boot Page coloca a lista dentro do atributo "content"
         setTickets(data.content || [])
       }
     } catch (error) {
@@ -396,34 +416,32 @@ export function Helpdesk() {
               </div>
             )}
 
-            <DialogFooter>
-              <DialogFooter className="flex justify-between w-full sm:justify-between items-center mt-6">
-                {/* Lado Esquerdo: Botões de Ação de Status */}
-                <div className="flex gap-2">
-                  {selectedTicket?.status === 'OPEN' && (
-                    <Button 
-                      variant="secondary" 
-                      onClick={() => handleUpdateStatus(selectedTicket.id, 'IN_PROGRESS')}
-                    >
-                      Iniciar Atendimento
-                    </Button>
-                  )}
-                  
-                {selectedTicket?.status === 'IN_PROGRESS' && (
+            <DialogFooter className="flex justify-between w-full sm:justify-between items-center mt-6">
+              {/* Lado Esquerdo: Botões de Ação de Status */}
+              <div className="flex gap-2">
+                {selectedTicket?.status === 'OPEN' && (
                   <Button 
-                    className="bg-green-600 text-white hover:bg-green-700" 
-                    onClick={handleResolveTicket}
+                    variant="secondary" 
+                    onClick={() => handleUpdateStatus(selectedTicket.id, 'IN_PROGRESS')}
                   >
-                    Marcar como Resolvido
+                    Iniciar Atendimento
                   </Button>
                 )}
-                </div>
                 
-                {/* Lado Direito: Botão Fechar */}
-                <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>
-                  Fechar
+              {selectedTicket?.status === 'IN_PROGRESS' && (
+                <Button 
+                  className="bg-green-600 text-white hover:bg-green-700" 
+                  onClick={handleResolveTicket}
+                >
+                  Marcar como Resolvido
                 </Button>
-              </DialogFooter>
+              )}
+              </div>
+              
+              {/* Lado Direito: Botão Fechar */}
+              <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>
+                Fechar
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
