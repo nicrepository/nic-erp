@@ -54,6 +54,15 @@ public class InventoryController {
         return ResponseEntity.ok(stockItemService.findAllItems());
     }
 
+    @PutMapping("/administrative/items/{id}")
+    public ResponseEntity<StockItem> updateStockItem(
+            @PathVariable UUID id,
+            @RequestBody StockItemDTO dto) {
+
+        StockItem updatedItem = stockItemService.updateItem(id, dto);
+        return ResponseEntity.ok(updatedItem);
+    }
+
     // ==========================================
     // ESTOQUE DE TI
     // ==========================================

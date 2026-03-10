@@ -77,4 +77,16 @@ public class StockItemService {
     public java.util.List<StockItem> findAllItems() {
         return itemRepository.findAll();
     }
+
+    @Transactional
+    public StockItem updateItem(UUID itemId, StockItemDTO dto) {
+        StockItem item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Item não encontrado no estoque"));
+
+        item.setName(dto.name());
+        item.setCategory(dto.category());
+        item.setMinimumStock(dto.minimumStock());
+
+        return itemRepository.save(item);
+    }
 }

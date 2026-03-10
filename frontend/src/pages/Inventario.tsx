@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2 } from "lucide-react"
+import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +42,19 @@ export function Inventario() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<any>(null)
   const [selectedUserId, setSelectedUserId] = useState("")
+
+  // --- ESTADOS: ESTOQUE ADMINISTRATIVO ---
+  const [stockItems, setStockItems] = useState<any[]>([])
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false)
+  const [isManageStockModalOpen, setIsManageStockModalOpen] = useState(false)
+  const [selectedStockItem, setSelectedStockItem] = useState<any>(null)
+  const [editStockData, setEditStockData] = useState<any>({})
+  const [movementQuantity, setMovementQuantity] = useState<number | "">("")
+  
+  // Campos do formulário (StockItemDTO)
+  const [itemName, setItemName] = useState("")
+  const [itemCategory, setItemCategory] = useState("")
+  const [itemMinStock, setItemMinStock] = useState<number | "">("")
 
   // Busca a lista de equipamentos cadastrados
   const fetchITAssets = async () => {
@@ -188,6 +201,117 @@ export function Inventario() {
         fetchITAssets() // Atualiza a tabela lá atrás
       } else {
         alert("Erro ao atualizar o equipamento.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  // Busca a lista de itens de estoque
+  const fetchStockItems = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/inventory/administrative/items', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setStockItems(data)
+      }
+    } catch (error) {
+      console.error("Erro ao buscar estoque:", error)
+    }
+  }
+
+  // ATUALIZE O SEU USEEFFECT! Adicione a chamada do estoque nele:
+  useEffect(() => {
+    fetchITAssets()
+    fetchUsers()
+    fetchStockItems() // <-- Adicione esta linha!
+  }, [])
+
+  // Salva um novo item de estoque no banco
+  const handleCreateStockItem = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/inventory/administrative/items', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          name: itemName, 
+          category: itemCategory, 
+          minimumStock: Number(itemMinStock) 
+        })
+      })
+
+      if (response.ok) {
+        setItemName("")
+        setItemCategory("")
+        setItemMinStock("")
+        setIsStockModalOpen(false)
+        fetchStockItems() // Atualiza a tabela
+      } else {
+        alert("Erro ao cadastrar item de estoque.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  // Função para salvar edições (Nome, Categoria, Estoque Mínimo)
+  const handleUpdateStockItem = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/inventory/administrative/items/${selectedStockItem.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: editStockData.name,
+          category: editStockData.category,
+          minimumStock: Number(editStockData.minimumStock)
+        })
+      })
+
+      if (response.ok) {
+        fetchStockItems() // Atualiza a tabela no fundo
+        setIsManageStockModalOpen(false) // Opcional: fechar o modal após editar
+      } else {
+        alert("Erro ao atualizar o material.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  // Função central para Entrada e Saída de Estoque
+  const handleStockMovement = async (type: 'add' | 'remove') => {
+    if (!movementQuantity || Number(movementQuantity) <= 0) {
+      alert("Digite uma quantidade válida maior que zero.")
+      return
+    }
+
+    try {
+      const token = localStorage.getItem("token")
+      // Usa a rota POST que você criou no InventoryController passando a 'quantity'
+      const response = await fetch(`/inventory/administrative/items/${selectedStockItem.id}/${type}?quantity=${movementQuantity}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        setMovementQuantity("") // Limpa o campo numérico
+        fetchStockItems() // Atualiza a tabela
+        setIsManageStockModalOpen(false) // Fecha o modal
+      } else {
+        const errorMsg = await response.text()
+        alert(`Erro: ${errorMsg}`) // Exibe o erro do seu back-end (ex: Estoque insuficiente)
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -500,13 +624,193 @@ export function Inventario() {
         </TabsContent>
         
         {/* CONTEÚDO: ESTOQUE */}
-        <TabsContent value="stock" className="mt-2">
-          <div className="rounded-md border bg-white p-12 text-center shadow-sm">
-            <h3 className="text-lg font-medium text-zinc-900 mb-2">Estoque Administrativo</h3>
-            <p className="text-sm text-zinc-500">
-              A tabela de materiais consumíveis (Entradas e Saídas) será renderizada aqui.
-            </p>
+        <TabsContent value="stock" className="mt-4 space-y-4">
+          
+          {/* Cabeçalho da Aba */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium text-zinc-900">Materiais de Consumo</h3>
+            
+            <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 bg-zinc-900 text-zinc-50 hover:bg-zinc-800">
+                  <PlusCircle className="h-4 w-4" /> Novo Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Cadastrar Material</DialogTitle>
+                  <DialogDescription>Adicione um novo item de consumo para controle de quantidades.</DialogDescription>
+                </DialogHeader>
+                
+                <form onSubmit={handleCreateStockItem}>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="itemName">Nome do Item</Label>
+                      <Input id="itemName" placeholder="Ex: Toner Brother TN-1060" value={itemName} onChange={(e) => setItemName(e.target.value)} required />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="itemCategory">Categoria</Label>
+                        <Input id="itemCategory" placeholder="Ex: Impressão, Cabeamento" value={itemCategory} onChange={(e) => setItemCategory(e.target.value)} required />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="itemMinStock">Estoque Mínimo</Label>
+                        <Input id="itemMinStock" type="number" min="0" placeholder="Ex: 5" value={itemMinStock} onChange={(e) => setItemMinStock(Number(e.target.value))} required />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsStockModalOpen(false)}>Cancelar</Button>
+                    <Button type="submit">Salvar Item</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
+
+          {/* Tabela de Estoque */}
+          <div className="rounded-md border bg-white shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead className="text-center">Qtd. Atual</TableHead>
+                  <TableHead className="text-center">Estoque Mínimo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Movimentação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stockItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-zinc-500">
+                      Nenhum material cadastrado no estoque.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  stockItems.map((item) => {
+                    // Lógica para saber se o estoque está baixo
+                    const isLowStock = (item.quantity || 0) <= item.minimumStock;
+                    
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium text-zinc-900">{item.name}</TableCell>
+                        <TableCell className="text-zinc-600">{item.category}</TableCell>
+                        <TableCell className="text-center font-semibold text-zinc-900">{item.quantity || 0}</TableCell>
+                        <TableCell className="text-center text-zinc-500">{item.minimumStock}</TableCell>
+                        <TableCell>
+                          {isLowStock ? (
+                            <Badge variant="destructive" className="gap-1 bg-red-50 text-red-700 border-red-200 hover:bg-red-50">
+                              <AlertTriangle className="h-3 w-3" /> Estoque Baixo
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              Adequado
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-zinc-500 hover:text-zinc-900"
+                            onClick={() => {
+                              setSelectedStockItem(item)
+                              setEditStockData(item) // Carrega os dados para o rascunho
+                              setMovementQuantity("") // Zera o campo de movimentação
+                              setIsManageStockModalOpen(true)
+                            }}
+                          >
+                            <Settings className="h-4 w-4 mr-2" /> Gerenciar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {/* --- MODAL DE GERENCIAMENTO DE ESTOQUE --- */}
+          <Dialog open={isManageStockModalOpen} onOpenChange={setIsManageStockModalOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Gerenciar Material</DialogTitle>
+                <DialogDescription>
+                  Edite os dados do item ou registre entradas e saídas no estoque.
+                </DialogDescription>
+              </DialogHeader>
+
+              {selectedStockItem && (
+                <div className="space-y-6 py-4">
+                  
+                  {/* SESSÃO 1: EDIÇÃO DE DADOS */}
+                  <div className="space-y-4 bg-zinc-50 p-4 rounded-lg border border-zinc-100">
+                    <h4 className="text-sm font-semibold text-zinc-900">Dados Básicos</h4>
+                    <div className="grid gap-4">
+                      <div className="grid gap-2">
+                        <Label>Nome do Item</Label>
+                        <Input value={editStockData.name} onChange={(e) => setEditStockData({...editStockData, name: e.target.value})} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label>Categoria</Label>
+                          <Input value={editStockData.category} onChange={(e) => setEditStockData({...editStockData, category: e.target.value})} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Estoque Mínimo</Label>
+                          <Input type="number" min="0" value={editStockData.minimumStock} onChange={(e) => setEditStockData({...editStockData, minimumStock: Number(e.target.value)})} />
+                        </div>
+                      </div>
+                      <Button variant="secondary" className="w-full mt-2" onClick={handleUpdateStockItem}>
+                        Salvar Alterações
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* SESSÃO 2: MOVIMENTAÇÃO DE ESTOQUE */}
+                  <div className="space-y-4 p-4 rounded-lg border border-zinc-200">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-sm font-semibold text-zinc-900">Movimentação de Estoque</h4>
+                      <div className="text-sm text-zinc-500">
+                        Qtd. Atual: <span className="font-bold text-zinc-900">{selectedStockItem.quantity || 0}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid gap-2">
+                      <Label>Quantidade para Movimentar</Label>
+                      <Input 
+                        type="number" 
+                        min="1" 
+                        placeholder="Ex: 10" 
+                        value={movementQuantity} 
+                        onChange={(e) => setMovementQuantity(Number(e.target.value))} 
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <Button 
+                        variant="outline" 
+                        className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
+                        onClick={() => handleStockMovement('remove')}
+                      >
+                        Registrar Saída (-)
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="bg-green-50 text-green-600 border-green-200 hover:bg-green-100 hover:text-green-700"
+                        onClick={() => handleStockMovement('add')}
+                      >
+                        Registrar Entrada (+)
+                      </Button>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </div>
