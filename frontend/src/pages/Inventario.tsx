@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings } from "lucide-react"
+import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,7 +27,7 @@ export function Inventario() {
   // Estado para controlar o modal de Detalhes
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   
-  // NOVOS ESTADOS PARA A EDIÇÃO:
+  // ESTADOS PARA A EDIÇÃO:
   const [isEditingAsset, setIsEditingAsset] = useState(false)
   const [editAssetData, setEditAssetData] = useState<any>({})
   
@@ -37,7 +37,7 @@ export function Inventario() {
   const [serialNumber, setSerialNumber] = useState("")
   const [assetTag, setAssetTag] = useState("")
 
-  // --- NOVOS ESTADOS: ATRIBUIÇÃO DE EQUIPAMENTOS ---
+  // --- ESTADOS: ATRIBUIÇÃO DE EQUIPAMENTOS ---
   const [users, setUsers] = useState<any[]>([])
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<any>(null)
@@ -55,6 +55,10 @@ export function Inventario() {
   const [itemName, setItemName] = useState("")
   const [itemCategory, setItemCategory] = useState("")
   const [itemMinStock, setItemMinStock] = useState<number | "">("")
+
+  // --- NOVOS ESTADOS: FILTROS DE BUSCA ---
+  const [searchItAsset, setSearchItAsset] = useState("")
+  const [searchStockItem, setSearchStockItem] = useState("")
 
   // Busca a lista de equipamentos cadastrados
   const fetchITAssets = async () => {
@@ -318,6 +322,31 @@ export function Inventario() {
     }
   }
 
+  // --- LÓGICA DE FILTRAGEM (Executa em tempo real) ---
+  
+  // Filtra Ativos de TI (Busca por Patrimônio, Serial, Marca, Modelo ou Nome do Responsável)
+  const filteredItAssets = itAssets.filter(asset => {
+    const searchTerm = searchItAsset.toLowerCase()
+    const assignedUser = asset.assignedTo ? getAssignedUserName(asset.assignedTo).toLowerCase() : ""
+    
+    return (
+      (asset.assetTag || "").toLowerCase().includes(searchTerm) ||
+      (asset.serialNumber || "").toLowerCase().includes(searchTerm) ||
+      (asset.brand || "").toLowerCase().includes(searchTerm) ||
+      (asset.model || "").toLowerCase().includes(searchTerm) ||
+      assignedUser.includes(searchTerm)
+    )
+  })
+
+  // Filtra Estoque Administrativo
+  const filteredStockItems = stockItems.filter(item => {
+    const searchTerm = searchStockItem.toLowerCase()
+    return (
+      (item.name || "").toLowerCase().includes(searchTerm) ||
+      (item.category || "").toLowerCase().includes(searchTerm)
+    )
+  })
+
   return (
     <div className="space-y-6">
       {/* Cabeçalho da Página */}
@@ -340,64 +369,76 @@ export function Inventario() {
             <Package className="h-4 w-4" /> Estoque Administrativo
           </TabsTrigger>
         </TabsList>
-        
-        {/* CONTEÚDO: ATIVOS DE TI */}
+
         <TabsContent value="it-assets" className="mt-4 space-y-4">
-          
-          {/* Cabeçalho da Aba com Botão de Novo */}
+          {/* Cabeçalho da Aba de TI com Busca e Botão Novo */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-zinc-900">Equipamentos e Hardware</h3>
             
-            <Dialog open={isAssetModalOpen} onOpenChange={setIsAssetModalOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-zinc-900 text-zinc-50 hover:bg-zinc-800">
-                  <PlusCircle className="h-4 w-4" /> Cadastrar Equipamento
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Novo Ativo de TI</DialogTitle>
-                  <DialogDescription>Insira os dados do equipamento para controle de patrimônio.</DialogDescription>
-                </DialogHeader>
-                
-                <form onSubmit={handleCreateAsset}>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="brand">Marca</Label>
-                        <Input id="brand" placeholder="Ex: Dell, Ubiquiti" value={brand} onChange={(e) => setBrand(e.target.value)} required />
+            <div className="flex items-center gap-3">
+              {/* BARRA DE BUSCA DE TI */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
+                <Input
+                  type="text"
+                  placeholder="Buscar patrimônio, usuário..."
+                  className="pl-8 w-[280px]"
+                  value={searchItAsset}
+                  onChange={(e) => setSearchItAsset(e.target.value)}
+                />
+              </div>
+
+              <Dialog open={isAssetModalOpen} onOpenChange={setIsAssetModalOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2 bg-zinc-900 text-zinc-50 hover:bg-zinc-800">
+                    <PlusCircle className="h-4 w-4" /> Cadastrar Equipamento
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Novo Ativo de TI</DialogTitle>
+                    <DialogDescription>Insira os dados do equipamento para controle de patrimônio.</DialogDescription>
+                  </DialogHeader>
+                  
+                  <form onSubmit={handleCreateAsset}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="brand">Marca</Label>
+                          <Input id="brand" placeholder="Ex: Dell, Ubiquiti" value={brand} onChange={(e) => setBrand(e.target.value)} required />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="model">Modelo</Label>
+                          <Input id="model" placeholder="Ex: Latitude 5420" value={model} onChange={(e) => setModel(e.target.value)} required />
+                        </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="model">Modelo</Label>
-                        <Input id="model" placeholder="Ex: Latitude 5420" value={model} onChange={(e) => setModel(e.target.value)} required />
+                        <Label htmlFor="serialNumber">Número de Série (S/N)</Label>
+                        <Input id="serialNumber" placeholder="Ex: 5CD23498XX" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} required />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="assetTag">Etiqueta de Patrimônio</Label>
+                        <Input id="assetTag" placeholder="Ex: TLP-001" value={assetTag} onChange={(e) => setAssetTag(e.target.value)} required />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="details">Especificações / Observações</Label>
+                        <Textarea 
+                          id="details" 
+                          placeholder="Ex: Processador i5, 16GB RAM, SSD 512GB, com capa protetora..." 
+                          className="min-h-[80px]"
+                          value={details} 
+                          onChange={(e) => setDetails(e.target.value)} 
+                        />
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="serialNumber">Número de Série (S/N)</Label>
-                      <Input id="serialNumber" placeholder="Ex: 5CD23498XX" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} required />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="assetTag">Etiqueta de Patrimônio</Label>
-                      <Input id="assetTag" placeholder="Ex: TLP-001" value={assetTag} onChange={(e) => setAssetTag(e.target.value)} required />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="details">Especificações / Observações</Label>
-                      <Textarea 
-                        id="details" 
-                        placeholder="Ex: Processador i5, 16GB RAM, SSD 512GB, com capa protetora..." 
-                        className="min-h-[80px]"
-                        value={details} 
-                        onChange={(e) => setDetails(e.target.value)} 
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsAssetModalOpen(false)}>Cancelar</Button>
-                    <Button type="submit">Salvar Equipamento</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsAssetModalOpen(false)}>Cancelar</Button>
+                      <Button type="submit">Salvar Equipamento</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           {/* Tabela de Listagem */}
@@ -414,14 +455,14 @@ export function Inventario() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {itAssets.length === 0 ? (
+                {filteredItAssets.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-zinc-500">
                       Nenhum equipamento cadastrado ainda.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  itAssets.map((asset) => (
+                  filteredItAssets.map((asset) => (
                     <TableRow key={asset.id}>
                       <TableCell className="font-medium text-zinc-900">{asset.assetTag}</TableCell>
                       <TableCell className="text-zinc-700">{asset.brand} - {asset.model}</TableCell>
@@ -626,46 +667,60 @@ export function Inventario() {
         {/* CONTEÚDO: ESTOQUE */}
         <TabsContent value="stock" className="mt-4 space-y-4">
           
-          {/* Cabeçalho da Aba */}
+          {/* Cabeçalho da Aba de Estoque com Busca e Botão Novo */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-zinc-900">Materiais de Consumo</h3>
             
-            <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-zinc-900 text-zinc-50 hover:bg-zinc-800">
-                  <PlusCircle className="h-4 w-4" /> Novo Item
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Cadastrar Material</DialogTitle>
-                  <DialogDescription>Adicione um novo item de consumo para controle de quantidades.</DialogDescription>
-                </DialogHeader>
-                
-                <form onSubmit={handleCreateStockItem}>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="itemName">Nome do Item</Label>
-                      <Input id="itemName" placeholder="Ex: Toner Brother TN-1060" value={itemName} onChange={(e) => setItemName(e.target.value)} required />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center gap-3">
+              {/* BARRA DE BUSCA DO ESTOQUE */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
+                <Input
+                  type="text"
+                  placeholder="Buscar material ou categoria..."
+                  className="pl-8 w-[280px]"
+                  value={searchStockItem}
+                  onChange={(e) => setSearchStockItem(e.target.value)}
+                />
+              </div>
+
+              <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2 bg-zinc-900 text-zinc-50 hover:bg-zinc-800">
+                    <PlusCircle className="h-4 w-4" /> Novo Item
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Cadastrar Material</DialogTitle>
+                    <DialogDescription>Adicione um novo item de consumo para controle de quantidades.</DialogDescription>
+                  </DialogHeader>
+                  
+                  <form onSubmit={handleCreateStockItem}>
+                    <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
-                        <Label htmlFor="itemCategory">Categoria</Label>
-                        <Input id="itemCategory" placeholder="Ex: Impressão, Cabeamento" value={itemCategory} onChange={(e) => setItemCategory(e.target.value)} required />
+                        <Label htmlFor="itemName">Nome do Item</Label>
+                        <Input id="itemName" placeholder="Ex: Toner Brother TN-1060" value={itemName} onChange={(e) => setItemName(e.target.value)} required />
                       </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="itemMinStock">Estoque Mínimo</Label>
-                        <Input id="itemMinStock" type="number" min="0" placeholder="Ex: 5" value={itemMinStock} onChange={(e) => setItemMinStock(Number(e.target.value))} required />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="itemCategory">Categoria</Label>
+                          <Input id="itemCategory" placeholder="Ex: Impressão, Cabeamento" value={itemCategory} onChange={(e) => setItemCategory(e.target.value)} required />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="itemMinStock">Estoque Mínimo</Label>
+                          <Input id="itemMinStock" type="number" min="0" placeholder="Ex: 5" value={itemMinStock} onChange={(e) => setItemMinStock(Number(e.target.value))} required />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsStockModalOpen(false)}>Cancelar</Button>
-                    <Button type="submit">Salvar Item</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsStockModalOpen(false)}>Cancelar</Button>
+                      <Button type="submit">Salvar Item</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           {/* Tabela de Estoque */}
@@ -682,14 +737,14 @@ export function Inventario() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stockItems.length === 0 ? (
+                {filteredStockItems.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-zinc-500">
                       Nenhum material cadastrado no estoque.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  stockItems.map((item) => {
+                  filteredStockItems.map((item) => {
                     // Lógica para saber se o estoque está baixo
                     const isLowStock = (item.quantity || 0) <= item.minimumStock;
                     
