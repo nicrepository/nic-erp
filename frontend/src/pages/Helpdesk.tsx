@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { PlusCircle, MoreHorizontal } from "lucide-react"
+import { PlusCircle, MoreHorizontal, Search } from "lucide-react" // <-- 1. Adicionado ícone de Search
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -33,28 +33,23 @@ export function Helpdesk() {
   const [comments, setComments] = useState<any[]>([])
   const [newComment, setNewComment] = useState("")
 
-  // 2. A função que busca os chamados lá no Spring Boot
+  // <-- 2. Novo estado para a barra de busca
+  const [searchTicket, setSearchTicket] = useState("")
+
+  // A função que busca os chamados lá no Spring Boot
   const fetchTickets = async () => {
     try {
       const token = localStorage.getItem("token")
       
-      // 2. A MÁGICA DO ROTEAMENTO DE FILAS:
-      // O padrão é mostrar apenas os chamados abertos pelo próprio usuário
       let endpoint = '/helpdesk/tickets/my'
 
-      // Se o usuário for Admin, vê TUDO
       if (user?.roles?.includes('ROLE_ADMIN')) {
         endpoint = '/helpdesk/tickets'
-      } 
-      // Se for da TI, vê a fila inteira de Infra/Sistemas/Hardware/Acessos
-      else if (user?.roles?.includes('ROLE_TI')) {
+      } else if (user?.roles?.includes('ROLE_TI')) {
         endpoint = '/helpdesk/tickets/department/IT'
-      } 
-      // Se for do RH, vê a fila do Recursos Humanos
-      else if (user?.roles?.includes('ROLE_RH')) {
+      } else if (user?.roles?.includes('ROLE_RH')) {
         endpoint = '/helpdesk/tickets/department/HR'
       }
-      // Se tivermos Manutenção, Administrativo, basta adicionar os "else if" correspondentes!
 
       const response = await fetch(endpoint, {
         headers: {
@@ -99,13 +94,12 @@ export function Helpdesk() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        // ATENÇÃO: Verifique se a sua classe TicketCommentRequestDTO no Java espera a chave "content" ou outro nome!
         body: JSON.stringify({ content: newComment })
       })
 
       if (response.ok) {
-        setNewComment("") // Limpa o campo de texto
-        fetchComments(selectedTicket.id) // Atualiza a lista de comentários na hora!
+        setNewComment("") 
+        fetchComments(selectedTicket.id) 
       } else {
         alert("Erro ao enviar comentário.")
       }
@@ -116,19 +110,13 @@ export function Helpdesk() {
 
   // Função que obriga a nota de resolução antes de fechar o chamado
   const handleResolveTicket = async () => {
-    // Verifica se a caixa de texto está vazia
     if (!newComment.trim()) {
       alert("Atenção: É obrigatório detalhar o que foi feito na caixa de comentários antes de marcar como resolvido.");
-      // Coloca o cursor piscando na caixa de texto para o usuário
       document.getElementById("nota-resolucao")?.focus();
-      return; // Para a execução aqui, não deixa fechar!
+      return; 
     }
 
-    // Se tem texto, a mágica acontece em duas etapas:
-    // 1. Dispara a função que já temos de salvar o comentário
     await handleAddComment();
-    
-    // 2. Dispara a mudança de status para Resolvido
     await handleUpdateStatus(selectedTicket.id, 'RESOLVED');
   }
 
@@ -142,8 +130,7 @@ export function Helpdesk() {
       })
       
       if (response.ok) {
-        fetchTickets() // Atualiza a tabela imediatamente
-        // Opcional: alert("Chamado atribuído a você com sucesso!")
+        fetchTickets() 
       } else {
         alert("Erro ao atribuir chamado. Verifique suas permissões.")
       }
@@ -152,7 +139,7 @@ export function Helpdesk() {
     }
   }
 
-  // Atualiza o status do chamado (Em Andamento, Resolvido, Fechado)
+  // Atualiza o status do chamado
   const handleUpdateStatus = async (ticketId: string, newStatus: string) => {
     try {
       const token = localStorage.getItem("token")
@@ -162,9 +149,8 @@ export function Helpdesk() {
       })
       
       if (response.ok) {
-        fetchTickets() // Atualiza a tabela
+        fetchTickets() 
         
-        // Se o modal estiver aberto, atualiza o status na tela do modal também sem precisar fechar
         if (selectedTicket && selectedTicket.id === ticketId) {
           setSelectedTicket({ ...selectedTicket, status: newStatus })
         }
@@ -176,16 +162,14 @@ export function Helpdesk() {
     }
   }
 
-  // O gatilho: Toda vez que o usuário abrir o modal de detalhes, o React busca os comentários daquele chamado
   useEffect(() => {
     if (isDetailModalOpen && selectedTicket) {
       fetchComments(selectedTicket.id)
     } else {
-      setComments([]) // Limpa a memória ao fechar o modal
+      setComments([]) 
     }
   }, [isDetailModalOpen, selectedTicket])
 
-  // 3. O useEffect dispara a busca assim que você entra na tela do Helpdesk
   useEffect(() => {
     fetchTickets()
   }, [])
@@ -237,14 +221,11 @@ export function Helpdesk() {
       })
 
       if (response.ok) {
-        // Removemos o alert() para ficar uma experiência mais fluida
         setTitle("")
         setDepartment("")
         setPriority("")
         setDescription("")
         setIsModalOpen(false)
-        
-        // 4. A MÁGICA: Assim que salva no banco, manda o React buscar a lista atualizada!
         fetchTickets()
       } else {
         alert("Erro ao criar chamado. Verifique se os dados estão corretos.")
@@ -254,6 +235,28 @@ export function Helpdesk() {
     }
   }
 
+  // <-- 3. Lógica de Filtragem Segura e Inteligente
+  const filteredTickets = tickets.filter(ticket => {
+    const searchTerm = searchTicket.toLowerCase()
+    const translatedDept = translateDepartment(ticket.department).toLowerCase()
+    const translatedPriority = translatePriority(ticket.priority).toLowerCase()
+    
+    // Traduz o status para a busca funcionar em português
+    const statusText = ticket.status === 'OPEN' ? 'aberto' :
+                       ticket.status === 'IN_PROGRESS' ? 'em andamento' :
+                       ticket.status === 'RESOLVED' ? 'resolvido' :
+                       ticket.status === 'CLOSED' ? 'fechado' : (ticket.status || "").toLowerCase();
+
+    return (
+      (ticket.title || "").toLowerCase().includes(searchTerm) ||
+      (ticket.description || "").toLowerCase().includes(searchTerm) ||
+      (ticket.id || "").toLowerCase().includes(searchTerm) ||
+      translatedDept.includes(searchTerm) ||
+      translatedPriority.includes(searchTerm) ||
+      statusText.includes(searchTerm)
+    )
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -262,65 +265,79 @@ export function Helpdesk() {
           <p className="text-sm text-zinc-500">Gerencie e acompanhe os chamados de suporte da empresa.</p>
         </div>
 
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2 bg-zinc-900 text-zinc-50 hover:bg-zinc-800">
-              <PlusCircle className="h-4 w-4" /> Novo Chamado
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Abrir Novo Chamado</DialogTitle>
-              <DialogDescription>Descreva o problema detalhadamente. Um técnico será atribuído em breve.</DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleCreateTicket}>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="title">Título do Problema</Label>
-                  <Input id="title" placeholder="Ex: Erro no sistema" value={title} onChange={(e) => setTitle(e.target.value)} required />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
+        {/* <-- 4. Barra de busca alinhada com o botão Novo Chamado */}
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
+            <Input
+              type="text"
+              placeholder="Buscar título, ID, status..."
+              className="pl-8 w-[280px]"
+              value={searchTicket}
+              onChange={(e) => setSearchTicket(e.target.value)}
+            />
+          </div>
+
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2 bg-zinc-900 text-zinc-50 hover:bg-zinc-800">
+                <PlusCircle className="h-4 w-4" /> Novo Chamado
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Abrir Novo Chamado</DialogTitle>
+                <DialogDescription>Descreva o problema detalhadamente. Um técnico será atribuído em breve.</DialogDescription>
+              </DialogHeader>
+              
+              <form onSubmit={handleCreateTicket}>
+                <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="department">Departamento</Label>
-                      <Select value={department} onValueChange={setDepartment} required>
-                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="IT">Tecnologia da Informação (TI)</SelectItem>
-                          <SelectItem value="ADMIN">Administrativo / Financeiro</SelectItem>
-                          <SelectItem value="HR">Recursos Humanos</SelectItem>
-                          <SelectItem value="MAINTENANCE">Manutenção Predial</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <Label htmlFor="title">Título do Problema</Label>
+                    <Input id="title" placeholder="Ex: Erro no sistema" value={title} onChange={(e) => setTitle(e.target.value)} required />
                   </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="department">Departamento</Label>
+                        <Select value={department} onValueChange={setDepartment} required>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="IT">Tecnologia da Informação (TI)</SelectItem>
+                            <SelectItem value="ADMIN">Administrativo / Financeiro</SelectItem>
+                            <SelectItem value="HR">Recursos Humanos</SelectItem>
+                            <SelectItem value="MAINTENANCE">Manutenção Predial</SelectItem>
+                          </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="priority">Prioridade</Label>
+                        <Select value={priority} onValueChange={setPriority} required>
+                          <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="LOW">Baixa</SelectItem>
+                            <SelectItem value="MEDIUM">Média</SelectItem>
+                            <SelectItem value="HIGH">Alta</SelectItem>
+                            <SelectItem value="URGENT">Urgente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                    </div>
+                  </div>
+
                   <div className="grid gap-2">
-                    <Label htmlFor="priority">Prioridade</Label>
-                      <Select value={priority} onValueChange={setPriority} required>
-                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="LOW">Baixa</SelectItem>
-                          <SelectItem value="MEDIUM">Média</SelectItem>
-                          <SelectItem value="HIGH">Alta</SelectItem>
-                          <SelectItem value="URGENT">Urgente</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <Label htmlFor="description">Descrição Detalhada</Label>
+                    <Textarea id="description" placeholder="Descreva o que está acontecendo..." className="min-h-[100px]" value={description} onChange={(e) => setDescription(e.target.value)} required />
                   </div>
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="description">Descrição Detalhada</Label>
-                  <Textarea id="description" placeholder="Descreva o que está acontecendo..." className="min-h-[100px]" value={description} onChange={(e) => setDescription(e.target.value)} required />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                <Button type="submit">Criar Chamado</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                  <Button type="submit">Criar Chamado</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div> {/* Fecha a div do flex de busca + botão */}
 
         {/* --- INÍCIO DO MODAL DE DETALHES --- */}
         <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
@@ -384,10 +401,8 @@ export function Helpdesk() {
                     ) : (
                       comments.map((comment, index) => (
                         <div key={index} className="bg-zinc-50 p-3 rounded-md border text-sm text-zinc-800">
-                          {/* No futuro podemos colocar o nome de quem comentou e a data aqui! */}
                           <div className="font-semibold text-xs text-zinc-500 mb-1">Analista / Solicitante</div>
                           <div className="whitespace-pre-wrap">{comment.content}</div> 
-                          {/* Lembrete: ajuste comment.content para o nome do campo de texto que o seu Java devolve */}
                         </div>
                       ))
                     )}
@@ -405,7 +420,7 @@ export function Helpdesk() {
                     <Button 
                       className="h-auto bg-zinc-900 text-zinc-50" 
                       onClick={handleAddComment}
-                      disabled={!newComment.trim()} // Desabilita o botão se o campo estiver vazio
+                      disabled={!newComment.trim()}
                     >
                       Enviar
                     </Button>
@@ -461,29 +476,22 @@ export function Helpdesk() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* 5. Fazemos o loop na lista real que veio do banco */}
-            {tickets.length === 0 ? (
+            {/* <-- 5. Trocado de 'tickets' para 'filteredTickets' */}
+            {filteredTickets.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-zinc-500">
                   Nenhum chamado encontrado.
                 </TableCell>
               </TableRow>
             ) : (
-              tickets.map((ticket) => (
+              filteredTickets.map((ticket) => (
                 <TableRow key={ticket.id}>
-                  {/* Como o seu ID é um UUID gigante, vamos mostrar só os 8 primeiros caracteres para ficar elegante */}
                   <TableCell className="font-medium text-zinc-900 uppercase">
                     {ticket.id ? ticket.id.substring(0, 8) : 'TCK-NEW'}
                   </TableCell>
                   <TableCell className="text-zinc-700">{ticket.title}</TableCell>
-                  
-                  {/* Aplicando o tradutor de Departamento */}
                   <TableCell className="text-zinc-600">{translateDepartment(ticket.department)}</TableCell>
-                  
-                  {/* Aplicando as cores do Status */}
                   <TableCell>{getStatusBadge(ticket.status)}</TableCell>
-                  
-                  {/* Aplicando o tradutor de Prioridade */}
                   <TableCell className="text-zinc-600">{translatePriority(ticket.priority)}</TableCell>
                   
                   <TableCell className="text-right">

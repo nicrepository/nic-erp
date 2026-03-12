@@ -27,18 +27,21 @@ public class InventoryController {
     // ESTOQUE ADMINISTRATIVO
     // ==========================================
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
     @PostMapping("/administrative/items")
     public ResponseEntity<StockItem> createStockItem(@RequestBody StockItemDTO dto) {
         StockItem created = stockItemService.createItem(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
     @PostMapping("/administrative/items/{id}/add")
     public ResponseEntity<String> addStock(@PathVariable UUID id, @RequestParam Integer quantity) {
         stockItemService.addStock(id, quantity);
         return ResponseEntity.ok("Entrada de estoque registrada com sucesso!");
     }
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
     @PostMapping("/administrative/items/{id}/remove")
     public ResponseEntity<String> removeStock(@PathVariable UUID id, @RequestParam Integer quantity) {
         try {
@@ -49,11 +52,13 @@ public class InventoryController {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
     @GetMapping("/administrative/items")
     public ResponseEntity<List<StockItem>> getAllStockItems() {
         return ResponseEntity.ok(stockItemService.findAllItems());
     }
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
     @PutMapping("/administrative/items/{id}")
     public ResponseEntity<StockItem> updateStockItem(
             @PathVariable UUID id,
@@ -67,19 +72,21 @@ public class InventoryController {
     // ESTOQUE DE TI
     // ==========================================
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TI')")
     @PostMapping("/it/assets")
     public ResponseEntity<ITAsset> registerITAsset(@RequestBody ITAssetDTO dto) {
         ITAsset created = itAssetService.registerAsset(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TI')")
     @GetMapping("/it/assets")
     public ResponseEntity<List<ITAsset>> getAllITAssets() {
         return ResponseEntity.ok(itAssetService.findAllAssets());
     }
 
     // Veja a anotação @PreAuthorize blindando a rota!
-    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TI')")
     @PutMapping("/it/assets/{id}/assign")
     public ResponseEntity<ITAsset> assignAsset(
             @PathVariable UUID id,
