@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search } from "lucide-react"
+import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search, History, ArrowDownRight, ArrowUpRight } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,6 +67,10 @@ export function Inventario() {
   // --- NOVOS ESTADOS: FILTROS DE BUSCA ---
   const [searchItAsset, setSearchItAsset] = useState("")
   const [searchStockItem, setSearchStockItem] = useState("")
+
+  // --- NOVO ESTADO: AUDITORIA ---
+  const [movements, setMovements] = useState<any[]>([])
+  const [searchMovement, setSearchMovement] = useState("")
 
   // Busca a lista de equipamentos cadastrados
   const fetchITAssets = async () => {
@@ -235,11 +239,29 @@ export function Inventario() {
     }
   }
 
-  // ATUALIZE O SEU USEEFFECT! Adicione a chamada do estoque nele:
+  // Busca o histórico de movimentações
+  const fetchMovements = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/inventory/administrative/movements', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        // Ordena da mais recente para a mais antiga
+        const sortedData = data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        setMovements(sortedData)
+      }
+    } catch (error) {
+      console.error("Erro ao buscar movimentações:", error)
+    }
+  }
+
   useEffect(() => {
     fetchITAssets()
     fetchUsers()
-    fetchStockItems() // <-- Adicione esta linha!
+    fetchStockItems()
+    fetchMovements()
   }, [])
 
   // Salva um novo item de estoque no banco
@@ -380,7 +402,7 @@ export function Inventario() {
 
       {/* Estrutura de Abas */}
       <Tabs defaultValue={(isAdmin || isTI) ? "it-assets" : "stock"} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-[500px] mb-4">
+        <TabsList className="grid w-full grid-cols-3 max-w-[700px] mb-4">
           
           {/* Só renderiza o botão de TI se for TI ou ADMIN */}
           {(isAdmin || isTI) && (
@@ -393,6 +415,13 @@ export function Inventario() {
           {(isAdmin || isRH) && (
             <TabsTrigger value="stock" className="gap-2">
               <Package className="h-4 w-4" /> Estoque Administrativo
+            </TabsTrigger>
+          )}
+
+          {/* NOVO BOTÃO DE AUDITORIA (Apenas ADMIN ou RH) */}
+          {(isAdmin || isRH) && (
+            <TabsTrigger value="audit" className="gap-2">
+              <History className="h-4 w-4" /> Histórico de Movimentações
             </TabsTrigger>
           )}
 
@@ -897,6 +926,93 @@ export function Inventario() {
                 )}
               </DialogContent>
             </Dialog>
+          </TabsContent>
+        )}
+        
+        {/* CONTEÚDO: AUDITORIA DE ESTOQUE */}
+        {(isAdmin || isRH) && (
+          <TabsContent value="audit" className="mt-4 space-y-4">
+            
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-zinc-900">Trilha de Auditoria</h3>
+              
+              {/* Barra de Busca do Histórico */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
+                <Input
+                  type="text"
+                  placeholder="Buscar material ou usuário..."
+                  className="pl-8 w-[280px]"
+                  value={searchMovement}
+                  onChange={(e) => setSearchMovement(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-md border bg-white shadow-sm">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data e Hora</TableHead>
+                    <TableHead>Material</TableHead>
+                    <TableHead>Tipo de Ação</TableHead>
+                    <TableHead className="text-center">Quantidade</TableHead>
+                    <TableHead>Usuário Responsável</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {movements.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-zinc-500">
+                        Nenhuma movimentação registrada no sistema ainda.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    movements.filter(mov => {
+                      // Lógica de filtro: cruza o ID do usuário/item com a busca digitada
+                      const itemName = stockItems.find(i => i.id === mov.itemId)?.name || ""
+                      const userName = getAssignedUserName(mov.performedBy) || ""
+                      const search = searchMovement.toLowerCase()
+                      return itemName.toLowerCase().includes(search) || userName.toLowerCase().includes(search)
+                    }).map((mov) => {
+                      
+                      const isEntry = mov.type === 'IN'
+                      const itemName = stockItems.find(i => i.id === mov.itemId)?.name || "Item Excluído"
+                      const userName = getAssignedUserName(mov.performedBy)
+                      
+                      // Formata a data para o padrão do Brasil
+                      const formattedDate = mov.createdAt 
+                        ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(mov.createdAt))
+                        : "Data indisponível"
+
+                      return (
+                        <TableRow key={mov.id}>
+                          <TableCell className="text-zinc-500 text-sm">{formattedDate}</TableCell>
+                          <TableCell className="font-medium text-zinc-900">{itemName}</TableCell>
+                          <TableCell>
+                            {isEntry ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
+                                <ArrowDownRight className="h-3 w-3" /> Entrada
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1">
+                                <ArrowUpRight className="h-3 w-3" /> Saída
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center font-bold text-zinc-700">
+                            {isEntry ? '+' : '-'}{mov.quantity}
+                          </TableCell>
+                          <TableCell className="text-zinc-600 font-medium">
+                            {userName}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </TabsContent>
         )}
       </Tabs>

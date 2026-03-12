@@ -1,6 +1,8 @@
 package com.niclabs.erp.inventory.controller;
 
 import com.niclabs.erp.inventory.domain.ITAsset;
+import com.niclabs.erp.inventory.domain.ITAssetHistory;
+import com.niclabs.erp.inventory.domain.InventoryMovement;
 import com.niclabs.erp.inventory.domain.StockItem;
 import com.niclabs.erp.inventory.dto.ITAssetDTO;
 import com.niclabs.erp.inventory.dto.StockItemDTO;
@@ -112,5 +114,20 @@ public class InventoryController {
             @RequestBody ITAssetDTO dto) {
         ITAsset updatedAsset = itAssetService.updateAsset(id, dto);
         return ResponseEntity.ok(updatedAsset);
+    }
+
+    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @GetMapping("/it/assets/{id}/history")
+    public ResponseEntity<List<ITAssetHistory>> getAssetHistory(@PathVariable UUID id) {
+        return ResponseEntity.ok(itAssetService.getAssetHistory(id));
+    }
+
+    // ==========================================
+    // AUDITORIA DE ESTOQUE
+    // ==========================================
+    @PreAuthorize("hasRole('ADMIN') or hasRole('RH') or hasRole('TI')")
+    @GetMapping("/administrative/movements")
+    public ResponseEntity<List<InventoryMovement>> getStockMovements() {
+        return ResponseEntity.ok(stockItemService.findAllMovements());
     }
 }

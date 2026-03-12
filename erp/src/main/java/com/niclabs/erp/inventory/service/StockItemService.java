@@ -89,4 +89,9 @@ public class StockItemService {
 
         return itemRepository.save(item);
     }
+
+    // Retorna todo o histórico de movimentações
+    public java.util.List<InventoryMovement> findAllMovements() {
+        return movementRepository.findAll();
+    }
 }

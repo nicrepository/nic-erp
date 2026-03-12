@@ -1,20 +1,55 @@
 package com.niclabs.erp.inventory.service;
 
+import com.niclabs.erp.auth.domain.User;
+import com.niclabs.erp.inventory.domain.AssetAction;
 import com.niclabs.erp.inventory.domain.AssetStatus;
 import com.niclabs.erp.inventory.domain.ITAsset;
+import com.niclabs.erp.inventory.domain.ITAssetHistory;
 import com.niclabs.erp.inventory.dto.ITAssetDTO;
+import com.niclabs.erp.inventory.repository.ITAssetHistoryRepository;
 import com.niclabs.erp.inventory.repository.ITAssetRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ITAssetService {
 
-    private final ITAssetRepository assetRepository; // <-- Nome correto da variável
+    private final ITAssetRepository assetRepository;
+    private final ITAssetHistoryRepository historyRepository; // <-- Novo Repositório Injetado
+
+    // ==========================================
+    // MÉTODO PRIVADO DE AUDITORIA
+    // ==========================================
+    private void recordAssetHistory(UUID assetId, AssetAction action, UUID assignedToUser) {
+        // Pega o usuário logado (geralmente você, da TI)
+        User loggedInUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        ITAssetHistory history = new ITAssetHistory();
+        history.setId(UUID.randomUUID());
+        history.setAssetId(assetId);
+        history.setAction(action);
+        history.setPerformedBy(loggedInUser.getId());
+        history.setAssignedToUser(assignedToUser);
+
+        historyRepository.save(history);
+    }
+
+    // ==========================================
+    // MÉTODO PARA BUSCAR O HISTÓRICO
+    // ==========================================
+    public List<ITAssetHistory> getAssetHistory(UUID assetId) {
+        return historyRepository.findByAssetIdOrderByCreatedAtDesc(assetId);
+    }
+
+    // ==========================================
+    // OPERAÇÕES DO EQUIPAMENTO
+    // ==========================================
 
     @Transactional
     public ITAsset registerAsset(ITAssetDTO dto) {
@@ -24,16 +59,18 @@ public class ITAssetService {
         asset.setAssetTag(dto.assetTag());
         asset.setModel(dto.model());
         asset.setBrand(dto.brand());
-
-        // Salvando o nosso novo campo de texto livre (observações/hardware)!
         asset.setDetails(dto.details());
+        asset.setStatus(AssetStatus.AVAILABLE);
 
-        asset.setStatus(AssetStatus.AVAILABLE); // Todo equipamento novo entra como DISPONÍVEL
+        ITAsset savedAsset = assetRepository.save(asset);
 
-        return assetRepository.save(asset);
+        // --- AUDITORIA ---
+        recordAssetHistory(savedAsset.getId(), AssetAction.CREATED, null);
+
+        return savedAsset;
     }
 
-    public java.util.List<ITAsset> findAllAssets() {
+    public List<ITAsset> findAllAssets() {
         return assetRepository.findAll();
     }
 
@@ -46,27 +83,33 @@ public class ITAssetService {
             throw new RuntimeException("Este equipamento não está disponível para atribuição. Status atual: " + asset.getStatus());
         }
 
-        // Muda o status para Em Uso e vincula ao ID do usuário
         asset.setStatus(AssetStatus.IN_USE);
         asset.setAssignedTo(userId);
 
-        return assetRepository.save(asset);
+        ITAsset savedAsset = assetRepository.save(asset);
+
+        // --- AUDITORIA ---
+        recordAssetHistory(savedAsset.getId(), AssetAction.ASSIGNED, userId);
+
+        return savedAsset;
     }
 
-    // Função para desvincular o equipamento e devolvê-lo para a TI
     @Transactional
     public ITAsset unassignAsset(UUID assetId) {
-        // Usando o nome correto: assetRepository
         ITAsset asset = assetRepository.findById(assetId)
                 .orElseThrow(() -> new RuntimeException("Equipamento não encontrado"));
 
-        asset.setAssignedTo(null); // Remove o dono
-        asset.setStatus(AssetStatus.AVAILABLE); // Volta o status para Disponível
+        asset.setAssignedTo(null);
+        asset.setStatus(AssetStatus.AVAILABLE);
 
-        return assetRepository.save(asset);
+        ITAsset savedAsset = assetRepository.save(asset);
+
+        // --- AUDITORIA ---
+        recordAssetHistory(savedAsset.getId(), AssetAction.UNASSIGNED, null);
+
+        return savedAsset;
     }
 
-    // Função para atualizar os dados do equipamento
     @Transactional
     public ITAsset updateAsset(UUID assetId, ITAssetDTO dto) {
         ITAsset asset = assetRepository.findById(assetId)
@@ -76,8 +119,13 @@ public class ITAssetService {
         asset.setAssetTag(dto.assetTag());
         asset.setModel(dto.model());
         asset.setBrand(dto.brand());
-        asset.setDetails(dto.details()); // Atualiza as especificações!
+        asset.setDetails(dto.details());
 
-        return assetRepository.save(asset);
+        ITAsset savedAsset = assetRepository.save(asset);
+
+        // --- AUDITORIA ---
+        recordAssetHistory(savedAsset.getId(), AssetAction.UPDATED, savedAsset.getAssignedTo());
+
+        return savedAsset;
     }
 }
