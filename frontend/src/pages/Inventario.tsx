@@ -64,13 +64,45 @@ export function Inventario() {
   const [itemCategory, setItemCategory] = useState("")
   const [itemMinStock, setItemMinStock] = useState<number | "">("")
 
-  // --- NOVOS ESTADOS: FILTROS DE BUSCA ---
+  // ESTADOS: FILTROS DE BUSCA ---
   const [searchItAsset, setSearchItAsset] = useState("")
   const [searchStockItem, setSearchStockItem] = useState("")
 
-  // --- NOVO ESTADO: AUDITORIA ---
+  // ESTADO: AUDITORIA ---
   const [movements, setMovements] = useState<any[]>([])
   const [searchMovement, setSearchMovement] = useState("")
+  
+  // ESTADO DO HISTÓRICO DO EQUIPAMENTO ---
+  const [assetHistory, setAssetHistory] = useState<any[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
+  // BUSCA O HISTÓRICO QUANDO O MODAL ABRE ---
+  useEffect(() => {
+    if (isDetailModalOpen && selectedAsset) {
+      const fetchAssetHistory = async () => {
+        setIsLoadingHistory(true)
+        try {
+          const token = localStorage.getItem("token")
+          const response = await fetch(`/inventory/it/assets/${selectedAsset.id}/history`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          if (response.ok) {
+            const data = await response.json()
+            setAssetHistory(data)
+          }
+        } catch (error) {
+          console.error("Erro ao buscar histórico do ativo:", error)
+        } finally {
+          setIsLoadingHistory(false)
+        }
+      }
+      
+      fetchAssetHistory()
+    } else {
+      // Limpa o histórico quando o modal fecha para não vazar dados
+      setAssetHistory([])
+    }
+  }, [isDetailModalOpen, selectedAsset])
 
   // Busca a lista de equipamentos cadastrados
   const fetchITAssets = async () => {
@@ -676,6 +708,72 @@ export function Inventario() {
                           <h4 className="text-sm font-semibold text-zinc-900 mb-2">Especificações de Hardware / Observações</h4>
                           <div className="bg-white p-3 rounded-md border text-sm text-zinc-700 min-h-[80px] whitespace-pre-wrap">
                             {selectedAsset.details || "Nenhuma especificação cadastrada para este equipamento."}
+                          </div>
+                        </div>
+
+                        {/* --- NOVA SEÇÃO: TRILHA DE AUDITORIA DO EQUIPAMENTO --- */}
+                        <div className="pt-4 border-t border-zinc-200 mt-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <History className="h-4 w-4 text-zinc-500" />
+                            <h4 className="text-sm font-semibold text-zinc-900">Histórico do Equipamento</h4>
+                          </div>
+
+                          <div className="space-y-4 max-h-[150px] overflow-y-auto pr-2">
+                            {isLoadingHistory ? (
+                              <p className="text-xs text-center text-zinc-500 py-2">Carregando histórico...</p>
+                            ) : assetHistory.length === 0 ? (
+                              <p className="text-xs text-center text-zinc-500 italic py-2">Nenhum evento registrado ainda.</p>
+                            ) : (
+                              assetHistory.map((historyEvent) => {
+                                // Formata a data e hora
+                                const date = new Date(historyEvent.createdAt)
+                                const formattedDate = `${date.toLocaleDateString('pt-BR')} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                                
+                                // Quem fez a ação no sistema
+                                const performedBy = getAssignedUserName(historyEvent.performedBy)
+                                
+                                // O que aconteceu
+                                let actionText = ""
+                                let actionColor = ""
+                                
+                                switch(historyEvent.action) {
+                                  case 'CREATED':
+                                    actionText = "Cadastrado no sistema"
+                                    actionColor = "text-emerald-600 bg-emerald-50"
+                                    break;
+                                  case 'ASSIGNED':
+                                    const assignedTo = getAssignedUserName(historyEvent.assignedToUser)
+                                    actionText = `Entregue para: ${assignedTo}`
+                                    actionColor = "text-blue-600 bg-blue-50"
+                                    break;
+                                  case 'UNASSIGNED':
+                                    actionText = "Devolvido para a TI"
+                                    actionColor = "text-amber-600 bg-amber-50"
+                                    break;
+                                  case 'UPDATED':
+                                    actionText = "Especificações alteradas"
+                                    actionColor = "text-zinc-600 bg-zinc-100"
+                                    break;
+                                }
+
+                                return (
+                                  <div key={historyEvent.id} className="relative pl-4 border-l-2 border-zinc-200 pb-2 last:pb-0">
+                                    <div className="absolute w-2 h-2 bg-zinc-400 rounded-full -left-[5px] top-1"></div>
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex justify-between items-start">
+                                        <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${actionColor}`}>
+                                          {actionText}
+                                        </span>
+                                        <span className="text-xs text-zinc-400">{formattedDate}</span>
+                                      </div>
+                                      <span className="text-xs text-zinc-600">
+                                        Por: <span className="font-medium">{performedBy}</span>
+                                      </span>
+                                    </div>
+                                  </div>
+                                )
+                              })
+                            )}
                           </div>
                         </div>
                       </div>
