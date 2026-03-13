@@ -23,13 +23,13 @@ public class UserController {
         return ResponseEntity.ok(userService.listAllUsers());
     }
 
-    @PutMapping("/{id}/role")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')") // Só Admin pode promover alguém
-    public ResponseEntity<UserResponseDTO> updateRole(
+    @PutMapping("/{id}/roles")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<UserResponseDTO> updateRoles(
             @PathVariable UUID id,
-            @RequestParam String roleName) { // Ex: ?roleName=ROLE_TI
+            @RequestBody List<String> roleNames) {
 
-        return ResponseEntity.ok(userService.updateUserRole(id, roleName));
+        return ResponseEntity.ok(userService.updateUserRoles(id, roleNames));
     }
 
     // ROTA TEMPORÁRIA PARA DEBUG

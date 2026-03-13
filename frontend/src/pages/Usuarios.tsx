@@ -7,30 +7,27 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Users, Shield, ShieldAlert, PlusCircle, Search, Mail, Key } from "lucide-react"
+import { Users, Shield, ShieldAlert, PlusCircle, Search, Mail, Key, MoreHorizontal } from "lucide-react"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export function Usuarios() {
   const { user } = useAuth()
   
-  // Verifica se é Admin (único que pode editar/criar)
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
 
   const [usersList, setUsersList] = useState<any[]>([])
   const [searchUser, setSearchUser] = useState("")
   
-  // Estados para o Modal de Criação
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newUserName, setNewUserName] = useState("")
   const [newUserEmail, setNewUserEmail] = useState("")
   const [newUserPassword, setNewUserPassword] = useState("")
 
-  // Busca a lista de usuários no back-end
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("token")
@@ -50,16 +47,12 @@ export function Usuarios() {
     fetchUsers()
   }, [])
 
-  // Cria um novo usuário chamando a rota do AuthController
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      // Como o /auth/register é aberto, não precisa de token obrigatório, 
-      // mas se o seu AuthContext exigir, enviamos por garantia
       const response = await fetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Verifique se o seu RegisterDTO espera "name" ou "nome". Assumi name, email e password.
         body: JSON.stringify({ 
           name: newUserName, 
           email: newUserEmail, 
@@ -72,7 +65,7 @@ export function Usuarios() {
         setNewUserName("")
         setNewUserEmail("")
         setNewUserPassword("")
-        fetchUsers() // Atualiza a tabela na hora
+        fetchUsers() 
       } else {
         const errorMsg = await response.text()
         alert(`Erro ao criar usuário: ${errorMsg}`)
@@ -82,54 +75,79 @@ export function Usuarios() {
     }
   }
 
-  // Atualiza o cargo (Role) de um usuário chamando a rota do UserController
-  const handleUpdateRole = async (userId: string, newRole: string) => {
+  // --- NOVA FUNÇÃO PARA ATUALIZAR MÚLTIPLAS ROLES ---
+  const handleToggleRole = async (userId: string, currentRoles: string[], toggledRole: string, isChecked: boolean) => {
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch(`/users/${userId}/role?roleName=${newRole}`, {
+      
+      // Cria a nova lista de permissões baseada no clique
+      let updatedRoles = [...currentRoles]
+      if (isChecked) {
+        // Se marcou, adiciona na lista
+        if (!updatedRoles.includes(toggledRole)) updatedRoles.push(toggledRole)
+      } else {
+        // Se desmarcou, remove da lista
+        updatedRoles = updatedRoles.filter(role => role !== toggledRole)
+      }
+
+      // Evita deixar o usuário sem nenhuma permissão (Segurança)
+      if (updatedRoles.length === 0) {
+          updatedRoles.push("ROLE_USER")
+      }
+
+      // Chama o novo endpoint /roles enviando a lista
+      const response = await fetch(`/users/${userId}/roles`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify(updatedRoles)
       })
 
       if (response.ok) {
-        fetchUsers() // Atualiza a tabela com o novo cargo
+        fetchUsers() 
       } else {
-        alert("Erro ao alterar permissão. Verifique se você tem acesso de Administrador.")
+        alert("Erro ao alterar permissões. Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
     }
   }
 
-  // Tradutor de Cargos para a tela ficar elegante
   const translateRole = (role: string) => {
     switch(role) {
-      case 'ROLE_ADMIN': return { label: 'Administrador', color: 'bg-red-100 text-red-800 border-red-200' }
-      case 'ROLE_TI': return { label: 'Equipe de TI', color: 'bg-blue-100 text-blue-800 border-blue-200' }
-      case 'ROLE_RH': return { label: 'Recursos Humanos', color: 'bg-green-100 text-green-800 border-green-200' }
-      case 'ROLE_USER': return { label: 'Usuário Padrão', color: 'bg-zinc-100 text-zinc-800 border-zinc-200' }
+      case 'ROLE_ADMIN': return { label: 'Admin', color: 'bg-red-100 text-red-800 border-red-200' }
+      case 'ROLE_TI': return { label: 'TI', color: 'bg-blue-100 text-blue-800 border-blue-200' }
+      case 'ROLE_RH': return { label: 'RH', color: 'bg-green-100 text-green-800 border-green-200' }
+      case 'ROLE_USER': return { label: 'Usuário', color: 'bg-zinc-100 text-zinc-800 border-zinc-200' }
       default: return { label: role, color: 'bg-zinc-100 text-zinc-800' }
     }
   }
 
-  // Filtro de Busca em tempo real (BLINDADO)
   const filteredUsers = usersList.filter(u => {
     const search = searchUser.toLowerCase()
-    
-    // Tenta pegar o cargo de várias formas seguras
-    const userRole = u.role || (u.roles && u.roles.length > 0 ? u.roles[0] : "") || "UNKNOWN"
-    const translatedRole = (translateRole(userRole).label || "").toLowerCase()
+    // Como agora são várias roles, juntamos os labels para buscar
+    const userRolesList = u.roles || (u.role ? [u.role] : ["ROLE_USER"])
+    const translatedRolesText = userRolesList.map((r: string) => translateRole(r).label.toLowerCase()).join(" ")
     
     return (
       (u.name || "").toLowerCase().includes(search) ||
       (u.email || "").toLowerCase().includes(search) ||
-      translatedRole.includes(search)
+      translatedRolesText.includes(search)
     )
   })
 
+  // Lista de cargos disponíveis no sistema para gerar os Checkboxes
+  const ALL_SYSTEM_ROLES = [
+    { id: 'ROLE_USER', label: 'Usuário Padrão' },
+    { id: 'ROLE_RH', label: 'Recursos Humanos' },
+    { id: 'ROLE_TI', label: 'Equipe de TI' },
+    { id: 'ROLE_ADMIN', label: 'Administrador' }
+  ]
+
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Gestão de Acessos</h1>
@@ -137,7 +155,6 @@ export function Usuarios() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Barra de Busca */}
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
             <Input
@@ -149,7 +166,6 @@ export function Usuarios() {
             />
           </div>
 
-          {/* Botão de Novo Usuário - Apenas ADMIN vê */}
           {isAdmin && (
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
               <DialogTrigger asChild>
@@ -200,58 +216,75 @@ export function Usuarios() {
         </div>
       </div>
 
-      {/* Tabela de Usuários */}
       <div className="rounded-md border bg-white shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Colaborador</TableHead>
               <TableHead>E-mail</TableHead>
-              <TableHead>Nível de Acesso (Cargo)</TableHead>
+              <TableHead>Cargos (Nível de Acesso)</TableHead>
+              {isAdmin && <TableHead className="text-right">Ações</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center py-8 text-zinc-500">
+                <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-8 text-zinc-500">
                   Nenhum colaborador encontrado.
                 </TableCell>
               </TableRow>
             ) : (
               filteredUsers.map((u) => {
-                // A mesma proteção aqui dentro do desenho da tabela
-                const userRole = u.role || (u.roles && u.roles.length > 0 ? u.roles[0] : "") || "UNKNOWN"
-                const roleConfig = translateRole(userRole)
+                // Previne erros garantindo que sempre será um array
+                const userRolesList = u.roles || (u.role ? [u.role] : ["ROLE_USER"])
                 
                 return (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium text-zinc-900">{u.name}</TableCell>
                     <TableCell className="text-zinc-600">{u.email}</TableCell>
                     <TableCell>
-                      
-                      {isAdmin ? (
-                        <Select 
-                          defaultValue={userRole} 
-                          onValueChange={(val) => handleUpdateRole(u.id, val)}
-                        >
-                          <SelectTrigger className={`w-[200px] h-8 text-xs font-semibold ${roleConfig.color}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ROLE_USER">Usuário Padrão</SelectItem>
-                            <SelectItem value="ROLE_RH">Recursos Humanos</SelectItem>
-                            <SelectItem value="ROLE_TI">Equipe de TI</SelectItem>
-                            <SelectItem value="ROLE_ADMIN">Administrador</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge variant="outline" className={`gap-1 ${roleConfig.color}`}>
-                          {userRole === 'ROLE_ADMIN' ? <ShieldAlert className="h-3 w-3" /> : <Shield className="h-3 w-3" />}
-                          {roleConfig.label}
-                        </Badge>
-                      )}
-
+                      {/* RENDERIZA VÁRIOS BADGES LADO A LADO */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {userRolesList.map((r: string) => {
+                            const config = translateRole(r)
+                            return (
+                                <Badge key={r} variant="outline" className={`text-[10px] ${config.color}`}>
+                                    {r === 'ROLE_ADMIN' ? <ShieldAlert className="h-3 w-3 mr-1" /> : <Shield className="h-3 w-3 mr-1" />}
+                                    {config.label}
+                                </Badge>
+                            )
+                        })}
+                      </div>
                     </TableCell>
+
+                    {/* BOTÃO DE EDITAR PERMISSÕES (Dropdown Menu) */}
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menu</span>
+                              <MoreHorizontal className="h-4 w-4 text-zinc-500" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel>Permissões do Sistema</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            
+                            {ALL_SYSTEM_ROLES.map((sysRole) => (
+                                <DropdownMenuCheckboxItem 
+                                    key={sysRole.id}
+                                    checked={userRolesList.includes(sysRole.id)}
+                                    onCheckedChange={(isChecked) => handleToggleRole(u.id, userRolesList, sysRole.id, isChecked)}
+                                >
+                                    {sysRole.label}
+                                </DropdownMenuCheckboxItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+
                   </TableRow>
                 )
               })

@@ -44,8 +44,10 @@ public class UserService {
         newUser.setPassword(passwordEncoder.encode(data.password()));
         newUser.setActive(true);
 
-        // Dica: Se quiser definir uma role padrão (ex: USER) ao registrar, faça aqui.
-        // Por enquanto, deixamos sem role ou com a lógica que preferir.
+        // Garante que todo novo usuário nasça com o cargo padrão
+        Role defaultRole = roleRepository.findByName("ROLE_USER")
+                .orElseThrow(() -> new RuntimeException("Cargo ROLE_USER não encontrado no banco."));
+        newUser.setRoles(new HashSet<>(List.of(defaultRole)));
 
         return userRepository.save(newUser);
     }
@@ -59,17 +61,20 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponseDTO updateUserRole(UUID userId, String roleName) {
+    public UserResponseDTO updateUserRoles(UUID userId, List<String> roleNames) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
 
-        // Busca a role no banco pelo nome (ex: "ROLE_TI")
-        Role role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> new RuntimeException("Cargo '" + roleName + "' não encontrado."));
+        Set<Role> newRoles = new HashSet<>();
+        for (String roleName : roleNames) {
+            Role role = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new RuntimeException("Cargo '" + roleName + "' não encontrado."));
+            newRoles.add(role);
+        }
 
-        user.setRoles(new HashSet<>(List.of(role)));
-
+        user.setRoles(newRoles);
         userRepository.save(user);
+
         return mapToDTO(user);
     }
 
