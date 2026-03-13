@@ -17,7 +17,6 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
-      // Nova regra: Tudo que começar com /helpdesk vai para o Spring Boot!
       '/helpdesk': {
         target: 'http://localhost:8080',
         changeOrigin: true,
@@ -29,7 +28,7 @@ export default defineConfig({
       '/users': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-      }
+      },
     }
   }
 })

@@ -5,6 +5,7 @@ import { Helpdesk } from "./pages/Helpdesk"
 import { Inventario } from "./pages/Inventario"
 import { PrivateRoute } from "./components/PrivateRoute"
 import { AppLayout } from "./components/AppLayout"
+import { Usuarios } from "./pages/Usuarios"
 
 function App() {
   return (
@@ -19,7 +20,7 @@ function App() {
           <Route element={<AppLayout />}>
             {/* Todas as telas do sistema entram aqui dentro! */}
             <Route path="/dashboard" element={<Dashboard />} />
-            {/* Futuras rotas: */}
+            <Route path="/usuarios" element={<Usuarios />} />
             <Route path="/helpdesk" element={<Helpdesk />} />
             <Route path="/inventario" element={<Inventario />} />
           </Route>

@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Ticket, Package, Settings, LogOut, Bell, Monitor } from "lucide-react"
+import { LayoutDashboard, Ticket, Package, Settings, LogOut, Bell, Monitor, Users } from "lucide-react"
 
 
 export function AppLayout() {
@@ -29,6 +29,14 @@ export function AppLayout() {
             onClick={() => navigate('/dashboard')}
           >
             <LayoutDashboard className="h-4 w-4" /> Visão Geral
+          </Button>
+
+          <Button 
+            variant={location.pathname === '/usuarios' ? 'secondary' : 'ghost'} 
+            className={`w-full justify-start gap-3 ${location.pathname === '/usuarios' ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+            onClick={() => navigate('/usuarios')}
+          >
+            <Users className="h-4 w-4" /> Usuários
           </Button>
 
           <Button 
