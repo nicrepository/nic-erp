@@ -1,92 +1,154 @@
+import { useState } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Ticket, Package, Settings, LogOut, Bell, Monitor, Users } from "lucide-react"
-
+import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Monitor, Sun, Moon, Menu, Ticket } from "lucide-react"
+import { useTheme } from "../contexts/ThemeProvider"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { setTheme } = useTheme()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const handleLogout = () => {
     localStorage.removeItem("token")
     navigate("/login")
   }
 
+  const isActive = (path: string) => location.pathname === path
+
+  // Extraímos os links para um componente interno para não repetir código no Desktop e no Mobile
+  const NavLinks = () => (
+    <>
+      <Button 
+        variant={isActive('/dashboard') ? 'secondary' : 'ghost'} 
+        className={`w-full justify-start gap-3 ${isActive('/dashboard') ? 'text-foreground' : 'text-muted-foreground'}`}
+        onClick={() => { navigate('/dashboard'); setIsMobileMenuOpen(false); }}
+      >
+        <LayoutDashboard className="h-4 w-4" /> Visão Geral
+      </Button>
+
+      <Button 
+        variant={isActive('/usuarios') ? 'secondary' : 'ghost'} 
+        className={`w-full justify-start gap-3 ${isActive('/usuarios') ? 'text-foreground' : 'text-muted-foreground'}`}
+        onClick={() => { navigate('/usuarios'); setIsMobileMenuOpen(false); }}
+      >
+        <Users className="h-4 w-4" /> Usuários
+      </Button>
+
+      <Button 
+        variant={isActive('/helpdesk') ? 'secondary' : 'ghost'} 
+        className={`w-full justify-start gap-3 ${isActive('/helpdesk') ? 'text-foreground' : 'text-muted-foreground'}`}
+        onClick={() => { navigate('/helpdesk'); setIsMobileMenuOpen(false); }}
+      >
+        <Ticket className="h-4 w-4" /> Helpdesk
+      </Button>
+
+      <Button 
+        variant={isActive('/inventario') ? 'secondary' : 'ghost'} 
+        className={`w-full justify-start gap-3 ${isActive('/inventario') ? 'text-foreground' : 'text-muted-foreground'}`}
+        onClick={() => { navigate('/inventario'); setIsMobileMenuOpen(false); }}
+      >
+        <Package className="h-4 w-4" /> Inventário
+      </Button>
+    </>
+  )
+
   return (
-    <div className="flex min-h-screen w-full bg-zinc-50">
+    <div className="flex min-h-screen w-full bg-background text-foreground">
       
-      {/* 1. BARRA LATERAL (Fixa) */}
-      <aside className="w-64 flex-col border-r bg-white px-4 py-6 flex hidden md:flex">
+      {/* 1. BARRA LATERAL (DESKTOP) */}
+      <aside className="w-64 flex-col border-r border-border bg-card px-4 py-6 hidden md:flex">
         <div className="mb-8 flex items-center gap-2 px-2">
-          <Monitor className="h-6 w-6 text-zinc-900" />
-          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Nic-ERP</h1>
+          <Monitor className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight">Nic-ERP</h1>
         </div>
         
         <nav className="flex-1 space-y-2">
-          <Button 
-            variant={location.pathname === '/dashboard' ? 'secondary' : 'ghost'} 
-            className={`w-full justify-start gap-3 ${location.pathname === '/dashboard' ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
-            onClick={() => navigate('/dashboard')}
-          >
-            <LayoutDashboard className="h-4 w-4" /> Visão Geral
-          </Button>
-
-          <Button 
-            variant={location.pathname === '/usuarios' ? 'secondary' : 'ghost'} 
-            className={`w-full justify-start gap-3 ${location.pathname === '/usuarios' ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
-            onClick={() => navigate('/usuarios')}
-          >
-            <Users className="h-4 w-4" /> Usuários
-          </Button>
-
-          <Button 
-            variant={location.pathname === '/helpdesk' ? 'secondary' : 'ghost'} 
-            className={`w-full justify-start gap-3 ${location.pathname === '/helpdesk' ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
-            onClick={() => navigate('/helpdesk')}
-          >
-            <Ticket className="h-4 w-4" /> Helpdesk
-          </Button>
-
-          <Button 
-            variant={location.pathname === '/inventario' ? 'secondary' : 'ghost'} 
-            className={`w-full justify-start gap-3 ${location.pathname === '/inventario' ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
-            onClick={() => navigate('/inventario')}
-          >
-            <Package className="h-4 w-4" /> Inventário
-          </Button>
+          <NavLinks />
         </nav>
 
-        <div className="mt-auto border-t pt-4 space-y-2">
-          <Button variant="ghost" className="w-full justify-start gap-3 text-zinc-500 hover:text-zinc-900">
+        <div className="mt-auto border-t border-border pt-4 space-y-2">
+          <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground">
             <Settings className="h-4 w-4" /> Configurações
           </Button>
-          <Button variant="ghost" className="w-full justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={handleLogout}>
+          <Button variant="ghost" className="w-full justify-start gap-3 text-destructive hover:bg-destructive/10" onClick={handleLogout}>
             <LogOut className="h-4 w-4" /> Sair
           </Button>
         </div>
       </aside>
 
       {/* 2. ÁREA PRINCIPAL */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col overflow-hidden w-full">
         
-        {/* Cabeçalho (Fixo) */}
-        <header className="h-16 border-b bg-white flex items-center justify-between px-8">
-          {/* No futuro podemos deixar esse título dinâmico */}
-          <h2 className="text-lg font-medium text-zinc-800">Painel</h2>
+        {/* Cabeçalho */}
+        <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 md:px-8 shrink-0">
           
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="text-zinc-500">
+          <div className="flex items-center gap-3">
+            {/* MENU HAMBÚRGUER (MOBILE) */}
+            <div className="md:hidden">
+              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Abrir menu</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-64 bg-card border-border p-0 flex flex-col">
+                  <div className="p-6 pb-2 flex items-center gap-2">
+                    <Monitor className="h-6 w-6 text-primary" />
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Nic-ERP</h1>
+                  </div>
+                  <nav className="flex-1 space-y-2 p-4">
+                    <NavLinks />
+                  </nav>
+                  <div className="border-t border-border p-4 space-y-2 mt-auto">
+                    <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground">
+                      <Settings className="h-4 w-4" /> Configurações
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start gap-3 text-destructive hover:bg-destructive/10" onClick={handleLogout}>
+                      <LogOut className="h-4 w-4" /> Sair
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+            
+            <h2 className="text-lg font-medium hidden sm:block">Painel</h2>
+          </div>
+          
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* BOTÃO DE TROCA DE TEMA */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                  <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span className="sr-only">Trocar tema</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover border-border text-foreground">
+                <DropdownMenuItem className="cursor-pointer focus:bg-muted" onClick={() => setTheme("light")}>Claro</DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer focus:bg-muted" onClick={() => setTheme("dark")}>Escuro</DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer focus:bg-muted" onClick={() => setTheme("system")}>Sistema</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
               <Bell className="h-5 w-5" />
             </Button>
-            <div className="h-8 w-8 rounded-full bg-zinc-900 flex items-center justify-center text-sm font-medium text-zinc-50 cursor-pointer">
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-sm font-medium text-primary-foreground cursor-pointer">
               CA
             </div>
           </div>
         </header>
 
-        {/* 3. CONTEÚDO DINÂMICO (Onde a mágica acontece) */}
-        <div className="p-8">
-          {/* O Outlet é o buraco onde as páginas (Dashboard, Helpdesk, etc) vão ser injetadas! */}
+        {/* 3. CONTEÚDO DINÂMICO */}
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-muted/20">
           <Outlet /> 
         </div>
       </main>

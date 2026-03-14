@@ -17,7 +17,6 @@ import {
 
 export function Usuarios() {
   const { user } = useAuth()
-  
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
 
   const [usersList, setUsersList] = useState<any[]>([])
@@ -53,11 +52,7 @@ export function Usuarios() {
       const response = await fetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: newUserName, 
-          email: newUserEmail, 
-          password: newUserPassword 
-        })
+        body: JSON.stringify({ name: newUserName, email: newUserEmail, password: newUserPassword })
       })
 
       if (response.ok) {
@@ -75,27 +70,19 @@ export function Usuarios() {
     }
   }
 
-  // --- NOVA FUNÇÃO PARA ATUALIZAR MÚLTIPLAS ROLES ---
   const handleToggleRole = async (userId: string, currentRoles: string[], toggledRole: string, isChecked: boolean) => {
     try {
       const token = localStorage.getItem("token")
-      
-      // Cria a nova lista de permissões baseada no clique
       let updatedRoles = [...currentRoles]
+      
       if (isChecked) {
-        // Se marcou, adiciona na lista
         if (!updatedRoles.includes(toggledRole)) updatedRoles.push(toggledRole)
       } else {
-        // Se desmarcou, remove da lista
         updatedRoles = updatedRoles.filter(role => role !== toggledRole)
       }
 
-      // Evita deixar o usuário sem nenhuma permissão (Segurança)
-      if (updatedRoles.length === 0) {
-          updatedRoles.push("ROLE_USER")
-      }
+      if (updatedRoles.length === 0) updatedRoles.push("ROLE_USER")
 
-      // Chama o novo endpoint /roles enviando a lista
       const response = await fetch(`/users/${userId}/roles`, {
         method: 'PUT',
         headers: { 
@@ -105,11 +92,8 @@ export function Usuarios() {
         body: JSON.stringify(updatedRoles)
       })
 
-      if (response.ok) {
-        fetchUsers() 
-      } else {
-        alert("Erro ao alterar permissões. Tente novamente.")
-      }
+      if (response.ok) fetchUsers() 
+      else alert("Erro ao alterar permissões. Tente novamente.")
     } catch (error) {
       console.error("Erro de conexão:", error)
     }
@@ -117,17 +101,16 @@ export function Usuarios() {
 
   const translateRole = (role: string) => {
     switch(role) {
-      case 'ROLE_ADMIN': return { label: 'Admin', color: 'bg-red-100 text-red-800 border-red-200' }
-      case 'ROLE_TI': return { label: 'TI', color: 'bg-blue-100 text-blue-800 border-blue-200' }
-      case 'ROLE_RH': return { label: 'RH', color: 'bg-green-100 text-green-800 border-green-200' }
-      case 'ROLE_USER': return { label: 'Usuário', color: 'bg-zinc-100 text-zinc-800 border-zinc-200' }
-      default: return { label: role, color: 'bg-zinc-100 text-zinc-800' }
+      case 'ROLE_ADMIN': return { label: 'Admin', color: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30' }
+      case 'ROLE_TI': return { label: 'TI', color: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30' }
+      case 'ROLE_RH': return { label: 'RH', color: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30' }
+      case 'ROLE_USER': return { label: 'Usuário', color: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30' }
+      default: return { label: role, color: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300' }
     }
   }
 
   const filteredUsers = usersList.filter(u => {
     const search = searchUser.toLowerCase()
-    // Como agora são várias roles, juntamos os labels para buscar
     const userRolesList = u.roles || (u.role ? [u.role] : ["ROLE_USER"])
     const translatedRolesText = userRolesList.map((r: string) => translateRole(r).label.toLowerCase()).join(" ")
     
@@ -138,7 +121,6 @@ export function Usuarios() {
     )
   })
 
-  // Lista de cargos disponíveis no sistema para gerar os Checkboxes
   const ALL_SYSTEM_ROLES = [
     { id: 'ROLE_USER', label: 'Usuário Padrão' },
     { id: 'ROLE_RH', label: 'Recursos Humanos' },
@@ -148,19 +130,22 @@ export function Usuarios() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* 1. CABEÇALHO RESPONSIVO: flex-col no mobile, md:flex-row no Desktop */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Gestão de Acessos</h1>
-          <p className="text-sm text-zinc-500">Administre os colaboradores e suas permissões no sistema.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Gestão de Acessos</h1>
+          <p className="text-sm text-muted-foreground">Administre os colaboradores e suas permissões no sistema.</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
+        {/* Barra de busca empilha com o botão em telas pequenas */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            {/* 2. INPUT RESPONSIVO: w-full no mobile, w-[280px] no Desktop */}
             <Input
               type="text"
-              placeholder="Buscar por nome, email ou cargo..."
-              className="pl-8 w-[280px]"
+              placeholder="Buscar usuário..."
+              className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground"
               value={searchUser}
               onChange={(e) => setSearchUser(e.target.value)}
             />
@@ -169,14 +154,14 @@ export function Usuarios() {
           {isAdmin && (
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2 bg-zinc-900 text-zinc-50 hover:bg-zinc-800">
+                <Button className="gap-2 w-full sm:w-auto">
                   <PlusCircle className="h-4 w-4" /> Novo Colaborador
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
                 <DialogHeader>
                   <DialogTitle>Cadastrar Colaborador</DialogTitle>
-                  <DialogDescription>
+                  <DialogDescription className="text-muted-foreground">
                     Crie uma conta de acesso. Novos usuários recebem o cargo padrão de "Usuário Padrão".
                   </DialogDescription>
                 </DialogHeader>
@@ -186,22 +171,22 @@ export function Usuarios() {
                     <div className="grid gap-2">
                       <Label htmlFor="name">Nome Completo</Label>
                       <div className="relative">
-                        <Users className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
-                        <Input id="name" className="pl-8" placeholder="Ex: Caio Almeida" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required />
+                        <Users className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input id="name" className="pl-8 bg-background" placeholder="Ex: Caio Almeida" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required />
                       </div>
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="email">E-mail Corporativo</Label>
                       <div className="relative">
-                        <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
-                        <Input id="email" type="email" className="pl-8" placeholder="caio@niclabs.com.br" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required />
+                        <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input id="email" type="email" className="pl-8 bg-background" placeholder="caio@niclabs.com.br" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required />
                       </div>
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="password">Senha Inicial</Label>
                       <div className="relative">
-                        <Key className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
-                        <Input id="password" type="password" className="pl-8" placeholder="Defina uma senha segura" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} required minLength={6} />
+                        <Key className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input id="password" type="password" className="pl-8 bg-background" placeholder="Defina uma senha segura" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} required minLength={6} />
                       </div>
                     </div>
                   </div>
@@ -216,81 +201,81 @@ export function Usuarios() {
         </div>
       </div>
 
-      <div className="rounded-md border bg-white shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Colaborador</TableHead>
-              <TableHead>E-mail</TableHead>
-              <TableHead>Cargos (Nível de Acesso)</TableHead>
-              {isAdmin && <TableHead className="text-right">Ações</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredUsers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-8 text-zinc-500">
-                  Nenhum colaborador encontrado.
-                </TableCell>
+      <div className="rounded-md border border-border bg-card shadow-sm w-full">
+        {/* 3. SCROLL DA TABELA: Essa div garante que a tabela deslize em telas pequenas */}
+        <div className="overflow-x-auto">
+          <Table className="w-full">
+            <TableHeader>
+              <TableRow className="hover:bg-muted/50">
+                <TableHead className="text-muted-foreground min-w-[150px]">Colaborador</TableHead>
+                <TableHead className="text-muted-foreground min-w-[180px]">E-mail</TableHead>
+                <TableHead className="text-muted-foreground min-w-[200px]">Cargos</TableHead>
+                {isAdmin && <TableHead className="text-right text-muted-foreground w-[80px]">Ações</TableHead>}
               </TableRow>
-            ) : (
-              filteredUsers.map((u) => {
-                // Previne erros garantindo que sempre será um array
-                const userRolesList = u.roles || (u.role ? [u.role] : ["ROLE_USER"])
-                
-                return (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium text-zinc-900">{u.name}</TableCell>
-                    <TableCell className="text-zinc-600">{u.email}</TableCell>
-                    <TableCell>
-                      {/* RENDERIZA VÁRIOS BADGES LADO A LADO */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {userRolesList.map((r: string) => {
-                            const config = translateRole(r)
-                            return (
-                                <Badge key={r} variant="outline" className={`text-[10px] ${config.color}`}>
-                                    {r === 'ROLE_ADMIN' ? <ShieldAlert className="h-3 w-3 mr-1" /> : <Shield className="h-3 w-3 mr-1" />}
-                                    {config.label}
-                                </Badge>
-                            )
-                        })}
-                      </div>
-                    </TableCell>
-
-                    {/* BOTÃO DE EDITAR PERMISSÕES (Dropdown Menu) */}
-                    {isAdmin && (
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <span className="sr-only">Abrir menu</span>
-                              <MoreHorizontal className="h-4 w-4 text-zinc-500" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuLabel>Permissões do Sistema</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            
-                            {ALL_SYSTEM_ROLES.map((sysRole) => (
-                                <DropdownMenuCheckboxItem 
-                                    key={sysRole.id}
-                                    checked={userRolesList.includes(sysRole.id)}
-                                    onCheckedChange={(isChecked) => handleToggleRole(u.id, userRolesList, sysRole.id, isChecked)}
-                                >
-                                    {sysRole.label}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-8 text-muted-foreground">
+                    Nenhum colaborador encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredUsers.map((u) => {
+                  const userRolesList = u.roles || (u.role ? [u.role] : ["ROLE_USER"])
+                  
+                  return (
+                    <TableRow key={u.id} className="hover:bg-muted/50 border-border">
+                      <TableCell className="font-medium text-foreground whitespace-nowrap">{u.name}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{u.email}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1.5">
+                          {userRolesList.map((r: string) => {
+                              const config = translateRole(r)
+                              return (
+                                  <Badge key={r} variant="outline" className={`text-[10px] whitespace-nowrap ${config.color}`}>
+                                      {r === 'ROLE_ADMIN' ? <ShieldAlert className="h-3 w-3 mr-1" /> : <Shield className="h-3 w-3 mr-1" />}
+                                      {config.label}
+                                  </Badge>
+                              )
+                          })}
+                        </div>
                       </TableCell>
-                    )}
 
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted">
+                                <span className="sr-only">Abrir menu</span>
+                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 bg-popover text-popover-foreground border-border">
+                              <DropdownMenuLabel>Permissões do Sistema</DropdownMenuLabel>
+                              <DropdownMenuSeparator className="bg-border" />
+                              
+                              {ALL_SYSTEM_ROLES.map((sysRole) => (
+                                  <DropdownMenuCheckboxItem 
+                                      key={sysRole.id}
+                                      checked={userRolesList.includes(sysRole.id)}
+                                      onCheckedChange={(isChecked) => handleToggleRole(u.id, userRolesList, sysRole.id, isChecked)}
+                                      className="focus:bg-muted focus:text-accent-foreground"
+                                  >
+                                      {sysRole.label}
+                                  </DropdownMenuCheckboxItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )
