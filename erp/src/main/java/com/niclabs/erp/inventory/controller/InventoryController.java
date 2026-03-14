@@ -29,21 +29,21 @@ public class InventoryController {
     // ESTOQUE ADMINISTRATIVO
     // ==========================================
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
     @PostMapping("/administrative/items")
     public ResponseEntity<StockItem> createStockItem(@RequestBody StockItemDTO dto) {
         StockItem created = stockItemService.createItem(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
     @PostMapping("/administrative/items/{id}/add")
     public ResponseEntity<String> addStock(@PathVariable UUID id, @RequestParam Integer quantity) {
         stockItemService.addStock(id, quantity);
         return ResponseEntity.ok("Entrada de estoque registrada com sucesso!");
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
     @PostMapping("/administrative/items/{id}/remove")
     public ResponseEntity<String> removeStock(@PathVariable UUID id, @RequestParam Integer quantity) {
         try {
@@ -54,13 +54,13 @@ public class InventoryController {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/items")
     public ResponseEntity<List<StockItem>> getAllStockItems() {
         return ResponseEntity.ok(stockItemService.findAllItems());
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RH')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/administrative/items/{id}")
     public ResponseEntity<StockItem> updateStockItem(
             @PathVariable UUID id,
@@ -74,21 +74,21 @@ public class InventoryController {
     // ESTOQUE DE TI
     // ==========================================
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('TI')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
     @PostMapping("/it/assets")
     public ResponseEntity<ITAsset> registerITAsset(@RequestBody ITAssetDTO dto) {
         ITAsset created = itAssetService.registerAsset(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('TI')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/it/assets")
     public ResponseEntity<List<ITAsset>> getAllITAssets() {
         return ResponseEntity.ok(itAssetService.findAllAssets());
     }
 
     // Veja a anotação @PreAuthorize blindando a rota!
-    @PreAuthorize("hasRole('ADMIN') or hasRole('TI')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/it/assets/{id}/assign")
     public ResponseEntity<ITAsset> assignAsset(
             @PathVariable UUID id,
@@ -99,7 +99,7 @@ public class InventoryController {
     }
 
     // DESVINCULAR EQUIPAMENTO
-    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/it/assets/{id}/unassign")
     public ResponseEntity<ITAsset> unassignAsset(@PathVariable UUID id) {
         ITAsset updatedAsset = itAssetService.unassignAsset(id);
@@ -107,7 +107,7 @@ public class InventoryController {
     }
 
     // EDITAR EQUIPAMENTO
-    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/it/assets/{id}")
     public ResponseEntity<ITAsset> updateITAsset(
             @PathVariable UUID id,
@@ -116,7 +116,7 @@ public class InventoryController {
         return ResponseEntity.ok(updatedAsset);
     }
 
-    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/it/assets/{id}/history")
     public ResponseEntity<List<ITAssetHistory>> getAssetHistory(@PathVariable UUID id) {
         return ResponseEntity.ok(itAssetService.getAssetHistory(id));
@@ -125,7 +125,7 @@ public class InventoryController {
     // ==========================================
     // AUDITORIA DE ESTOQUE
     // ==========================================
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RH') or hasRole('TI')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/movements")
     public ResponseEntity<List<InventoryMovement>> getStockMovements() {
         return ResponseEntity.ok(stockItemService.findAllMovements());

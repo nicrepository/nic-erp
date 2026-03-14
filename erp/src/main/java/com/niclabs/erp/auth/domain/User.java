@@ -54,10 +54,22 @@ public class User implements UserDetails {
             return List.of();
         }
 
-        // Agora sim! Lendo as roles REAIS que vêm da tabela do banco de dados
-        return this.roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName()))
-                .collect(java.util.stream.Collectors.toList());
+        // Usamos um Set para evitar permissões duplicadas (caso 2 cargos tenham a mesma permissão)
+        Set<GrantedAuthority> authorities = new java.util.HashSet<>();
+
+        for (Role role : this.roles) {
+            // 1. Adiciona o próprio cargo (Ex: "ROLE_TI")
+            authorities.add(new SimpleGrantedAuthority(role.getName()));
+
+            // 2. Adiciona as Permissões dinâmicas amarradas a este cargo (Ex: "ACCESS_INVENTORY")
+            if (role.getPermissions() != null) {
+                for (Permission permission : role.getPermissions()) {
+                    authorities.add(new SimpleGrantedAuthority(permission.getName()));
+                }
+            }
+        }
+
+        return authorities;
     }
 
     @Override

@@ -62,14 +62,14 @@ public class TicketController {
         return ResponseEntity.ok(commentService.getCommentsByTicket(ticketId));
     }
 
-    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/{id}/assign")
     public ResponseEntity<Ticket> assignTicket(@PathVariable UUID id) {
         Ticket updatedTicket = ticketService.assignTicket(id);
         return ResponseEntity.ok(updatedTicket);
     }
 
-    @PreAuthorize("hasRole('TI') or hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/{id}/status")
     public ResponseEntity<Ticket> updateTicketStatus(
             @PathVariable UUID id,
@@ -86,7 +86,7 @@ public class TicketController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ROLE_TI') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Page<TicketResponseDTO>> getAllTickets(
             @PageableDefault(size = 10, page = 0) Pageable pageable) {
         return ResponseEntity.ok(ticketService.getAllTickets(pageable));

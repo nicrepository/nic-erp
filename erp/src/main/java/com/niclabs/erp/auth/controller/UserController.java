@@ -18,13 +18,13 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_TI', 'ROLE_RH')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.listAllUsers());
     }
 
     @PutMapping("/{id}/roles")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<UserResponseDTO> updateRoles(
             @PathVariable UUID id,
             @RequestBody List<String> roleNames) {

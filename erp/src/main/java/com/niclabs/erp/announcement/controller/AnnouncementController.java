@@ -23,7 +23,7 @@ public class AnnouncementController {
 
     // A anotação "consumes" garante que essa rota só aceita requisições com arquivos anexos (form-data)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('ROLE_ADMIN') or hasRole('ROLE_RH')")
+    @PreAuthorize("hasAuthority('ACCESS_ANNOUNCEMENTS_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<AnnouncementResponseDTO> createAnnouncement(
             @RequestParam("title") String title,
             @RequestParam("content") String content,

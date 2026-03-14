@@ -21,7 +21,7 @@ export function AppLayout() {
 
   const isActive = (path: string) => location.pathname === path
 
-  // Extraímos os links para um componente interno para não repetir código no Desktop e no Mobile
+  // Links principais do meio do menu
   const NavLinks = () => (
     <>
       <Button 
@@ -72,8 +72,13 @@ export function AppLayout() {
           <NavLinks />
         </nav>
 
+        {/* Rodapé do Menu Desktop */}
         <div className="mt-auto border-t border-border pt-4 space-y-2">
-          <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground">
+          <Button 
+            variant={isActive('/configuracoes') ? 'secondary' : 'ghost'} 
+            className={`w-full justify-start gap-3 ${isActive('/configuracoes') ? 'text-foreground' : 'text-muted-foreground'}`}
+            onClick={() => navigate('/configuracoes')}
+          >
             <Settings className="h-4 w-4" /> Configurações
           </Button>
           <Button variant="ghost" className="w-full justify-start gap-3 text-destructive hover:bg-destructive/10" onClick={handleLogout}>
@@ -106,8 +111,14 @@ export function AppLayout() {
                   <nav className="flex-1 space-y-2 p-4">
                     <NavLinks />
                   </nav>
+                  
+                  {/* Rodapé do Menu Mobile */}
                   <div className="border-t border-border p-4 space-y-2 mt-auto">
-                    <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground">
+                    <Button 
+                      variant={isActive('/configuracoes') ? 'secondary' : 'ghost'} 
+                      className={`w-full justify-start gap-3 ${isActive('/configuracoes') ? 'text-foreground' : 'text-muted-foreground'}`}
+                      onClick={() => { navigate('/configuracoes'); setIsMobileMenuOpen(false); }}
+                    >
                       <Settings className="h-4 w-4" /> Configurações
                     </Button>
                     <Button variant="ghost" className="w-full justify-start gap-3 text-destructive hover:bg-destructive/10" onClick={handleLogout}>

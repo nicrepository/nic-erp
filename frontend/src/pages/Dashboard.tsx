@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Ticket, Package, Laptop, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react"
+import { Ticket, Laptop, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 
 export function Dashboard() {

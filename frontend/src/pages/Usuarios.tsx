@@ -20,6 +20,7 @@ export function Usuarios() {
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
 
   const [usersList, setUsersList] = useState<any[]>([])
+  const [availableRoles, setAvailableRoles] = useState<any[]>([]) // <-- ESTADO NOVO PARA OS CARGOS DINÂMICOS
   const [searchUser, setSearchUser] = useState("")
   
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -42,9 +43,28 @@ export function Usuarios() {
     }
   }
 
+  // <-- NOVA FUNÇÃO PARA BUSCAR OS CARGOS REAIS DO BANCO
+  const fetchRoles = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/roles', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableRoles(data)
+      }
+    } catch (error) {
+      console.error("Erro ao buscar cargos:", error)
+    }
+  }
+
   useEffect(() => {
     fetchUsers()
-  }, [])
+    if (isAdmin) {
+      fetchRoles() // Só busca os cargos se o cara for Admin e puder ver o menu
+    }
+  }, [isAdmin])
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -99,13 +119,17 @@ export function Usuarios() {
     }
   }
 
+  // <-- FUNÇÃO ATUALIZADA PARA LIDAR COM CARGOS DESCONHECIDOS (CUSTOMIZADOS)
   const translateRole = (role: string) => {
     switch(role) {
       case 'ROLE_ADMIN': return { label: 'Admin', color: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30' }
       case 'ROLE_TI': return { label: 'TI', color: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30' }
       case 'ROLE_RH': return { label: 'RH', color: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30' }
-      case 'ROLE_USER': return { label: 'Usuário', color: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30' }
-      default: return { label: role, color: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300' }
+      case 'ROLE_USER': return { label: 'Usuário Padrão', color: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30' }
+      default: 
+        // Se for um cargo novo (ex: ROLE_FINANCEIRO), tira o "ROLE_" e pinta de roxo
+        const niceLabel = role.replace('ROLE_', '')
+        return { label: niceLabel, color: 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30' }
     }
   }
 
@@ -121,27 +145,17 @@ export function Usuarios() {
     )
   })
 
-  const ALL_SYSTEM_ROLES = [
-    { id: 'ROLE_USER', label: 'Usuário Padrão' },
-    { id: 'ROLE_RH', label: 'Recursos Humanos' },
-    { id: 'ROLE_TI', label: 'Equipe de TI' },
-    { id: 'ROLE_ADMIN', label: 'Administrador' }
-  ]
-
   return (
     <div className="space-y-6">
-      {/* 1. CABEÇALHO RESPONSIVO: flex-col no mobile, md:flex-row no Desktop */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Gestão de Acessos</h1>
           <p className="text-sm text-muted-foreground">Administre os colaboradores e suas permissões no sistema.</p>
         </div>
 
-        {/* Barra de busca empilha com o botão em telas pequenas */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           <div className="relative w-full sm:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            {/* 2. INPUT RESPONSIVO: w-full no mobile, w-[280px] no Desktop */}
             <Input
               type="text"
               placeholder="Buscar usuário..."
@@ -202,7 +216,6 @@ export function Usuarios() {
       </div>
 
       <div className="rounded-md border border-border bg-card shadow-sm w-full">
-        {/* 3. SCROLL DA TABELA: Essa div garante que a tabela deslize em telas pequenas */}
         <div className="overflow-x-auto">
           <Table className="w-full">
             <TableHeader>
@@ -255,14 +268,15 @@ export function Usuarios() {
                               <DropdownMenuLabel>Permissões do Sistema</DropdownMenuLabel>
                               <DropdownMenuSeparator className="bg-border" />
                               
-                              {ALL_SYSTEM_ROLES.map((sysRole) => (
+                              {/* <-- AGORA MAPEAMOS OS CARGOS REAIS DO BANCO --> */}
+                              {availableRoles.map((sysRole) => (
                                   <DropdownMenuCheckboxItem 
                                       key={sysRole.id}
-                                      checked={userRolesList.includes(sysRole.id)}
-                                      onCheckedChange={(isChecked) => handleToggleRole(u.id, userRolesList, sysRole.id, isChecked)}
+                                      checked={userRolesList.includes(sysRole.name)}
+                                      onCheckedChange={(isChecked) => handleToggleRole(u.id, userRolesList, sysRole.name, isChecked)}
                                       className="focus:bg-muted focus:text-accent-foreground"
                                   >
-                                      {sysRole.label}
+                                      {translateRole(sysRole.name).label}
                                   </DropdownMenuCheckboxItem>
                               ))}
                             </DropdownMenuContent>
