@@ -86,7 +86,7 @@ public class EmailService {
 
             // Dica de Arquitetura: No futuro, esse link apontará para a tela do seu front-end em React (ex: localhost:3000)
             // Por enquanto, vamos apontar para a própria API apenas para visualizarmos o token
-            String resetUrl = "http://localhost:8080/auth/reset-password?token=" + token;
+            String resetUrl = "http://localhost:5173/reset-password?token=" + token;
 
             String texto = "Olá!\n\nVocê solicitou a recuperação da sua senha.\n\n" +
                     "Clique no link abaixo para criar uma nova senha:\n" +

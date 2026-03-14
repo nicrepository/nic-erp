@@ -47,20 +47,25 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public ResponseEntity<Void> forgotPassword(@RequestBody ForgotPasswordRequestDTO dto) {
-
-        userService.requestPasswordReset(dto.email());
-
-        // Retornamos apenas um 200 OK sem mensagem no corpo.
-        // Dica de Segurança: Nunca informamos se o e-mail existe ou não na base de dados
-        // para evitar que hackers descubram quem tem conta no seu ERP!
+        try {
+            userService.requestPasswordReset(dto.email());
+        } catch (RuntimeException e) {
+            // Silenciamos a exceção aqui!
+            // Se o e-mail não existir, o hacker não vai ficar sabendo.
+            // O sistema finge que enviou e retorna 200 OK de qualquer forma.
+        }
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequestDTO dto) {
-
-        userService.resetPassword(dto.token(), dto.newPassword());
-
-        return ResponseEntity.ok("Senha redefinida com sucesso!");
+        try {
+            userService.resetPassword(dto.token(), dto.newPassword());
+            return ResponseEntity.ok("Senha redefinida com sucesso!");
+        } catch (RuntimeException e) {
+            // Agora sim! Se o token for inválido ou expirado, devolvemos um Erro 400 (Bad Request)
+            // com a mensagem exata para o React mostrar na tela vermelha.
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 }

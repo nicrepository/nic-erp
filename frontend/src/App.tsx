@@ -7,6 +7,7 @@ import { PrivateRoute } from "./components/PrivateRoute"
 import { AppLayout } from "./components/AppLayout"
 import { Usuarios } from "./pages/Usuarios"
 import { ThemeProvider } from "./contexts/ThemeProvider"
+import { ResetPassword } from './pages/ResetPassword'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* A Guarita de Segurança */}
           <Route element={<PrivateRoute />}>
