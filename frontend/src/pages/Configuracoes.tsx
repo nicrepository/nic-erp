@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,13 +9,13 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Shield, PlusCircle, UserCog, Settings, Key } from "lucide-react"
+import { Shield, PlusCircle, UserCog, Settings, Key, Mail } from "lucide-react"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 
 export function Configuracoes() {
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
 
   // Estados para os dados da API
@@ -31,6 +31,10 @@ export function Configuracoes() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<any>(null)
   const [editingPermissions, setEditingPermissions] = useState<string[]>([])
+
+  // ESTADOS PARA O PERFIL
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Dicionário amigável para traduzir o nome das permissões do back-end para o usuário
   const translatePermission = (perm: string) => {
@@ -142,6 +146,43 @@ export function Configuracoes() {
     }
   }
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append("file", file)
+
+    setIsUploading(true)
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/users/me/avatar', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}` 
+          // ⚠️ ATENÇÃO: NÃO coloque 'Content-Type': 'multipart/form-data' aqui!
+          // O navegador precisa gerar o cabeçalho sozinho com o "boundary" correto do arquivo.
+        },
+        body: formData
+      })
+
+      if (response.ok) {
+        // O back-end devolve os dados do usuário atualizados (com a nova avatarUrl)
+        const updatedUserData = await response.json() 
+        
+        // Injetamos a URL da foto direto no contexto do React (atualiza o cabeçalho e o perfil na hora!)
+        updateUser({ avatarUrl: updatedUserData.avatarUrl }) 
+        
+      } else {
+        alert("Erro ao enviar a foto de perfil.")
+      }
+    } catch (error) {
+      console.error("Erro no upload:", error)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -163,14 +204,59 @@ export function Configuracoes() {
           )}
         </TabsList>
         
-        {/* ABA: MEU PERFIL (Sua próxima missão de colocar o Avatar virá pra cá!) */}
+        {/* ABA: MEU PERFIL */}
         <TabsContent value="perfil" className="mt-4 space-y-4">
-          <div className="rounded-md border border-border bg-card shadow-sm p-6 flex flex-col items-center justify-center min-h-[300px] text-center">
-            <UserCog className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium text-foreground">Área do Colaborador</h3>
-            <p className="text-sm text-muted-foreground max-w-md mt-2">
-              Em breve você poderá alterar sua foto de perfil, atualizar seus dados de contato e modificar sua senha diretamente por aqui.
-            </p>
+          <div className="rounded-md border border-border bg-card shadow-sm p-6 max-w-2xl mx-auto mt-8">
+            <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-y-0 sm:space-x-6">
+              
+              {/* ÁREA DA FOTO */}
+              <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                <div className="h-24 w-24 rounded-full border-4 border-background shadow-md overflow-hidden bg-muted flex items-center justify-center relative">
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-bold text-muted-foreground uppercase">
+                      {user?.name?.substring(0, 2)}
+                    </span>
+                  )}
+                  {/* Overlay escuro que aparece no Hover */}
+                  <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center transition-all">
+                    <span className="text-white text-xs font-medium">Trocar</span>
+                  </div>
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/png, image/jpeg, image/jpg" 
+                  onChange={handleAvatarUpload}
+                  disabled={isUploading}
+                />
+              </div>
+
+              {/* DADOS DO USUÁRIO */}
+              <div className="flex-1 text-center sm:text-left space-y-1">
+                <h3 className="text-xl font-bold text-foreground">{user?.name}</h3>
+                <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-2">
+                  <Mail className="h-4 w-4" /> {user?.email}
+                </p>
+                <div className="pt-2 flex flex-wrap justify-center sm:justify-start gap-1">
+                  {user?.roles?.map((r: string) => (
+                    <Badge key={r} variant="secondary" className="text-[10px]">
+                      {r.replace('ROLE_', '')}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {isUploading && (
+              <div className="mt-4 text-center text-sm text-primary animate-pulse">
+                Enviando arquivo, aguarde...
+              </div>
+            )}
+            
           </div>
         </TabsContent>
 

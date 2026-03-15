@@ -7,8 +7,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useAuth } from "../contexts/AuthContext"
 
 export function AppLayout() {
+  const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { setTheme } = useTheme()
@@ -152,8 +154,13 @@ export function AppLayout() {
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
               <Bell className="h-5 w-5" />
             </Button>
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-sm font-medium text-primary-foreground cursor-pointer">
-              CA
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-sm font-medium text-primary-foreground overflow-hidden border border-border cursor-pointer">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              ) : (
+                // Pega as duas primeiras letras do nome do usuário de forma dinâmica
+                user?.name?.substring(0, 2).toUpperCase() || "US"
+              )}
             </div>
           </div>
         </header>

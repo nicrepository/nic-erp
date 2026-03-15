@@ -1,12 +1,13 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { jwtDecode } from "jwt-decode";
 
-// 1. Definimos o formato das informações que vêm dentro do seu Token JWT
-// ATENÇÃO: Os nomes aqui (sub, role) dependem de como você configurou o Spring Security!
 interface DecodedToken {
   sub: string;
-  roles?: string[]; // Mudamos para 'roles' no plural e definimos como Array!
+  roles?: string[];
   exp: number;
+  name?: string;
+  email?: string;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
@@ -14,55 +15,57 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (token: string) => void;
   logout: () => void;
+  updateUser: (newData: Partial<DecodedToken>) => void; // <-- FUNÇÃO NOVA AQUI
 }
 
-// 2. Criamos o contexto vazio
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 3. Criamos o "Provedor" que vai abraçar todo o seu aplicativo
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<DecodedToken | null>(null);
-
-  // Assim que o React liga, ele verifica se já existe um token salvo (ex: usuário deu F5 na página)
-  useEffect(() => {
+  
+  // A MÁGICA 1: Lemos o token IMEDIATAMENTE quando o estado nasce. 
+  // Isso impede o PrivateRoute de te chutar pro login ao recarregar a página!
+  const [user, setUser] = useState<DecodedToken | null>(() => {
     const token = localStorage.getItem("token");
     if (token) {
       try {
         const decoded = jwtDecode<DecodedToken>(token);
-        
-        // Verifica se o token não está expirado
         if (decoded.exp * 1000 > Date.now()) {
-          setUser(decoded);
+          return decoded;
         } else {
-          logout(); // Token venceu, expulsa o usuário
+          localStorage.removeItem("token"); // Token venceu
         }
       } catch (error) {
-        logout(); // Token inválido
+        localStorage.removeItem("token"); // Token inválido
       }
     }
-  }, []);
+    return null;
+  });
 
-  // Função para a tela de Login usar quando o Spring Boot devolver o Token
   const login = (token: string) => {
     localStorage.setItem("token", token);
     const decoded = jwtDecode<DecodedToken>(token);
     setUser(decoded);
   };
 
-  // Função para o botão "Sair" usar
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
   };
 
+  // A MÁGICA 2: Função para atualizar apenas a foto na tela sem precisar fazer login de novo
+  const updateUser = (newData: Partial<DecodedToken>) => {
+    if (user) {
+      setUser({ ...user, ...newData });
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-// 4. Um Hook customizado para facilitar a nossa vida nas outras telas
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
