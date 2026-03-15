@@ -20,13 +20,19 @@ export function Usuarios() {
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
 
   const [usersList, setUsersList] = useState<any[]>([])
-  const [availableRoles, setAvailableRoles] = useState<any[]>([]) // <-- ESTADO NOVO PARA OS CARGOS DINÂMICOS
+  const [availableRoles, setAvailableRoles] = useState<any[]>([])
   const [searchUser, setSearchUser] = useState("")
   
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newUserName, setNewUserName] = useState("")
   const [newUserEmail, setNewUserEmail] = useState("")
   const [newUserPassword, setNewUserPassword] = useState("")
+
+  // ESTADOS DO MODAL DE EDIÇÃO
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<any>(null)
+  const [editUserName, setEditUserName] = useState("")
+  const [editUserEmail, setEditUserEmail] = useState("")
 
   const fetchUsers = async () => {
     try {
@@ -144,6 +150,41 @@ export function Usuarios() {
       translatedRolesText.includes(search)
     )
   })
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingUser) return
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ name: editUserName, email: editUserEmail })
+      })
+
+      if (response.ok) {
+        setIsEditModalOpen(false)
+        fetchUsers() // Recarrega a tabela para mostrar o nome/email novos
+      } else {
+        const errorMsg = await response.text()
+        alert(`Erro ao editar: ${errorMsg}`)
+      }
+    } catch (error) {
+      console.error("Erro na edição:", error)
+    }
+  }
+
+  // Função auxiliar para abrir o modal já com os dados preenchidos
+  const openEditModal = (u: any) => {
+    setEditingUser(u)
+    setEditUserName(u.name)
+    setEditUserEmail(u.email)
+    setIsEditModalOpen(true)
+  }
 
   return (
     <div className="space-y-6">
@@ -265,6 +306,20 @@ export function Usuarios() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 bg-popover text-popover-foreground border-border">
+                              {/* --- BOTÃO DE EDITAR --- */}
+                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                              <DropdownMenuCheckboxItem 
+                                className="cursor-pointer font-medium text-primary focus:text-primary focus:bg-primary/10"
+                                onClick={(e) => {
+                                  e.preventDefault() // Impede o menu de fechar instantaneamente bizarramente
+                                  openEditModal(u)
+                                }}
+                              >
+                                Editar Dados Pessoais
+                              </DropdownMenuCheckboxItem>
+
+                              <DropdownMenuSeparator className="bg-border" />
+                              {/* --- FIM DO BOTÃO DE EDITAR --- */}
                               <DropdownMenuLabel>Permissões do Sistema</DropdownMenuLabel>
                               <DropdownMenuSeparator className="bg-border" />
                               
@@ -291,6 +346,78 @@ export function Usuarios() {
           </Table>
         </div>
       </div>
+      {/* MODAL DE EDIÇÃO DE USUÁRIO (SÓ ADMIN VÊ) */}
+      {isAdmin && (
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
+            <DialogHeader>
+              <DialogTitle>Editar Colaborador</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Altere os dados de identificação corporativa deste usuário.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleEditUser}>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editName">Nome Completo</Label>
+                  <div className="relative">
+                    <Users className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="editName" className="pl-8 bg-background" value={editUserName} onChange={(e) => setEditUserName(e.target.value)} required />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editEmail">E-mail Corporativo</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="editEmail" type="email" className="pl-8 bg-background" value={editUserEmail} onChange={(e) => setEditUserEmail(e.target.value)} required />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+                <Button type="submit">Salvar Alterações</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+      {/* MODAL DE EDIÇÃO DE USUÁRIO (SÓ ADMIN VÊ) */}
+      {isAdmin && (
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
+            <DialogHeader>
+              <DialogTitle>Editar Colaborador</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Altere os dados de identificação corporativa deste usuário.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleEditUser}>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="editName">Nome Completo</Label>
+                  <div className="relative">
+                    <Users className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="editName" className="pl-8 bg-background" value={editUserName} onChange={(e) => setEditUserName(e.target.value)} required />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="editEmail">E-mail Corporativo</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="editEmail" type="email" className="pl-8 bg-background" value={editUserEmail} onChange={(e) => setEditUserEmail(e.target.value)} required />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+                <Button type="submit">Salvar Alterações</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

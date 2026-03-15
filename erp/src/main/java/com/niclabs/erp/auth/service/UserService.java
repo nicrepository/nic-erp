@@ -3,6 +3,7 @@ package com.niclabs.erp.auth.service;
 import com.niclabs.erp.auth.domain.Role;
 import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.auth.dto.RegisterDTO;
+import com.niclabs.erp.auth.dto.UpdateUserAdminDTO;
 import com.niclabs.erp.auth.dto.UserResponseDTO;
 import com.niclabs.erp.auth.dto.ChangePasswordDTO;
 import com.niclabs.erp.auth.repository.RoleRepository;
@@ -157,5 +158,21 @@ public class UserService {
         // 2. Criptografa a nova senha e salva no banco
         user.setPassword(passwordEncoder.encode(dto.newPassword()));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public UserResponseDTO updateUserDetailsByAdmin(UUID id, UpdateUserAdminDTO dto) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+
+        // Opcional: Validar se o novo e-mail já não pertence a outra pessoa
+        if (!user.getEmail().equals(dto.email()) && userRepository.findByEmail(dto.email()).isPresent()) {
+            throw new RuntimeException("Este e-mail já está em uso por outro usuário.");
+        }
+
+        user.setName(dto.name());
+        user.setEmail(dto.email());
+
+        return mapToDTO(userRepository.save(user));
     }
 }

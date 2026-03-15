@@ -1,5 +1,6 @@
 package com.niclabs.erp.auth.controller;
 
+import com.niclabs.erp.auth.dto.UpdateUserAdminDTO;
 import com.niclabs.erp.auth.dto.UserResponseDTO;
 import com.niclabs.erp.auth.dto.ChangePasswordDTO;
 import com.niclabs.erp.auth.service.UserService;
@@ -72,6 +73,22 @@ public class UserController {
             return ResponseEntity.ok("Senha alterada com sucesso!");
         } catch (RuntimeException e) {
             // Se a senha atual estiver errada, devolvemos um erro 400 com a mensagem
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<?> updateUserDetails( // <-- Mudamos para <?> para poder retornar String de erro ou o DTO de sucesso
+                                                @PathVariable UUID id,
+                                                @RequestBody UpdateUserAdminDTO dto) {
+
+        try {
+            // Se der certo, devolve 200 OK com os dados novos
+            UserResponseDTO updatedUser = userService.updateUserDetailsByAdmin(id, dto);
+            return ResponseEntity.ok(updatedUser);
+        } catch (RuntimeException e) {
+            // Se der erro de negócio, devolve 400 Bad Request com a mensagem real
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
