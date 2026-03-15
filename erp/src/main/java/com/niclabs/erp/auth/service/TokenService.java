@@ -30,8 +30,11 @@ public class TokenService {
 
             return JWT.create()
                     .withIssuer("nic-erp") // Quem está emitindo
-                    .withSubject(user.getEmail()) // De quem é o token
-                    .withClaim("roles", roleNames)
+                    .withSubject(user.getEmail()) // De quem é o token (e-mail)
+                    .withClaim("roles", roleNames) // Cargos do usuário
+                    .withClaim("name", user.getName()) // NOME PARA O REACT LER
+                    .withClaim("email", user.getEmail()) // E-MAIL PARA O REACT LER
+                    .withClaim("avatarUrl", user.getAvatarUrl() != null ? user.getAvatarUrl() : "") // FOTO SE EXISTIR
                     .withExpiresAt(genExpirationDate()) // Tempo de expiração
                     .sign(algorithm);
         } catch (JWTCreationException exception) {

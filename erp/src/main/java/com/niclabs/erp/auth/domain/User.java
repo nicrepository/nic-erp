@@ -34,6 +34,9 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     private Boolean active;
 
     @ManyToMany(fetch = FetchType.EAGER)

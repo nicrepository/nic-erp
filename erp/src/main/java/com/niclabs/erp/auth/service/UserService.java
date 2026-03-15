@@ -85,7 +85,8 @@ public class UserService {
                 ? user.getRoles().stream().map(Role::getName).collect(Collectors.toList())
                 : List.of();
 
-        return new UserResponseDTO(user.getId(), user.getName(), user.getEmail(), roleNames);
+        // Passando o avatarUrl como o 4º parâmetro!
+        return new UserResponseDTO(user.getId(), user.getName(), user.getEmail(), user.getAvatarUrl(), roleNames);
     }
 
     @Transactional
@@ -131,5 +132,14 @@ public class UserService {
 
         // 5. Queima o token! (Regra de ouro de segurança)
         tokenRepository.delete(resetToken);
+    }
+
+    @Transactional
+    public UserResponseDTO updateAvatar(String email, String avatarUrl) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+
+        user.setAvatarUrl(avatarUrl);
+        return mapToDTO(userRepository.save(user));
     }
 }

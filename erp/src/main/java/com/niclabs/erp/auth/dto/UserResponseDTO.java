@@ -7,6 +7,7 @@ public record UserResponseDTO(
         UUID id,
         String name,
         String email,
-        List<String> roles // Devolvemos apenas os nomes (ex: ["ROLE_ADMIN"])
+        String avatarUrl,
+        List<String> roles
 ) {
 }
