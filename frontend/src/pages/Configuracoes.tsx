@@ -36,6 +36,12 @@ export function Configuracoes() {
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // --- ESTADOS PARA ALTERAR SENHA ---
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+
   // Dicionário amigável para traduzir o nome das permissões do back-end para o usuário
   const translatePermission = (perm: string) => {
     const dict: Record<string, string> = {
@@ -183,6 +189,44 @@ export function Configuracoes() {
     }
   }
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (newPassword !== confirmPassword) {
+      alert("As novas senhas não coincidem!")
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/users/me/password', {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      })
+
+      if (response.ok) {
+        alert("Senha alterada com sucesso!")
+        // Limpa os campos após o sucesso
+        setCurrentPassword("")
+        setNewPassword("")
+        setConfirmPassword("")
+      } else {
+        const errorMsg = await response.text()
+        alert(`Erro: ${errorMsg}`)
+      }
+    } catch (error) {
+      console.error("Erro ao alterar senha:", error)
+      alert("Erro de conexão ao alterar a senha.")
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -205,8 +249,10 @@ export function Configuracoes() {
         </TabsList>
         
         {/* ABA: MEU PERFIL */}
-        <TabsContent value="perfil" className="mt-4 space-y-4">
-          <div className="rounded-md border border-border bg-card shadow-sm p-6 max-w-2xl mx-auto mt-8">
+        <TabsContent value="perfil" className="mt-4 space-y-6">
+          
+          {/* BLOCO 1: DADOS DO USUÁRIO */}
+          <div className="rounded-md border border-border bg-card shadow-sm p-6 max-w-2xl mx-auto">
             <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-y-0 sm:space-x-6">
               
               {/* ÁREA DA FOTO */}
@@ -256,8 +302,66 @@ export function Configuracoes() {
                 Enviando arquivo, aguarde...
               </div>
             )}
-            
           </div>
+
+          {/* BLOCO 2: CARD DE SEGURANÇA (ALTERAR SENHA) */}
+          <div className="rounded-md border border-border bg-card shadow-sm p-6 max-w-2xl mx-auto">
+            <div className="flex items-center gap-2 mb-4">
+              <Key className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold text-foreground">Segurança</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              Atualize sua senha de acesso periodicamente para manter sua conta segura.
+            </p>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="currentPassword">Senha Atual</Label>
+                <Input 
+                  id="currentPassword" 
+                  type="password" 
+                  className="bg-background"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="newPassword">Nova Senha</Label>
+                  <Input 
+                    id="newPassword" 
+                    type="password" 
+                    className="bg-background"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="confirmPassword">Confirme a Nova Senha</Label>
+                  <Input 
+                    id="confirmPassword" 
+                    type="password" 
+                    className="bg-background"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <Button type="submit" disabled={isChangingPassword}>
+                  {isChangingPassword ? "Salvando..." : "Atualizar Senha"}
+                </Button>
+              </div>
+            </form>
+          </div>
+
         </TabsContent>
 
         {/* ABA: SISTEMA & ACESSOS (RBAC DINÂMICO) */}

@@ -4,6 +4,7 @@ import com.niclabs.erp.auth.domain.Role;
 import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.auth.dto.RegisterDTO;
 import com.niclabs.erp.auth.dto.UserResponseDTO;
+import com.niclabs.erp.auth.dto.ChangePasswordDTO;
 import com.niclabs.erp.auth.repository.RoleRepository;
 import com.niclabs.erp.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -141,5 +142,20 @@ public class UserService {
 
         user.setAvatarUrl(avatarUrl);
         return mapToDTO(userRepository.save(user));
+    }
+
+    @Transactional
+    public void changePassword(String email, ChangePasswordDTO dto) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+
+        // 1. Verifica se a senha atual digitada está correta
+        if (!passwordEncoder.matches(dto.currentPassword(), user.getPassword())) {
+            throw new RuntimeException("A senha atual está incorreta.");
+        }
+
+        // 2. Criptografa a nova senha e salva no banco
+        user.setPassword(passwordEncoder.encode(dto.newPassword()));
+        userRepository.save(user);
     }
 }

@@ -1,6 +1,7 @@
 package com.niclabs.erp.auth.controller;
 
 import com.niclabs.erp.auth.dto.UserResponseDTO;
+import com.niclabs.erp.auth.dto.ChangePasswordDTO;
 import com.niclabs.erp.auth.service.UserService;
 import com.niclabs.erp.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -60,5 +61,18 @@ public class UserController {
     public ResponseEntity<?> whoAmI() {
         var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         return ResponseEntity.ok(auth.getAuthorities());
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<String> changePassword(
+            @RequestBody ChangePasswordDTO dto,
+            Principal principal) {
+        try {
+            userService.changePassword(principal.getName(), dto);
+            return ResponseEntity.ok("Senha alterada com sucesso!");
+        } catch (RuntimeException e) {
+            // Se a senha atual estiver errada, devolvemos um erro 400 com a mensagem
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
