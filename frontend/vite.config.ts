@@ -36,6 +36,10 @@ export default defineConfig({
       '/files': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      '/hr': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       }
     }
   }

@@ -1,0 +1,1 @@
+INSERT INTO auth.permissions (id, name) VALUES (gen_random_uuid(), 'ACCESS_HR');

@@ -9,6 +9,7 @@ import { Usuarios } from "./pages/Usuarios"
 import { ThemeProvider } from "./contexts/ThemeProvider"
 import { ResetPassword } from './pages/ResetPassword'
 import { Configuracoes } from './pages/Configuracoes'
+import { RecursosHumanos } from "./pages/RecursosHumanos"
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
               <Route path="/helpdesk" element={<Helpdesk />} />
               <Route path="/inventario" element={<Inventario />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
+              <Route path="/recursoshumanos" element={<RecursosHumanos />} />
             </Route>
           </Route>
         </Routes>

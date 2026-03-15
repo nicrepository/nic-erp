@@ -7,7 +7,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Users, Shield, ShieldAlert, PlusCircle, Search, Mail, Key, MoreHorizontal } from "lucide-react"
+import { Users, Shield, ShieldAlert, PlusCircle, Search, Mail, Key, MoreHorizontal, AlertTriangle } from "lucide-react"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
@@ -18,6 +18,19 @@ import {
 export function Usuarios() {
   const { user } = useAuth()
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
+
+  // --- BARREIRA DE ACESSO NEGADO ---
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] text-center space-y-4 animate-in fade-in duration-500">
+        <AlertTriangle className="h-16 w-16 text-yellow-500" />
+        <h2 className="text-2xl font-bold text-foreground">Acesso Negado</h2>
+        <p className="text-muted-foreground max-w-md">
+          Apenas administradores podem acessar o painel de Gestão de Usuários.
+        </p>
+      </div>
+    )
+  }
 
   const [usersList, setUsersList] = useState<any[]>([])
   const [availableRoles, setAvailableRoles] = useState<any[]>([])

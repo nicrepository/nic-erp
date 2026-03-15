@@ -50,7 +50,8 @@ export function Configuracoes() {
       'ACCESS_HELPDESK': 'Helpdesk',
       'ACCESS_USERS': 'Gestão de Usuários',
       'ACCESS_DASHBOARD': 'Visualizar Dashboard',
-      'ACCESS_ANNOUNCEMENTS_MANAGE': 'Gerenciar Comunicados'
+      'ACCESS_ANNOUNCEMENTS_MANAGE': 'Gerenciar Comunicados',
+      'ACCESS_HR': 'Recursos Humanos'
     }
     return dict[perm] || perm
   }

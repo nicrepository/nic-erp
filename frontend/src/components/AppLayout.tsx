@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Monitor, Sun, Moon, Menu, Ticket } from "lucide-react"
+import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Monitor, Sun, Moon, Menu, Ticket, Briefcase } from "lucide-react"
 import { useTheme } from "../contexts/ThemeProvider"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -40,6 +40,14 @@ export function AppLayout() {
         onClick={() => { navigate('/usuarios'); setIsMobileMenuOpen(false); }}
       >
         <Users className="h-4 w-4" /> Usuários
+      </Button>
+
+      <Button 
+        variant={isActive('/recursoshumanos') ? 'secondary' : 'ghost'} 
+        className={`w-full justify-start gap-3 ${isActive('/recursoshumanos') ? 'text-foreground' : 'text-muted-foreground'}`}
+        onClick={() => { navigate('/recursoshumanos'); setIsMobileMenuOpen(false); }}
+      >
+        <Briefcase className="h-4 w-4" /> Recursos Humanos
       </Button>
 
       <Button 
