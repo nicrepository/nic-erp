@@ -24,18 +24,19 @@ public class TokenService {
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
 
-            List<String> roleNames = user.getRoles().stream()
-                    .map(Role::getName)
+            // A MÁGICA ACONTECE AQUI: Pegando a lista consolidada (Cargos + Permissões)
+            List<String> authorities = user.getAuthorities().stream()
+                    .map(org.springframework.security.core.GrantedAuthority::getAuthority)
                     .collect(java.util.stream.Collectors.toList());
 
             return JWT.create()
-                    .withIssuer("nic-erp") // Quem está emitindo
-                    .withSubject(user.getEmail()) // De quem é o token (e-mail)
-                    .withClaim("roles", roleNames) // Cargos do usuário
-                    .withClaim("name", user.getName()) // NOME PARA O REACT LER
-                    .withClaim("email", user.getEmail()) // E-MAIL PARA O REACT LER
-                    .withClaim("avatarUrl", user.getAvatarUrl() != null ? user.getAvatarUrl() : "") // FOTO SE EXISTIR
-                    .withExpiresAt(genExpirationDate()) // Tempo de expiração
+                    .withIssuer("nic-erp")
+                    .withSubject(user.getEmail())
+                    .withClaim("roles", authorities) // Agora o React recebe TUDO!
+                    .withClaim("name", user.getName())
+                    .withClaim("email", user.getEmail())
+                    .withClaim("avatarUrl", user.getAvatarUrl() != null ? user.getAvatarUrl() : "")
+                    .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
         } catch (JWTCreationException exception) {
             throw new RuntimeException("Erro ao gerar token JWT", exception);

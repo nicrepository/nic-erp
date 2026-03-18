@@ -52,6 +52,9 @@ public class Employee {
     @Column(name = "admission_date", nullable = false)
     private LocalDate admissionDate;
 
+    @Column(name = "termination_date")
+    private LocalDate terminationDate;
+
     @Column(name = "job_title", nullable = false, length = 100)
     private String jobTitle;
 

@@ -15,6 +15,7 @@ public record EmployeeResponseDTO(
         String phone,
         String registrationNumber,
         LocalDate admissionDate,
+        LocalDate terminationDate,
         String jobTitle,
         String department,
         BigDecimal baseSalary,

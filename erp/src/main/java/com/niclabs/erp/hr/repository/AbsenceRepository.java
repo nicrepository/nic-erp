@@ -34,4 +34,8 @@ public interface AbsenceRepository extends JpaRepository<Absence, UUID> {
     @Query("SELECT a FROM Absence a WHERE a.startDate > :today AND a.startDate <= :limitDate AND a.status != 'CANCELADO' ORDER BY a.startDate ASC")
     List<Absence> findUpcomingAbsences(@Param("today") LocalDate today, @Param("limitDate") LocalDate limitDate);
 
+    // 5. Busca ausências ativas de um funcionário em uma data específica
+    @Query("SELECT a FROM Absence a WHERE a.employee.id = :employeeId AND a.startDate <= :date AND a.endDate >= :date AND a.status != 'CANCELADO'")
+    List<Absence> findActiveAbsencesByEmployee(@Param("employeeId") UUID employeeId, @Param("date") LocalDate date);
+
 }

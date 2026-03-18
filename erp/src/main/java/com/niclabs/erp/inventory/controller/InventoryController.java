@@ -122,6 +122,15 @@ public class InventoryController {
         return ResponseEntity.ok(itAssetService.getAssetHistory(id));
     }
 
+    // Você pode criar um DTO simples para receber o motivo, ou pegar direto como String/Map
+    @PutMapping("/it/assets/{id}/write-off")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
+    public ResponseEntity<Void> writeOffITAsset(@PathVariable UUID id, @RequestBody java.util.Map<String, String> payload) {
+        String reason = payload.get("reason");
+        itAssetService.writeOffAsset(id, reason);
+        return ResponseEntity.ok().build();
+    }
+
     // ==========================================
     // AUDITORIA DE ESTOQUE
     // ==========================================

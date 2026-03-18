@@ -29,9 +29,12 @@ export function RecursosHumanos() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null)
 
+  // Estado para saber qual ausência estamos editando:
+  const [editingAbsenceId, setEditingAbsenceId] = useState<string | null>(null)
+
   const initialFormState = {
     fullName: "", cpf: "", rg: "", birthDate: "", phone: "",
-    registrationNumber: "", admissionDate: "", jobTitle: "",
+    registrationNumber: "", admissionDate: "", terminationDate: "", jobTitle: "",
     department: "", baseSalary: "", status: "ATIVO", userId: ""
   }
   const [formData, setFormData] = useState(initialFormState)
@@ -108,6 +111,7 @@ export function RecursosHumanos() {
     setFormData({
       fullName: emp.fullName, cpf: emp.cpf, rg: emp.rg || "", birthDate: emp.birthDate || "",
       phone: emp.phone || "", registrationNumber: emp.registrationNumber, admissionDate: emp.admissionDate,
+      terminationDate: emp.terminationDate || "", // <-- ADICIONADO AQUI
       jobTitle: emp.jobTitle, department: emp.department, baseSalary: emp.baseSalary ? emp.baseSalary.toString() : "",
       status: emp.status, userId: emp.userId || ""
     })
@@ -120,7 +124,12 @@ export function RecursosHumanos() {
     setIsSubmitting(true)
     try {
       const token = localStorage.getItem("token")
-      const payload = { ...formData, userId: formData.userId === "" ? null : formData.userId, baseSalary: formData.baseSalary ? parseFloat(formData.baseSalary) : null }
+      const payload = { 
+        ...formData, 
+        userId: formData.userId === "" ? null : formData.userId, 
+        baseSalary: formData.baseSalary ? parseFloat(formData.baseSalary) : null,
+        terminationDate: formData.status === 'DESLIGADO' ? formData.terminationDate : null // Limpa a data se não estiver desligado
+      }
       const url = editingEmployeeId ? `/hr/employees/${editingEmployeeId}` : '/hr/employees'
       const method = editingEmployeeId ? 'PUT' : 'POST'
       const response = await fetch(url, { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -142,22 +151,58 @@ export function RecursosHumanos() {
     setIsSubmittingAbsence(true)
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch('/hr/absences', {
-        method: 'POST',
+      
+      // --- MÁGICA AQUI: Define se é POST (novo) ou PUT (edição) ---
+      const url = editingAbsenceId ? `/hr/absences/${editingAbsenceId}` : '/hr/absences'
+      const method = editingAbsenceId ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method: method,
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(absenceData)
       })
 
       if (response.ok) {
         setIsAbsenceModalOpen(false)
-        fetchAbsences()
+        fetchAbsences() // Atualiza a tabela de ausências
+        fetchEmployees() // Atualiza a aba de Diretório (para mudar o status na hora!)
         setAbsenceData(initialAbsenceState)
+        setEditingAbsenceId(null) // Limpa o ID para não bugar a próxima
       } else {
         const errorMsg = await response.text()
-        alert(`Erro ao registrar ausência: ${errorMsg}`)
+        alert(`Erro ao registrar/editar ausência: ${errorMsg}`)
       }
     } catch (error) { console.error("Erro na operação:", error) } 
     finally { setIsSubmittingAbsence(false) }
+  }
+
+  // Função para abrir o modal de edição
+  const openEditAbsenceModal = (abs: any) => {
+    setAbsenceData({
+      employeeId: abs.employeeId,
+      type: abs.type,
+      startDate: abs.startDate, 
+      endDate: abs.endDate, 
+      description: abs.description || ""
+    })
+    setEditingAbsenceId(abs.id)
+    setIsAbsenceModalOpen(true)
+  }
+
+  // Função para deletar
+  const handleDeleteAbsence = async (id: string) => {
+    if (!window.confirm("Tem certeza que deseja cancelar esta ausência?")) return
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/hr/absences/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        fetchAbsences()
+        fetchEmployees() // Atualiza os funcionários também, pois o status pode ter voltado para "ATIVO"
+      } else { alert("Erro ao cancelar ausência.") }
+    } catch (error) { console.error(error) }
   }
 
   // --- RENDERS AUXILIARES ---
@@ -168,6 +213,9 @@ export function RecursosHumanos() {
       case 'ATIVO': return <Badge className="bg-green-500/15 text-green-700 border-green-500/30"><UserCheck className="w-3 h-3 mr-1"/> Ativo</Badge>
       case 'DESLIGADO': return <Badge className="bg-red-500/15 text-red-700 border-red-500/30"><UserX className="w-3 h-3 mr-1"/> Desligado</Badge>
       case 'FERIAS': return <Badge className="bg-yellow-500/15 text-yellow-700 border-yellow-500/30"><Plane className="w-3 h-3 mr-1"/> Férias</Badge>
+      case 'ATESTADO': return <Badge className="bg-red-500/15 text-red-700 border-red-500/30"><Stethoscope className="w-3 h-3 mr-1"/> Atestado</Badge>
+      case 'DAY_OFF': return <Badge className="bg-blue-500/15 text-blue-700 border-blue-500/30"><Cake className="w-3 h-3 mr-1"/> Day Off</Badge>
+      case 'LICENCA': return <Badge className="bg-purple-500/15 text-purple-700 border-purple-500/30"><Briefcase className="w-3 h-3 mr-1"/> Licença</Badge>
       case 'AFASTADO': return <Badge className="bg-orange-500/15 text-orange-700 border-orange-500/30">Afastado</Badge>
       default: return <Badge variant="outline">{status}</Badge>
     }
@@ -275,7 +323,7 @@ export function RecursosHumanos() {
         <TabsContent value="ausencias" className="mt-4 space-y-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <h2 className="text-lg font-medium text-foreground">Histórico e Lançamentos</h2>
-            <Button onClick={() => setIsAbsenceModalOpen(true)} className="gap-2">
+            <Button onClick={() => { setAbsenceData(initialAbsenceState); setEditingAbsenceId(null); setIsAbsenceModalOpen(true); }} className="gap-2">
               <CalendarDays className="h-4 w-4" /> Nova Ausência
             </Button>
           </div>
@@ -289,11 +337,13 @@ export function RecursosHumanos() {
                   <TableHead>Data de Início</TableHead>
                   <TableHead>Data de Fim</TableHead>
                   <TableHead>Detalhes</TableHead>
+                  {/* --- NOVA COLUNA ADICIONADA AQUI --- */}
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {absences.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma ausência registrada no sistema.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma ausência registrada no sistema.</TableCell></TableRow>
                 ) : (
                   absences.map((abs) => (
                     <TableRow key={abs.id} className="border-border hover:bg-muted/50">
@@ -304,6 +354,26 @@ export function RecursosHumanos() {
                       <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate" title={abs.description}>
                         {abs.description || '-'}
                       </TableCell>
+                      
+                      {/* --- NOVO MENU DE AÇÕES ADICIONADO AQUI --- */}
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted">
+                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 bg-popover border-border">
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => openEditAbsenceModal(abs)}>
+                              <Edit className="h-4 w-4 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-500/10" onClick={() => handleDeleteAbsence(abs.id)}>
+                              <UserX className="h-4 w-4 mr-2" /> Cancelar Ausência
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                      {/* ------------------------------------------- */}
                     </TableRow>
                   ))
                 )}
@@ -364,10 +434,26 @@ export function RecursosHumanos() {
                   <select id="status" name="status" className={selectClassName} value={formData.status} onChange={handleInputChange}>
                     <option value="ATIVO">Ativo</option>
                     <option value="FERIAS">Em Férias</option>
-                    <option value="AFASTADO">Afastado</option>
+                    <option value="ATESTADO">Atestado Médico</option>
+                    <option value="DAY_OFF">Day Off</option>
+                    <option value="LICENCA">Licença</option>
+                    <option value="AFASTADO">Afastado (Outros)</option>
                     <option value="DESLIGADO">Desligado</option>
                   </select>
                 </div>
+                {formData.status === 'DESLIGADO' && (
+                  <div className="space-y-2 animate-in fade-in zoom-in duration-300">
+                    <Label htmlFor="terminationDate">Data de Desligamento *</Label>
+                    <Input 
+                      id="terminationDate" 
+                      name="terminationDate" 
+                      type="date" 
+                      value={formData.terminationDate} 
+                      onChange={handleInputChange} 
+                      required={formData.status === 'DESLIGADO'} 
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="jobTitle">Cargo *</Label>
                   <Input id="jobTitle" name="jobTitle" placeholder="Ex: Analista" value={formData.jobTitle} onChange={handleInputChange} required />

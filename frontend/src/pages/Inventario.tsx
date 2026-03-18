@@ -38,6 +38,11 @@ export function Inventario() {
   const [serialNumber, setSerialNumber] = useState("")
   const [assetTag, setAssetTag] = useState("")
 
+  // --- ESTADOS: BAIXA DE ATIVO ---
+  const [isWriteOffModalOpen, setIsWriteOffModalOpen] = useState(false)
+  const [writeOffConfirmText, setWriteOffConfirmText] = useState("")
+  const [writeOffReason, setWriteOffReason] = useState("")
+
   // --- ESTADOS: ATRIBUIÇÃO DE EQUIPAMENTOS ---
   const [users, setUsers] = useState<any[]>([])
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
@@ -196,6 +201,36 @@ export function Inventario() {
     } catch (error) {
       console.error("Erro de conexão:", error)
     }
+  }
+
+  const handleWriteOffAsset = async () => {
+    if (!writeOffReason.trim()) {
+      alert("É obrigatório informar o motivo da baixa.");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/inventory/it/assets/${selectedAsset.id}/write-off`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ reason: writeOffReason })
+      })
+
+      if (response.ok) {
+        setIsWriteOffModalOpen(false)
+        setIsDetailModalOpen(false) 
+        setWriteOffConfirmText("")
+        setWriteOffReason("")
+        fetchITAssets() 
+      } else {
+        const errorMsg = await response.text()
+        alert(`Erro ao dar baixa: ${errorMsg}`)
+      }
+    } catch (error) { console.error("Erro de conexão:", error) }
   }
 
   const getAssignedUserName = (userId: string) => {
@@ -522,7 +557,9 @@ export function Inventario() {
                           <TableCell className="text-muted-foreground whitespace-nowrap">{asset.brand} - {asset.model}</TableCell>
                           <TableCell className="text-muted-foreground whitespace-nowrap">{asset.serialNumber}</TableCell>
                           <TableCell className="whitespace-nowrap">
-                            {asset.assignedTo ? (
+                            {asset.status === 'WRITTEN_OFF' ? (
+                              <Badge variant="outline" className="bg-neutral-500/15 text-neutral-700 dark:text-neutral-400 border-neutral-500/30">Baixado</Badge>
+                            ) : asset.assignedTo ? (
                               <Badge variant="secondary" className="bg-blue-500/15 text-blue-700 dark:text-blue-400 hover:bg-blue-500/25">Em Uso</Badge>
                             ) : (
                               <Badge variant="outline" className="bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30">Disponível</Badge>
@@ -594,7 +631,7 @@ export function Inventario() {
             </Dialog>
 
             <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-              <DialogContent className="sm:max-w-[550px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
+              <DialogContent className="sm:max-w-[600px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
                 <DialogHeader>
                   <DialogTitle>
                     {isEditingAsset ? "Editar Equipamento" : "Detalhes do Equipamento"}
@@ -656,7 +693,9 @@ export function Inventario() {
                           </div>
                           <div className="col-span-2 sm:col-span-1">
                             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Status</h4>
-                            {selectedAsset.assignedTo ? (
+                            {selectedAsset.status === 'WRITTEN_OFF' ? (
+                              <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Baixado / Descartado</p>
+                            ) : selectedAsset.assignedTo ? (
                               <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Em Uso ({getAssignedUserName(selectedAsset.assignedTo)})</p>
                             ) : (
                               <p className="text-sm font-medium text-green-600 dark:text-green-400">Disponível</p>
@@ -708,6 +747,10 @@ export function Inventario() {
                                     actionText = "Especificações alteradas"
                                     actionColor = "text-foreground bg-muted"
                                     break;
+                                  case 'WRITTEN_OFF':
+                                    actionText = "Equipamento Baixado"
+                                    actionColor = "text-orange-700 dark:text-orange-400 bg-orange-500/15"
+                                    break;
                                 }
 
                                 return (
@@ -723,6 +766,11 @@ export function Inventario() {
                                       <span className="text-xs text-muted-foreground">
                                         Por: <span className="font-medium text-foreground">{performedBy}</span>
                                       </span>
+                                      {historyEvent.notes && (
+                                        <span className="text-xs text-muted-foreground italic mt-1 bg-muted p-1 rounded">
+                                          "{historyEvent.notes}"
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 )
@@ -744,28 +792,101 @@ export function Inventario() {
                   ) : (
                     <>
                       <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        {!selectedAsset?.assignedTo ? (
+                        {!selectedAsset?.assignedTo && selectedAsset?.status !== 'WRITTEN_OFF' ? (
                           <Button className="gap-2 w-full sm:w-auto" onClick={() => {
                             setIsDetailModalOpen(false)
                             setIsAssignModalOpen(true)
                           }}>
                             <UserPlus className="h-4 w-4" /> Atribuir a Usuário
                           </Button>
-                        ) : (
+                        ) : selectedAsset?.assignedTo ? (
                           <Button variant="destructive" className="w-full sm:w-auto" onClick={handleUnassignAsset}>
                             Desvincular Responsável
                           </Button>
-                        )}
+                        ) : null}
                       </div>
                       
-                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                        <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={() => setIsEditingAsset(true)}>
-                          <Edit2 className="h-4 w-4" /> Editar
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-between items-center w-full">
+                        <Button 
+                          variant="destructive" 
+                          className="w-full sm:w-auto bg-neutral-600 hover:bg-neutral-700 disabled:opacity-50"
+                          disabled={!!selectedAsset?.assignedTo || selectedAsset?.status === 'WRITTEN_OFF'} 
+                          title={selectedAsset?.assignedTo ? "Desvincule o usuário antes de dar baixa" : ""}
+                          onClick={() => {
+                            setIsWriteOffModalOpen(true)
+                            setWriteOffConfirmText("")
+                            setWriteOffReason("")
+                          }}
+                        >
+                          <AlertTriangle className="h-4 w-4 mr-2" /> Dar Baixa (Descartar)
                         </Button>
-                        <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDetailModalOpen(false)}>Fechar</Button>
+                        
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                          {selectedAsset?.status !== 'WRITTEN_OFF' && (
+                            <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={() => setIsEditingAsset(true)}>
+                              <Edit2 className="h-4 w-4" /> Editar
+                            </Button>
+                          )}
+                          <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDetailModalOpen(false)}>Fechar</Button>
+                        </div>
                       </div>
                     </>
                   )}
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* MODAL DE BAIXA DE EQUIPAMENTO (Double Opt-in) */}
+            <Dialog open={isWriteOffModalOpen} onOpenChange={setIsWriteOffModalOpen}>
+              <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
+                <DialogHeader>
+                  <DialogTitle className="text-orange-600 dark:text-orange-400 flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5" /> Baixa de Equipamento
+                  </DialogTitle>
+                  <DialogDescription>
+                    O equipamento deixará de contar como ativo disponível, mas seu histórico será mantido para auditoria.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="writeOffReason">Motivo da Baixa / Descarte *</Label>
+                    <Textarea 
+                      id="writeOffReason"
+                      placeholder="Ex: Placa mãe queimada sem conserto, doado para instituição..." 
+                      value={writeOffReason}
+                      onChange={(e) => setWriteOffReason(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="bg-orange-500/10 p-3 rounded-md border border-orange-500/20 text-sm text-orange-600 dark:text-orange-400 mt-2">
+                    Para confirmar a baixa, digite o patrimônio exato: <strong>{selectedAsset?.assetTag}</strong>
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label htmlFor="confirmWriteOff">Confirmar Patrimônio *</Label>
+                    <Input 
+                      id="confirmWriteOff"
+                      value={writeOffConfirmText} 
+                      onChange={(e) => setWriteOffConfirmText(e.target.value)} 
+                      placeholder={selectedAsset?.assetTag}
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsWriteOffModalOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button 
+                    className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white" 
+                    disabled={writeOffConfirmText !== selectedAsset?.assetTag || writeOffReason.trim() === ""} 
+                    onClick={handleWriteOffAsset}
+                  >
+                    Confirmar Baixa
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

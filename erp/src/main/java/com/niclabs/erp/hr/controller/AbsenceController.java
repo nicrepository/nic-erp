@@ -40,4 +40,17 @@ public class AbsenceController {
     public ResponseEntity<List<AbsenceResponseDTO>> getAbsencesByEmployee(@PathVariable UUID employeeId) {
         return ResponseEntity.ok(absenceService.getAbsencesByEmployee(employeeId));
     }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<AbsenceResponseDTO> updateAbsence(@PathVariable UUID id, @RequestBody AbsenceRequestDTO dto) {
+        return ResponseEntity.ok(absenceService.updateAbsence(id, dto));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<Void> deleteAbsence(@PathVariable UUID id) {
+        absenceService.deleteAbsence(id);
+        return ResponseEntity.noContent().build();
+    }
 }

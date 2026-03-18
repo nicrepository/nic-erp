@@ -48,12 +48,18 @@ public class EmployeeService {
         employee.setPhone(dto.phone());
         employee.setRegistrationNumber(dto.registrationNumber());
         employee.setAdmissionDate(dto.admissionDate());
+        employee.setTerminationDate(dto.terminationDate());
         employee.setJobTitle(dto.jobTitle());
         employee.setDepartment(dto.department());
         employee.setBaseSalary(dto.baseSalary());
         employee.setStatus(dto.status() != null ? dto.status() : "ATIVO");
 
         // 4. Salva no banco e devolve mapeado para o Front-end
+        // Se o status NÃO for desligado, garante que a data de desligamento seja nula no banco
+        if (!"DESLIGADO".equals(employee.getStatus())) {
+            employee.setTerminationDate(null);
+        }
+
         return mapToDTO(employeeRepository.save(employee));
     }
 
@@ -81,6 +87,14 @@ public class EmployeeService {
             employee.setUser(null); // Remove o acesso se o RH desvincular
         }
 
+        // Na hora de salvar/atualizar o funcionário:
+        employee.setTerminationDate(dto.terminationDate());
+
+        // Regra de negócio de brinde:
+        if (!"Desligado".equalsIgnoreCase(employee.getStatus())) {
+            employee.setTerminationDate(null);
+        }
+
         // Atualiza os dados da Ficha
         employee.setFullName(dto.fullName());
         employee.setCpf(dto.cpf());
@@ -89,10 +103,16 @@ public class EmployeeService {
         employee.setPhone(dto.phone());
         employee.setRegistrationNumber(dto.registrationNumber());
         employee.setAdmissionDate(dto.admissionDate());
+        employee.setTerminationDate(dto.terminationDate());
         employee.setJobTitle(dto.jobTitle());
         employee.setDepartment(dto.department());
         employee.setBaseSalary(dto.baseSalary());
         employee.setStatus(dto.status() != null ? dto.status() : "ATIVO");
+
+        // Se o status NÃO for desligado, garante que a data de desligamento seja nula no banco
+        if (!"DESLIGADO".equals(employee.getStatus())) {
+            employee.setTerminationDate(null);
+        }
 
         return mapToDTO(employeeRepository.save(employee));
     }
@@ -116,6 +136,7 @@ public class EmployeeService {
                 employee.getPhone(),
                 employee.getRegistrationNumber(),
                 employee.getAdmissionDate(),
+                employee.getTerminationDate(),
                 employee.getJobTitle(),
                 employee.getDepartment(),
                 employee.getBaseSalary(),
