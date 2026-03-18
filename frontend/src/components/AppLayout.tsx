@@ -1,6 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Monitor, Sun, Moon, Menu, Ticket, Briefcase } from "lucide-react"
 import { useTheme } from "../contexts/ThemeProvider"
 import {
@@ -22,6 +23,35 @@ export function AppLayout() {
   }
 
   const isActive = (path: string) => location.pathname === path
+
+  const [notifications, setNotifications] = useState<any[]>([])
+
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/notifications', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) setNotifications(await response.json())
+    } catch (error) { console.error("Erro ao buscar notificações:", error) }
+  }
+
+  // Busca as notificações quando o layout carrega
+  useEffect(() => {
+    fetchNotifications()
+  }, [])
+
+  const markAsRead = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      await fetch(`/notifications/${id}/read`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      // Remove da lista na tela instantaneamente para dar a sensação de velocidade
+      setNotifications(prev => prev.filter(n => n.id !== id))
+    } catch (error) { console.error("Erro ao marcar como lida:", error) }
+  }
 
   // Links principais do meio do menu
   const NavLinks = () => (
@@ -160,7 +190,44 @@ export function AppLayout() {
             </DropdownMenu>
 
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-              <Bell className="h-5 w-5" />
+              {/* SINO DE NOTIFICAÇÕES */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
+                    <Bell className="h-5 w-5" />
+                    {notifications.length > 0 && (
+                      <span className="absolute top-1 right-1 flex h-2 w-2 rounded-full bg-red-600 ring-2 ring-card"></span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 bg-popover border-border text-foreground p-0">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                    <span className="font-semibold text-sm">Notificações</span>
+                    <Badge variant="secondary" className="text-xs">{notifications.length} novas</Badge>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        Nenhuma notificação no momento.
+                      </div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div key={notif.id} className="p-4 border-b border-border/50 hover:bg-muted/50 transition-colors flex flex-col gap-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-medium text-sm">{notif.title}</span>
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={(e) => { e.stopPropagation(); markAsRead(notif.id); }}>
+                              Marcar lida
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                            {notif.message}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </Button>
             <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-sm font-medium text-primary-foreground overflow-hidden border border-border cursor-pointer">
               {user?.avatarUrl ? (

@@ -40,6 +40,10 @@ export default defineConfig({
       '/hr': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      '/notifications': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       }
     }
   }
