@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { PlusCircle, MoreHorizontal, Search } from "lucide-react"
+import { PlusCircle, MoreHorizontal, Search, ListFilter, AlertCircle, UserSquare, CheckCircle2 } from "lucide-react"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export function Helpdesk() {
   const { user } = useAuth()
@@ -33,6 +34,9 @@ export function Helpdesk() {
   const [comments, setComments] = useState<any[]>([])
   const [newComment, setNewComment] = useState("")
   const [searchTicket, setSearchTicket] = useState("")
+  
+  // NOVO ESTADO: Controle da Aba Ativa
+  const [activeTab, setActiveTab] = useState("all")
 
   const fetchTickets = async () => {
     try {
@@ -227,7 +231,8 @@ export function Helpdesk() {
     }
   }
 
-  const filteredTickets = tickets.filter(ticket => {
+  // 1. PRIMEIRO: Aplica o filtro da barra de pesquisa
+  const searchFilteredTickets = tickets.filter(ticket => {
     const searchTerm = searchTicket.toLowerCase()
     const translatedDept = translateDepartment(ticket.department).toLowerCase()
     const translatedPriority = translatePriority(ticket.priority).toLowerCase()
@@ -247,16 +252,25 @@ export function Helpdesk() {
     )
   })
 
+  // 2. SEGUNDO: Aplica o filtro das Abas (Segmentação)
+  const displayTickets = searchFilteredTickets.filter(ticket => {
+    if (activeTab === "all") return true;
+    if (activeTab === "open") return ticket.status === 'OPEN';
+    // O (user as any) avisa ao TypeScript para confiar que o id existe nesse objeto
+    if (activeTab === "mine") return ticket.status === 'IN_PROGRESS' && ticket.assigneeId === (user as any)?.id; 
+    if (activeTab === "closed") return ticket.status === 'RESOLVED' || ticket.status === 'CLOSED';
+    return true;
+  });
+
   return (
     <div className="space-y-6">
-      {/* 1. CABEÇALHO RESPONSIVO */}
+      {/* CABEÇALHO RESPONSIVO */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Service Desk</h1>
           <p className="text-sm text-muted-foreground">Gerencie e acompanhe os chamados de suporte da empresa.</p>
         </div>
 
-        {/* Barra de busca e botão se adaptam no mobile */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           <div className="relative w-full sm:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -275,7 +289,6 @@ export function Helpdesk() {
                 <PlusCircle className="h-4 w-4" /> Novo Chamado
               </Button>
             </DialogTrigger>
-            {/* Modal de Criação: Ajuste de max-height e width no Mobile */}
             <DialogContent className="sm:max-w-[500px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
               <DialogHeader>
                 <DialogTitle>Abrir Novo Chamado</DialogTitle>
@@ -332,8 +345,8 @@ export function Helpdesk() {
         </div>
       </div>
 
+      {/* MODAL DE DETALHES */}
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-        {/* Modal de Detalhes: Ajuste de max-height e width no Mobile */}
         <DialogContent className="sm:max-w-[600px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Detalhes do Chamado</DialogTitle>
@@ -344,8 +357,6 @@ export function Helpdesk() {
 
           {selectedTicket && (
             <div className="space-y-4 py-4">
-              
-              {/* O grid de informações curtas quebra em 2 colunas, mas no celular fica bem espremido, então coloquei grid-cols-2 */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-muted/50 p-4 rounded-lg border border-border">
                 <div className="col-span-2 sm:col-span-1">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">ID</h4>
@@ -414,7 +425,6 @@ export function Helpdesk() {
                   </Button>
                 </div>
               </div>
-
             </div>
           )}
 
@@ -447,77 +457,98 @@ export function Helpdesk() {
         </DialogContent>
       </Dialog>
 
-      <div className="rounded-md border border-border bg-card shadow-sm w-full">
-        {/* 2. SCROLL HORIZONTAL DA TABELA */}
-        <div className="overflow-x-auto">
-          <Table className="w-full">
-            <TableHeader>
-              <TableRow className="hover:bg-muted/50 border-border">
-                {/* Garantimos largura mínima nas colunas (min-w) para elas não se esmagarem no mobile */}
-                <TableHead className="w-[100px] min-w-[100px] text-muted-foreground">ID</TableHead>
-                <TableHead className="text-muted-foreground min-w-[200px]">Título</TableHead>
-                <TableHead className="text-muted-foreground min-w-[150px]">Departamento</TableHead>
-                <TableHead className="text-muted-foreground min-w-[130px]">Status</TableHead>
-                <TableHead className="text-muted-foreground min-w-[100px]">Prioridade</TableHead>
-                <TableHead className="text-right text-muted-foreground min-w-[80px]">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTickets.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Nenhum chamado encontrado.
-                  </TableCell>
+      {/* --- SISTEMA DE ABAS (FILTROS) --- */}
+      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        
+        {/* Lista de Abas responsiva */}
+        <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-4 lg:w-[600px] mb-4 h-auto gap-1 sm:gap-0">
+          <TabsTrigger value="all" className="gap-2 w-full">
+            <ListFilter className="h-4 w-4" /> Todos
+          </TabsTrigger>
+          <TabsTrigger value="open" className="gap-2 w-full">
+            <AlertCircle className="h-4 w-4" /> Em Aberto
+          </TabsTrigger>
+          <TabsTrigger value="mine" className="gap-2 w-full">
+            <UserSquare className="h-4 w-4" /> Meus Chamados
+          </TabsTrigger>
+          <TabsTrigger value="closed" className="gap-2 w-full">
+            <CheckCircle2 className="h-4 w-4" /> Finalizados
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="rounded-md border border-border bg-card shadow-sm w-full">
+          <div className="overflow-x-auto">
+            <Table className="w-full">
+              <TableHeader>
+                <TableRow className="hover:bg-muted/50 border-border">
+                  <TableHead className="w-[100px] min-w-[100px] text-muted-foreground">ID</TableHead>
+                  <TableHead className="text-muted-foreground min-w-[200px]">Título</TableHead>
+                  <TableHead className="text-muted-foreground min-w-[150px]">Departamento</TableHead>
+                  <TableHead className="text-muted-foreground min-w-[130px]">Status</TableHead>
+                  <TableHead className="text-muted-foreground min-w-[100px]">Prioridade</TableHead>
+                  <TableHead className="text-right text-muted-foreground min-w-[80px]">Ações</TableHead>
                 </TableRow>
-              ) : (
-                filteredTickets.map((ticket) => (
-                  <TableRow key={ticket.id} className="hover:bg-muted/50 border-border">
-                    <TableCell className="font-medium text-foreground uppercase whitespace-nowrap">
-                      {ticket.id ? ticket.id.substring(0, 8) : 'TCK-NEW'}
-                    </TableCell>
-                    {/* O título pode quebrar linha, mas as outras colunas usamos whitespace-nowrap */}
-                    <TableCell className="text-foreground">{ticket.title}</TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap">{translateDepartment(ticket.department)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{getStatusBadge(ticket.status)}</TableCell>
-                    <TableCell className="text-muted-foreground whitespace-nowrap">{translatePriority(ticket.priority)}</TableCell>
-                    
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
-                            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-[160px] bg-popover text-popover-foreground border-border">
-                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                          
-                          <DropdownMenuItem 
-                            className="cursor-pointer focus:bg-muted focus:text-accent-foreground" 
-                            onClick={() => {
-                              setSelectedTicket(ticket)
-                              setIsDetailModalOpen(true)
-                            }}
-                          >
-                            Ver detalhes
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuItem 
-                            className="cursor-pointer focus:bg-muted focus:text-accent-foreground"
-                            onClick={() => handleAssignTicket(ticket.id)}
-                          >
-                            Atribuir a mim
-                          </DropdownMenuItem>
-                          
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+              </TableHeader>
+              <TableBody>
+                {/* Aqui renderizamos o displayTickets (que já passou pelos 2 filtros) */}
+                {displayTickets.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Nenhum chamado encontrado para esta categoria.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  displayTickets.map((ticket) => (
+                    <TableRow key={ticket.id} className="hover:bg-muted/50 border-border">
+                      <TableCell className="font-medium text-foreground uppercase whitespace-nowrap">
+                        {ticket.id ? ticket.id.substring(0, 8) : 'TCK-NEW'}
+                      </TableCell>
+                      <TableCell className="text-foreground">{ticket.title}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{translateDepartment(ticket.department)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{getStatusBadge(ticket.status)}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{translatePriority(ticket.priority)}</TableCell>
+                      
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
+                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-[160px] bg-popover text-popover-foreground border-border">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            
+                            <DropdownMenuItem 
+                              className="cursor-pointer focus:bg-muted focus:text-accent-foreground" 
+                              onClick={() => {
+                                setSelectedTicket(ticket)
+                                setIsDetailModalOpen(true)
+                              }}
+                            >
+                              Ver detalhes
+                            </DropdownMenuItem>
+                            
+                            {/* Mostra o botão "Atribuir a mim" apenas se estiver ABERTO */}
+                            {ticket.status === 'OPEN' && (
+                              <DropdownMenuItem 
+                                className="cursor-pointer focus:bg-muted focus:text-accent-foreground"
+                                onClick={() => handleAssignTicket(ticket.id)}
+                              >
+                                Atribuir a mim
+                              </DropdownMenuItem>
+                            )}
+                            
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-      </div>
+      </Tabs>
     </div>
   )
 }
