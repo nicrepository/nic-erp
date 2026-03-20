@@ -25,7 +25,7 @@ public class UserController {
     private final StorageService storageService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI') or hasAuthority('ROLE_RH')")
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.listAllUsers());
     }

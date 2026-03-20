@@ -5,7 +5,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { PlusCircle, MoreHorizontal, Search, ListFilter, AlertCircle, UserSquare, CheckCircle2 } from "lucide-react"
+import { PlusCircle, MoreHorizontal, Search, ListFilter, AlertCircle, UserSquare, CheckCircle2, RefreshCw } from "lucide-react"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -35,8 +35,26 @@ export function Helpdesk() {
   const [newComment, setNewComment] = useState("")
   const [searchTicket, setSearchTicket] = useState("")
   
-  // NOVO ESTADO: Controle da Aba Ativa
   const [activeTab, setActiveTab] = useState("all")
+
+  // NOVO ESTADO: Lista de Usuários para traduzir os IDs em Nomes
+  const [users, setUsers] = useState<any[]>([])
+
+  // NOVA FUNÇÃO: Busca os usuários (Igual ao que fizemos no Inventário)
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data)
+      }
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error)
+    }
+  }
 
   const fetchTickets = async () => {
     try {
@@ -167,8 +185,27 @@ export function Helpdesk() {
   }, [isDetailModalOpen, selectedTicket])
 
   useEffect(() => {
+    // 1. Busca os dados imediatamente quando a tela é aberta
+    fetchUsers() 
     fetchTickets()
+
+    // 2. Inicia o relógio (Polling): A cada 30 segundos, atualiza apenas a fila de chamados
+    const intervalId = setInterval(() => {
+      fetchTickets()
+    }, 30000) // 30000 milissegundos = 30 segundos
+
+    // 3. Limpeza (Muito Importante): Destrói o relógio se o usuário mudar de tela
+    // Isso evita que o sistema fique buscando chamados se o cara for pra tela de Inventário, economizando internet e memória.
+    return () => clearInterval(intervalId)
   }, [])
+
+  // NOVA FUNÇÃO: Traduz o ID do usuário para o Nome
+  const getUserName = (userId: string) => {
+    if (!userId) return "Usuário Desconhecido"
+    const foundUser = users.find(u => u.id === userId)
+    // Se achar, retorna o nome, se não, avisa que desconhece
+    return foundUser ? foundUser.name : "Usuário Desconhecido"
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status?.toUpperCase()) {
@@ -231,11 +268,13 @@ export function Helpdesk() {
     }
   }
 
-  // 1. PRIMEIRO: Aplica o filtro da barra de pesquisa
   const searchFilteredTickets = tickets.filter(ticket => {
     const searchTerm = searchTicket.toLowerCase()
     const translatedDept = translateDepartment(ticket.department).toLowerCase()
     const translatedPriority = translatePriority(ticket.priority).toLowerCase()
+    
+    // Pega o nome do solicitante para também permitir a busca pelo nome!
+    const requesterName = getUserName(ticket.requesterId).toLowerCase()
     
     const statusText = ticket.status === 'OPEN' ? 'aberto' :
                        ticket.status === 'IN_PROGRESS' ? 'em andamento' :
@@ -248,7 +287,8 @@ export function Helpdesk() {
       (ticket.id || "").toLowerCase().includes(searchTerm) ||
       translatedDept.includes(searchTerm) ||
       translatedPriority.includes(searchTerm) ||
-      statusText.includes(searchTerm)
+      statusText.includes(searchTerm) ||
+      requesterName.includes(searchTerm) // Agora a busca funciona por nome da pessoa!
     )
   })
 
@@ -256,9 +296,25 @@ export function Helpdesk() {
   const displayTickets = searchFilteredTickets.filter(ticket => {
     if (activeTab === "all") return true;
     if (activeTab === "open") return ticket.status === 'OPEN';
-    // O (user as any) avisa ao TypeScript para confiar que o id existe nesse objeto
-    if (activeTab === "mine") return ticket.status === 'IN_PROGRESS' && ticket.assigneeId === (user as any)?.id; 
+    
+    if (activeTab === "mine") {
+      const responsavelId = ticket.assigneeId || ticket.assignee?.id || ticket.assignedTo || ticket.technicianId;
+      
+      // O JWT guarda o e-mail. Vamos achar o usuário na nossa lista que tem esse e-mail!
+      const emailLogado = (user as any)?.id || (user as any)?.sub || (user as any)?.email;
+      const usuarioRealDaLista = users.find(u => u.email === emailLogado || u.id === emailLogado);
+      
+      // Agora sim pegamos o UUID verdadeiro para comparar!
+      const meuUuidVerdadeiro = usuarioRealDaLista?.id;
+      
+      const isMyTicket = String(responsavelId) === String(meuUuidVerdadeiro);
+      const isActiveStatus = ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS';
+      
+      return isMyTicket && isActiveStatus; 
+    }
+    
     if (activeTab === "closed") return ticket.status === 'RESOLVED' || ticket.status === 'CLOSED';
+    
     return true;
   });
 
@@ -276,12 +332,23 @@ export function Helpdesk() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Buscar título, ID, status..."
+              placeholder="Buscar título, status, pessoa..."
               className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground"
               value={searchTicket}
               onChange={(e) => setSearchTicket(e.target.value)}
             />
           </div>
+
+          {/* O NOVO BOTÃO DE REFRESH ENTRA AQUI! */}
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={fetchTickets} 
+            className="hidden sm:flex" 
+            title="Atualizar fila"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
 
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
@@ -401,7 +468,13 @@ export function Helpdesk() {
                   ) : (
                     comments.map((comment, index) => (
                       <div key={index} className="bg-muted/50 p-3 rounded-md border border-border text-sm text-foreground">
-                        <div className="font-semibold text-xs text-muted-foreground mb-1">Analista / Solicitante</div>
+                        
+                        {/* AQUI MOSTRAMOS O NOME DE QUEM COMENTOU */}
+                        {/* Se o seu back-end usar outro nome, troque comment.authorId para o correto (ex: comment.userId) */}
+                        <div className="font-semibold text-xs text-primary mb-1">
+                          {getUserName(comment.authorId || comment.userId || comment.createdBy)}
+                        </div>
+                        
                         <div className="whitespace-pre-wrap">{comment.content}</div> 
                       </div>
                     ))
@@ -460,7 +533,6 @@ export function Helpdesk() {
       {/* --- SISTEMA DE ABAS (FILTROS) --- */}
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
         
-        {/* Lista de Abas responsiva */}
         <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-4 lg:w-[600px] mb-4 h-auto gap-1 sm:gap-0">
           <TabsTrigger value="all" className="gap-2 w-full">
             <ListFilter className="h-4 w-4" /> Todos
@@ -482,6 +554,8 @@ export function Helpdesk() {
               <TableHeader>
                 <TableRow className="hover:bg-muted/50 border-border">
                   <TableHead className="w-[100px] min-w-[100px] text-muted-foreground">ID</TableHead>
+                  {/* NOVA COLUNA ADICIONADA: SOLICITANTE */}
+                  <TableHead className="text-muted-foreground min-w-[150px]">Solicitante</TableHead>
                   <TableHead className="text-muted-foreground min-w-[200px]">Título</TableHead>
                   <TableHead className="text-muted-foreground min-w-[150px]">Departamento</TableHead>
                   <TableHead className="text-muted-foreground min-w-[130px]">Status</TableHead>
@@ -490,10 +564,9 @@ export function Helpdesk() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {/* Aqui renderizamos o displayTickets (que já passou pelos 2 filtros) */}
                 {displayTickets.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Nenhum chamado encontrado para esta categoria.
                     </TableCell>
                   </TableRow>
@@ -503,6 +576,13 @@ export function Helpdesk() {
                       <TableCell className="font-medium text-foreground uppercase whitespace-nowrap">
                         {ticket.id ? ticket.id.substring(0, 8) : 'TCK-NEW'}
                       </TableCell>
+                      
+                      {/* AQUI MOSTRAMOS O NOME NA TABELA PRINCIPAL */}
+                      <TableCell className="font-medium text-foreground whitespace-nowrap">
+                        {/* Se o seu back-end usar outro nome, troque ticket.requesterId para o correto */}
+                        {getUserName(ticket.requesterId)}
+                      </TableCell>
+                      
                       <TableCell className="text-foreground">{ticket.title}</TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{translateDepartment(ticket.department)}</TableCell>
                       <TableCell className="whitespace-nowrap">{getStatusBadge(ticket.status)}</TableCell>
@@ -528,7 +608,6 @@ export function Helpdesk() {
                               Ver detalhes
                             </DropdownMenuItem>
                             
-                            {/* Mostra o botão "Atribuir a mim" apenas se estiver ABERTO */}
                             {ticket.status === 'OPEN' && (
                               <DropdownMenuItem 
                                 className="cursor-pointer focus:bg-muted focus:text-accent-foreground"
