@@ -8,10 +8,10 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, PlusCircle, Briefcase, UserCheck, UserX, AlertTriangle, MoreHorizontal, Edit, CalendarDays, Stethoscope, Cake, Plane } from "lucide-react"
 import { format, parseISO } from "date-fns"
-import { ptBR } from "date-fns/locale"
+// ptBR removido daqui, pois não estava em uso no momento
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog"
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog" // DialogTrigger removido daqui
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -23,7 +23,7 @@ export function RecursosHumanos() {
   // --- ESTADOS: DIRETÓRIO ---
   const [employees, setEmployees] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
-  const [systemUsers, setSystemUsers] = useState<any[]>([])
+  // systemUsers e fetchSystemUsers removidos temporariamente para o build passar limpo
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -72,14 +72,6 @@ export function RecursosHumanos() {
     } catch (error) { console.error("Erro ao buscar colaboradores:", error) }
   }
 
-  const fetchSystemUsers = async () => {
-    try {
-      const token = localStorage.getItem("token")
-      const response = await fetch('/users', { headers: { 'Authorization': `Bearer ${token}` } })
-      if (response.ok) setSystemUsers(await response.json())
-    } catch (error) { console.error("Erro ao buscar usuários do sistema:", error) }
-  }
-
   const fetchAbsences = async () => {
     try {
       const token = localStorage.getItem("token")
@@ -90,7 +82,6 @@ export function RecursosHumanos() {
 
   useEffect(() => {
     fetchEmployees()
-    fetchSystemUsers()
     fetchAbsences()
   }, [])
 
@@ -111,7 +102,7 @@ export function RecursosHumanos() {
     setFormData({
       fullName: emp.fullName, cpf: emp.cpf, rg: emp.rg || "", birthDate: emp.birthDate || "",
       phone: emp.phone || "", registrationNumber: emp.registrationNumber, admissionDate: emp.admissionDate,
-      terminationDate: emp.terminationDate || "", // <-- ADICIONADO AQUI
+      terminationDate: emp.terminationDate || "",
       jobTitle: emp.jobTitle, department: emp.department, baseSalary: emp.baseSalary ? emp.baseSalary.toString() : "",
       status: emp.status, userId: emp.userId || ""
     })
@@ -128,7 +119,7 @@ export function RecursosHumanos() {
         ...formData, 
         userId: formData.userId === "" ? null : formData.userId, 
         baseSalary: formData.baseSalary ? parseFloat(formData.baseSalary) : null,
-        terminationDate: formData.status === 'DESLIGADO' ? formData.terminationDate : null // Limpa a data se não estiver desligado
+        terminationDate: formData.status === 'DESLIGADO' ? formData.terminationDate : null 
       }
       const url = editingEmployeeId ? `/hr/employees/${editingEmployeeId}` : '/hr/employees'
       const method = editingEmployeeId ? 'PUT' : 'POST'
@@ -152,7 +143,6 @@ export function RecursosHumanos() {
     try {
       const token = localStorage.getItem("token")
       
-      // --- MÁGICA AQUI: Define se é POST (novo) ou PUT (edição) ---
       const url = editingAbsenceId ? `/hr/absences/${editingAbsenceId}` : '/hr/absences'
       const method = editingAbsenceId ? 'PUT' : 'POST'
 
@@ -164,10 +154,10 @@ export function RecursosHumanos() {
 
       if (response.ok) {
         setIsAbsenceModalOpen(false)
-        fetchAbsences() // Atualiza a tabela de ausências
-        fetchEmployees() // Atualiza a aba de Diretório (para mudar o status na hora!)
+        fetchAbsences() 
+        fetchEmployees() 
         setAbsenceData(initialAbsenceState)
-        setEditingAbsenceId(null) // Limpa o ID para não bugar a próxima
+        setEditingAbsenceId(null) 
       } else {
         const errorMsg = await response.text()
         alert(`Erro ao registrar/editar ausência: ${errorMsg}`)
@@ -176,7 +166,6 @@ export function RecursosHumanos() {
     finally { setIsSubmittingAbsence(false) }
   }
 
-  // Função para abrir o modal de edição
   const openEditAbsenceModal = (abs: any) => {
     setAbsenceData({
       employeeId: abs.employeeId,
@@ -189,7 +178,6 @@ export function RecursosHumanos() {
     setIsAbsenceModalOpen(true)
   }
 
-  // Função para deletar
   const handleDeleteAbsence = async (id: string) => {
     if (!window.confirm("Tem certeza que deseja cancelar esta ausência?")) return
     try {
@@ -200,7 +188,7 @@ export function RecursosHumanos() {
       })
       if (response.ok) {
         fetchAbsences()
-        fetchEmployees() // Atualiza os funcionários também, pois o status pode ter voltado para "ATIVO"
+        fetchEmployees() 
       } else { alert("Erro ao cancelar ausência.") }
     } catch (error) { console.error(error) }
   }
@@ -252,9 +240,7 @@ export function RecursosHumanos() {
           </TabsTrigger>
         </TabsList>
 
-        {/* =========================================
-            ABA 1: DIRETÓRIO DE PESSOAS 
-            ========================================= */}
+        {/* DIRETÓRIO DE PESSOAS */}
         <TabsContent value="diretorio" className="mt-4 space-y-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative w-full sm:max-w-xs">
@@ -317,9 +303,7 @@ export function RecursosHumanos() {
           </div>
         </TabsContent>
 
-        {/* =========================================
-            ABA 2: GESTÃO DE AUSÊNCIAS 
-            ========================================= */}
+        {/* GESTÃO DE AUSÊNCIAS */}
         <TabsContent value="ausencias" className="mt-4 space-y-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <h2 className="text-lg font-medium text-foreground">Histórico e Lançamentos</h2>
@@ -337,7 +321,6 @@ export function RecursosHumanos() {
                   <TableHead>Data de Início</TableHead>
                   <TableHead>Data de Fim</TableHead>
                   <TableHead>Detalhes</TableHead>
-                  {/* --- NOVA COLUNA ADICIONADA AQUI --- */}
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -355,7 +338,6 @@ export function RecursosHumanos() {
                         {abs.description || '-'}
                       </TableCell>
                       
-                      {/* --- NOVO MENU DE AÇÕES ADICIONADO AQUI --- */}
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -373,7 +355,6 @@ export function RecursosHumanos() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
-                      {/* ------------------------------------------- */}
                     </TableRow>
                   ))
                 )}
@@ -383,7 +364,7 @@ export function RecursosHumanos() {
         </TabsContent>
       </Tabs>
 
-      {/* --- MODAL DO DIRETÓRIO (CRIAR / EDITAR FUNCIONÁRIO) --- */}
+      {/* MODAL DO DIRETÓRIO */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-4xl w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
           <DialogHeader>
@@ -477,7 +458,7 @@ export function RecursosHumanos() {
         </DialogContent>
       </Dialog>
 
-      {/* --- MODAL DE REGISTRAR AUSÊNCIA --- */}
+      {/* MODAL DE REGISTRAR AUSÊNCIA */}
       <Dialog open={isAbsenceModalOpen} onOpenChange={setIsAbsenceModalOpen}>
         <DialogContent className="sm:max-w-[500px] w-[95%] bg-background border-border text-foreground">
           <DialogHeader>
