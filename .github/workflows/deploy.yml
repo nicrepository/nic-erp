@@ -1,0 +1,29 @@
+name: Deploy N-HUB no Servidor
+
+# 1. QUANDO ESSE SCRIPT DEVE RODAR?
+on:
+  push:
+    branches:
+      - main  # Se a sua branch principal se chamar "master", troque "main" por "master" aqui
+
+jobs:
+  deploy:
+    # 2. ONDE ELE DEVE RODAR? 
+    # Isso diz ao GitHub para procurar o SEU servidor, e não usar as máquinas do próprio GitHub
+    runs-on: self-hosted
+
+    steps:
+      # Passo A: Baixa o código mais recente do repositório para o servidor
+      - name: Baixar código fonte atualizado
+        uses: actions/checkout@v4
+
+      # Passo B: Usa o Docker Compose para "buildar" e subir a aplicação
+      - name: Fazer o Build e Subir os Containers
+        run: |
+          # O parâmetro --build força o Docker a recriar as imagens com o código novo
+          # O parâmetro -d roda tudo em segundo plano (detached), liberando o terminal
+          docker compose up -d --build
+
+      # Passo C (Bônus de Ouro): Limpa imagens antigas do Docker para o HD do seu servidor não lotar
+      - name: Limpar lixo do Docker
+        run: docker image prune -f
