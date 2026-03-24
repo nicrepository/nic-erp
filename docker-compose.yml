@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # 1. Seu Banco de Dados Original
   postgres:
     image: postgres:16
     container_name: nicerp_db
@@ -14,6 +15,7 @@ services:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
 
+  # 2. Seu pgAdmin Original
   pgadmin:
     image: dpage/pgadmin4
     container_name: nicerp_pgadmin
@@ -25,6 +27,33 @@ services:
     depends_on:
       - postgres
     restart: unless-stopped
+
+  # 3. O Back-end (Spring Boot)
+  api:
+    build: ./erp
+    container_name: nicerp_api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      # HOST : CONTAINER -> Estamos expondo a 9080 no seu servidor
+      - "9080:8080"
+    environment:
+      # Conecta usando as credenciais do container 'postgres' logo acima
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/nicerp_db
+      SPRING_DATASOURCE_USERNAME: nicerp_user
+      SPRING_DATASOURCE_PASSWORD: nicerp_password
+
+  # 4. O Front-end (React + Nginx)
+  frontend:
+    build: ./frontend
+    container_name: nicerp_frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      # HOST : CONTAINER -> Estamos expondo a 3000 no seu servidor para o N-HUB
+      - "3030:80"
 
 volumes:
   pgdata:

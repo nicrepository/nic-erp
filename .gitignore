@@ -47,3 +47,4 @@ erp/.mvn/timing.properties
 # Ignorar arquivos JAR, exceto o wrapper do Maven
 *.jar
 !erp/.mvn/wrapper/maven-wrapper.jar
+*.env
