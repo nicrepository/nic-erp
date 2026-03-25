@@ -1,4 +1,19 @@
-- name: Sincronização e Deploy (Sem Sudo)
+name: Deploy N-HUB no Servidor
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Baixar código fonte atualizado
+        uses: actions/checkout@v4
+
+      - name: Sincronização e Deploy (Sem Sudo)
         run: |
           CAMINHO_SERVIDOR="/opt/nic-labs/core/n-hub"
           
@@ -12,5 +27,5 @@
           docker compose -f compose-09-nhub.yml build --no-cache
           docker compose -f compose-09-nhub.yml up -d --remove-orphans
           
-- name: Limpar lixo do Docker
+      - name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f
