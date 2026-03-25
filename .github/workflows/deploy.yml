@@ -3,7 +3,7 @@ name: Deploy N-HUB no Servidor
 on:
   push:
     branches:
-      - main  # ou master
+      - main
 
 jobs:
   deploy:
@@ -15,21 +15,16 @@ jobs:
 
       - name: Sincronizar arquivos e reiniciar Docker
         run: |
-          # Define a nova pasta dedicada no servidor
           CAMINHO_SERVIDOR="/opt/nic-labs/core/n-hub"
-
-          # Garante que a pasta existe (cria se não existir)
           mkdir -p $CAMINHO_SERVIDOR
-
-          # Copia os arquivos recém-baixados para a pasta oficial
           rsync -av --exclude='.git/' ./ $CAMINHO_SERVIDOR/
-
-          # Entra na pasta do servidor
           cd $CAMINHO_SERVIDOR
 
-          # Roda o docker compose usando o nome de arquivo customizado que você criou
-          # Removemos os nomes dos containers do final para ele subir o banco e o pgadmin também, caso não estejam rodando
-          docker compose -f compose-09-nhub.yml up -d --build
+          # 1. Força o build do zero absoluto, ignorando qualquer cache travado
+          docker compose -f compose-09-nhub.yml build --no-cache
+          
+          # 2. Sobe os containers com as imagens novas
+          docker compose -f compose-09-nhub.yml up -d
           
       - name: Limpar lixo do Docker
-        run: docker image prune -f
+        run: docker image prune -f && docker builder prune -f
