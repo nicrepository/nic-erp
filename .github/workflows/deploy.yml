@@ -12,5 +12,5 @@
           docker compose -f compose-09-nhub.yml build --no-cache
           docker compose -f compose-09-nhub.yml up -d --remove-orphans
           
-      - name: Limpar lixo do Docker
+- name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f
