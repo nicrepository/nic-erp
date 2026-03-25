@@ -13,18 +13,27 @@ jobs:
       - name: Baixar código fonte atualizado
         uses: actions/checkout@v4
 
-      - name: Sincronizar arquivos e reiniciar Docker
+      - name: Sincronização e Deploy (Padrão Ansible apps_core)
         run: |
           CAMINHO_SERVIDOR="/opt/nic-labs/core/n-hub"
-          mkdir -p $CAMINHO_SERVIDOR
-          rsync -av --exclude='.git/' ./ $CAMINHO_SERVIDOR/
-          cd $CAMINHO_SERVIDOR
-
-          # 1. Força o build do zero absoluto, ignorando qualquer cache travado
-          docker compose -f compose-09-nhub.yml build --no-cache
           
-          # 2. Sobe os containers com as imagens novas
-          docker compose -f compose-09-nhub.yml up -d
+          # 1. Garante que a pasta existe e sincroniza os arquivos
+          sudo mkdir -p $CAMINHO_SERVIDOR
+          sudo rsync -av --exclude='.git/' ./ $CAMINHO_SERVIDOR/
+          
+          # 2. Replica a Task de Segurança do Ansible (Dubious Ownership + ACL)
+          sudo chown -R github-runner:github-runner $CAMINHO_SERVIDOR
+          git config --global --get-all safe.directory | grep -q "^$CAMINHO_SERVIDOR$" || git config --global --add safe.directory $CAMINHO_SERVIDOR
+          
+          # 3. Move o Compose para a raiz do CORE (Idêntico ao template do sistema-de-gestao)
+          # Usamos sudo pois o runner só tem permissão 'rX' na raiz /opt/nic-labs/core
+          sudo cp $CAMINHO_SERVIDOR/compose-09-nhub.yml /opt/nic-labs/core/compose-09-nhub.yml
+          
+          # 4. Executa o Docker Compose a partir da raiz (Padrão Nic-Labs)
+          # Usar SUDO iguala o privilégio com o módulo do Ansible, eliminando o erro de "locked mount"!
+          cd /opt/nic-labs/core
+          sudo docker compose -f compose-09-nhub.yml build --no-cache
+          sudo docker compose -f compose-09-nhub.yml up -d --remove-orphans
           
       - name: Limpar lixo do Docker
-        run: docker image prune -f && docker builder prune -f
+        run: sudo docker image prune -f && sudo docker builder prune -f

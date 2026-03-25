@@ -10,7 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
-      - nic_net # Conectado na rede do Traefik
+      - nic_net
     restart: unless-stopped
 
   # 2. pgAdmin (Painel do Banco)
@@ -34,8 +34,8 @@ services:
   # 3. Back-end (Spring Boot)
   api:
     build: 
-      # Ajustado para caminho relativo (procurando a pasta erp no repositório)
-      context: ./erp
+      # PADRÃO ANSIBLE NIC-LABS: Caminho Absoluto
+      context: /opt/nic-labs/core/n-hub/erp
       dockerfile: Dockerfile
     container_name: nicerp_api
     restart: always
@@ -56,7 +56,8 @@ services:
   # 4. Front-end (React + Nginx)
   frontend:
     build: 
-      context: ./frontend
+      # PADRÃO ANSIBLE NIC-LABS: Caminho Absoluto
+      context: /opt/nic-labs/core/n-hub/frontend
       dockerfile: Dockerfile
     container_name: nicerp_frontend
     restart: always
