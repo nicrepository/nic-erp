@@ -13,17 +13,17 @@ jobs:
       - name: Baixar código fonte atualizado
         uses: actions/checkout@v4
 
-      - name: Sincronização e Deploy (Sem Sudo)
+      - name: Sincronização e Build (Padrão apps_core)
         run: |
           CAMINHO_SERVIDOR="/opt/nic-labs/core/n-hub"
           
-          # 1. Sincroniza os ficheiros (O runner já é o dono desta pasta)
+          # 1. Sincroniza apenas o código fonte do projeto
           rsync -av --exclude='.git/' ./ $CAMINHO_SERVIDOR/
           
-          # 2. Entra na pasta do N-HUB
-          cd $CAMINHO_SERVIDOR
+          # 2. Sai da pasta do projeto e vai para a RAIZ do CORE (Exatamente como o Ansible trabalha)
+          cd /opt/nic-labs/core
           
-          # 3. Roda o Docker Compose (O runner já está no grupo 'docker')
+          # 3. Roda o build usando o arquivo oficial que já está na raiz
           docker compose -f compose-09-nhub.yml build --no-cache
           docker compose -f compose-09-nhub.yml up -d --remove-orphans
           
