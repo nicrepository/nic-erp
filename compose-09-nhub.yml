@@ -35,7 +35,7 @@ services:
   api:
     build: 
       # Ajustado para caminho relativo (procurando a pasta erp no repositório)
-      context: ./n-hub/erp
+      context: ./erp
       dockerfile: Dockerfile
     container_name: nicerp_api
     restart: always
@@ -56,7 +56,7 @@ services:
   # 4. Front-end (React + Nginx)
   frontend:
     build: 
-      context: ./n-hub/frontend
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: nicerp_frontend
     restart: always
