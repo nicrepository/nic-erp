@@ -67,4 +67,5 @@ volumes:
 networks:
   nic_net:
     external: true
+    name: core_nic_net
 
