@@ -23,13 +23,16 @@ jobs:
           # 2. Vai para a pasta do projeto (compose.yml está na raiz do repo)
           cd $CAMINHO_SERVIDOR
           
-          # 3. Limpa locks e cache obsoleto do BuildKit antes de buildar
+          # 3. Derruba os containers para liberar os locks de layer do containerd
+          docker compose down --remove-orphans
+
+          # 4. Limpa cache obsoleto do BuildKit
           docker builder prune -f
 
-          # 4. Build sequencial e deploy
+          # 5. Build sequencial e sobe os containers
           docker compose build --no-cache erp_backend
           docker compose build --no-cache erp_frontend
-          docker compose up -d --remove-orphans
+          docker compose up -d
           
       - name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f
