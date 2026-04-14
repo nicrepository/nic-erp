@@ -1,3 +1,5 @@
+name: nhub
+
 services:
 
   erp_db:
