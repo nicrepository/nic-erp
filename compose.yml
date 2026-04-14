@@ -54,7 +54,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.erp-front.rule=Host(`erp.nic-labs.com`)"
+      - "traefik.http.routers.erp-front.rule=Host(`hub.nic-labs.com`)"
       - "traefik.http.routers.erp-front.entrypoints=websecure"
       - "traefik.http.routers.erp-front.tls.certresolver=letsencrypt"
       - "traefik.http.routers.erp-front.middlewares=nic-security"
