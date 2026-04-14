@@ -44,6 +44,14 @@ export default defineConfig({
       '/notifications': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      '/dashboard': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/announcements': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       }
     }
   }

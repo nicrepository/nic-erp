@@ -28,6 +28,9 @@ jobs:
           #    (Outros serviços críticos NÃO são afetados pois não estão neste compose)
           docker compose -f $COMPOSE down --rmi all
 
+          # 3.1 Remove containers órfãos pelo nome (de projetos anteriores)
+          docker rm -f erp_db erp_backend erp_frontend 2>/dev/null || true
+
           # 4. Limpa cache obsoleto do BuildKit
           docker builder prune -f
 
