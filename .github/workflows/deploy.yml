@@ -23,8 +23,8 @@ jobs:
           # 2. Vai para a pasta do projeto (compose.yml está na raiz do repo)
           cd $CAMINHO_SERVIDOR
           
-          # 3. Derruba os containers para liberar os locks de layer do containerd
-          docker compose down --remove-orphans
+          # 3. Derruba os containers E remove as imagens para liberar os locks do containerd
+          docker compose down --rmi all --remove-orphans
 
           # 4. Limpa cache obsoleto do BuildKit
           docker builder prune -f
