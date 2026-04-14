@@ -19,7 +19,7 @@ services:
 
   erp_backend:
     build:
-      context: /opt/nic-labs/core/nic-erp/erp
+      context: /opt/nic-labs/core/n-hub/erp
       dockerfile: Dockerfile
     container_name: erp_backend
     restart: always
@@ -41,7 +41,7 @@ services:
 
   erp_frontend:
     build:
-      context: /opt/nic-labs/core/nic-erp/frontend
+      context: /opt/nic-labs/core/n-hub/frontend
       dockerfile: Dockerfile
     container_name: erp_frontend
     restart: always
