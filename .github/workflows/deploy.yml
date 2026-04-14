@@ -1,4 +1,4 @@
-name: Deploy N-HUB no Servidor
+name: Deploy NIC-ERP no Servidor
 
 on:
   push:
@@ -15,17 +15,17 @@ jobs:
 
       - name: Sincronização e Build (Padrão apps_core)
         run: |
-          CAMINHO_SERVIDOR="/opt/nic-labs/core/n-hub"
+          CAMINHO_SERVIDOR="/opt/nic-labs/core/nic-erp"
           
           # 1. Sincroniza apenas o código fonte do projeto
           rsync -av --exclude='.git/' ./ $CAMINHO_SERVIDOR/
           
-          # 2. Sai da pasta do projeto e vai para a RAIZ do CORE (Exatamente como o Ansible trabalha)
-          cd /opt/nic-labs/core
+          # 2. Vai para a pasta do projeto (compose.yml está na raiz do repo)
+          cd $CAMINHO_SERVIDOR
           
-          # 3. Roda o build usando o arquivo oficial que já está na raiz
-          docker compose -f compose-09-nhub.yml build --no-cache
-          docker compose -f compose-09-nhub.yml up -d --remove-orphans
+          # 3. Build e deploy
+          docker compose build --no-cache
+          docker compose up -d --remove-orphans
           
       - name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f

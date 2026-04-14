@@ -1,0 +1,69 @@
+services:
+
+  erp_db:
+    image: postgres:16-alpine
+    container_name: erp_db
+    restart: always
+    env_file:
+      - /opt/nic-labs/core/secrets/erp_backend.env
+    volumes:
+      - erp_db_data:/var/lib/postgresql/data
+    networks:
+      - nic_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  erp_backend:
+    build:
+      context: /opt/nic-labs/core/nic-erp/erp
+      dockerfile: Dockerfile
+    container_name: erp_backend
+    restart: always
+    env_file:
+      - /opt/nic-labs/core/secrets/erp_backend.env
+    volumes:
+      - erp_uploads:/app/uploads
+    networks:
+      - nic_net
+    depends_on:
+      erp_db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:8080 >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  erp_frontend:
+    build:
+      context: /opt/nic-labs/core/nic-erp/frontend
+      dockerfile: Dockerfile
+    container_name: erp_frontend
+    restart: always
+    networks:
+      - nic_net
+    depends_on:
+      erp_backend:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.erp-front.rule=Host(`erp.nic-labs.com`)"
+      - "traefik.http.routers.erp-front.entrypoints=websecure"
+      - "traefik.http.routers.erp-front.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.erp-front.middlewares=nic-security"
+      - "traefik.http.services.erp-front.loadbalancer.server.port=80"
+
+volumes:
+  erp_db_data:
+    driver: local
+  erp_uploads:
+    driver: local
+
+networks:
+  nic_net:
+    external: true

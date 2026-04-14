@@ -2,15 +2,20 @@ package com.niclabs.erp.config;
 
 import com.niclabs.erp.auth.domain.Permission;
 import com.niclabs.erp.auth.domain.Role;
+import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.auth.repository.PermissionRepository;
 import com.niclabs.erp.auth.repository.RoleRepository;
+import com.niclabs.erp.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -19,6 +24,17 @@ public class DataSeeder implements CommandLineRunner {
 
     private final PermissionRepository permissionRepository;
     private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${admin.seed.name:Administrador}")
+    private String adminName;
+
+    @Value("${admin.seed.email:admin@nic-labs.com}")
+    private String adminEmail;
+
+    @Value("${admin.seed.password:admin123}")
+    private String adminPassword;
 
     @Override
     @Transactional
@@ -60,6 +76,21 @@ public class DataSeeder implements CommandLineRunner {
             userRole.setName("ROLE_USER");
             // Usuário comum nasce sem permissões especiais, só o básico
             roleRepository.save(userRole);
+        }
+
+        // 4. CRIA O USUÁRIO ADMIN INICIAL SE O BANCO NÃO TIVER NENHUM USUÁRIO
+        if (userRepository.count() == 0) {
+            Role adminRole = roleRepository.findByName("ROLE_ADMIN")
+                    .orElseThrow(() -> new IllegalStateException("ROLE_ADMIN não encontrada após seed"));
+
+            User admin = new User();
+            admin.setId(UUID.randomUUID());
+            admin.setName(adminName);
+            admin.setEmail(adminEmail);
+            admin.setPassword(passwordEncoder.encode(adminPassword));
+            admin.setActive(true);
+            admin.setRoles(Set.of(adminRole));
+            userRepository.save(admin);
         }
     }
 }
