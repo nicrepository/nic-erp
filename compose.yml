@@ -11,7 +11,7 @@ services:
     networks:
       - nic_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432"]
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,7 +33,7 @@ services:
       erp_db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8080 >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' 2>/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -64,6 +64,3 @@ volumes:
   erp_uploads:
     driver: local
 
-networks:
-  nic_net:
-    external: true
