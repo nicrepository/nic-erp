@@ -22,7 +22,7 @@ jobs:
           rsync -av --exclude='.git/' ./ $CODIGO/
 
           # 2. Copia o compose para o local padrão do core
-          cp $CODIGO/compose.yml $COMPOSE
+          sudo cp $CODIGO/compose.yml $COMPOSE
           
           # 3. Para apenas os containers do ERP e remove as imagens
           #    (Outros serviços críticos NÃO são afetados pois não estão neste compose)
