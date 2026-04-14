@@ -15,7 +15,7 @@ jobs:
 
       - name: Sincronização e Build (Padrão apps_core)
         run: |
-          CAMINHO_SERVIDOR="/opt/nic-labs/core/nic-erp"
+          CAMINHO_SERVIDOR="/opt/nic-labs/core/n-hub"
           
           # 1. Sincroniza apenas o código fonte do projeto
           rsync -av --exclude='.git/' ./ $CAMINHO_SERVIDOR/
