@@ -15,24 +15,26 @@ jobs:
 
       - name: Sincronização e Build (Padrão apps_core)
         run: |
-          CAMINHO_SERVIDOR="/opt/nic-labs/core/n-hub"
+          CODIGO="/opt/nic-labs/core/n-hub"
+          COMPOSE="/opt/nic-labs/core/compose-09-nhub.yml"
           
-          # 1. Sincroniza apenas o código fonte do projeto
-          rsync -av --exclude='.git/' ./ $CAMINHO_SERVIDOR/
+          # 1. Sincroniza o código fonte do projeto
+          rsync -av --exclude='.git/' ./ $CODIGO/
+
+          # 2. Copia o compose para o local padrão do core
+          cp $CODIGO/compose.yml $COMPOSE
           
-          # 2. Vai para a pasta do projeto (compose.yml está na raiz do repo)
-          cd $CAMINHO_SERVIDOR
-          
-          # 3. Derruba os containers E remove as imagens para liberar os locks do containerd
-          docker compose down --rmi all --remove-orphans
+          # 3. Para apenas os containers do ERP e remove as imagens
+          #    (Outros serviços críticos NÃO são afetados pois não estão neste compose)
+          docker compose -f $COMPOSE down --rmi all
 
           # 4. Limpa cache obsoleto do BuildKit
           docker builder prune -f
 
-          # 5. Build sequencial e sobe os containers
-          docker compose build --no-cache erp_backend
-          docker compose build --no-cache erp_frontend
-          docker compose up -d
+          # 5. Build sequencial e sobe os containers do ERP
+          docker compose -f $COMPOSE build --no-cache erp_backend
+          docker compose -f $COMPOSE build --no-cache erp_frontend
+          docker compose -f $COMPOSE up -d
           
       - name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f
