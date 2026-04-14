@@ -23,8 +23,9 @@ jobs:
           # 2. Vai para a pasta do projeto (compose.yml está na raiz do repo)
           cd $CAMINHO_SERVIDOR
           
-          # 3. Build e deploy
-          docker compose build --no-cache
+          # 3. Build sequencial (evita lock do containerd com builds paralelos) e deploy
+          docker compose build --no-cache erp_backend
+          docker compose build --no-cache erp_frontend
           docker compose up -d --remove-orphans
           
       - name: Limpar lixo do Docker
