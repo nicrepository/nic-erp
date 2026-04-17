@@ -62,7 +62,7 @@ export function Dashboard() {
         })
         if (response.ok) {
           const data = await response.json()
-          setStockItems(data)
+          setStockItems(data.content || [])
         }
       } catch (error) {
         console.error("Erro ao buscar estoque:", error)
@@ -101,13 +101,16 @@ export function Dashboard() {
   const lowStockCount = lowStockItems.length
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Visão Geral</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="flex flex-col min-h-full">
+      {/* Fiori page header */}
+      <div className="fiori-page-header">
+        <h1 className="text-lg font-semibold text-foreground">Visão Geral</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
           Bem-vindo(a) ao sistema. Aqui está o seu resumo operacional.
         </p>
       </div>
+
+      <div className="p-4 md:p-6 space-y-6">
 
       {/* --- LINHA 1: CARTÕES DE MÉTRICAS RÁPIDAS --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -284,6 +287,8 @@ export function Dashboard() {
           )}
 
         </div>
+      </div>
+
       </div>
     </div>
   )

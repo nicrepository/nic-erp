@@ -229,14 +229,14 @@ export function Configuracoes() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Configurações</h1>
-          <p className="text-sm text-muted-foreground">Gerencie suas preferências e os acessos globais do sistema.</p>
-        </div>
+    <div className="flex flex-col min-h-full">
+      {/* Fiori page header */}
+      <div className="fiori-page-header">
+        <h1 className="text-lg font-semibold text-foreground">Configurações</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Gerencie suas preferências e os acessos globais do sistema.</p>
       </div>
 
+      <div className="p-4 md:p-6">
       <Tabs defaultValue="perfil" className="w-full">
         <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-2 max-w-[400px] mb-4 h-auto gap-1 sm:gap-0">
           <TabsTrigger value="perfil" className="gap-2 w-full">
@@ -528,6 +528,7 @@ export function Configuracoes() {
           </TabsContent>
         )}
       </Tabs>
+      </div>
     </div>
   )
 }

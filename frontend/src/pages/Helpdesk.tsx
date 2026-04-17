@@ -49,7 +49,7 @@ export function Helpdesk() {
       })
       if (response.ok) {
         const data = await response.json()
-        setUsers(data)
+        setUsers(data.content || [])
       }
     } catch (error) {
       console.error("Erro ao buscar usuários:", error)
@@ -319,40 +319,30 @@ export function Helpdesk() {
   });
 
   return (
-    <div className="space-y-6">
-      {/* CABEÇALHO RESPONSIVO */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="flex flex-col min-h-full">
+      {/* Fiori page header */}
+      <div className="fiori-page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Service Desk</h1>
-          <p className="text-sm text-muted-foreground">Gerencie e acompanhe os chamados de suporte da empresa.</p>
+          <h1 className="text-lg font-semibold text-foreground">Service Desk</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Gerencie e acompanhe os chamados de suporte da empresa.</p>
         </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <div className="relative w-full sm:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Buscar título, status, pessoa..."
-              className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground"
+              className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground h-9"
               value={searchTicket}
               onChange={(e) => setSearchTicket(e.target.value)}
             />
           </div>
-
-          {/* O NOVO BOTÃO DE REFRESH ENTRA AQUI! */}
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={fetchTickets} 
-            className="hidden sm:flex" 
-            title="Atualizar fila"
-          >
+          <Button variant="outline" size="icon" onClick={fetchTickets} className="hidden sm:flex h-9 w-9" title="Atualizar fila">
             <RefreshCw className="h-4 w-4" />
           </Button>
-
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 w-full sm:w-auto">
+              <Button className="gap-2 w-full sm:w-auto h-9">
                 <PlusCircle className="h-4 w-4" /> Novo Chamado
               </Button>
             </DialogTrigger>
@@ -413,6 +403,7 @@ export function Helpdesk() {
       </div>
 
       {/* MODAL DE DETALHES */}
+      <div className="p-4 md:p-6 space-y-4">
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="sm:max-w-[600px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
           <DialogHeader>
@@ -628,6 +619,7 @@ export function Helpdesk() {
           </div>
         </div>
       </Tabs>
+      </div>
     </div>
   )
 }

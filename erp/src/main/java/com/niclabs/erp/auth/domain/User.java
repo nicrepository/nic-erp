@@ -46,6 +46,7 @@ public class User implements UserDetails {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
+    @org.hibernate.annotations.BatchSize(size = 50)
     private Set<Role> roles;
 
     // --- MÉTODOS OBRIGATÓRIOS DO SPRING SECURITY (USERDETAILS) ---

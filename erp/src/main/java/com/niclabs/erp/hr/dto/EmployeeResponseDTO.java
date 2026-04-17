@@ -1,13 +1,15 @@
 package com.niclabs.erp.hr.dto;
 
+import com.niclabs.erp.hr.domain.EmployeeStatus;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
 public record EmployeeResponseDTO(
         UUID id,
-        UUID userId,           // ID do usuário vinculado (se houver)
-        String userEmail,      // E-mail do usuário vinculado (muito útil para exibir na tabela do Front-end)
+        UUID userId,
+        String userEmail,
         String fullName,
         String cpf,
         String rg,
@@ -19,5 +21,5 @@ public record EmployeeResponseDTO(
         String jobTitle,
         String department,
         BigDecimal baseSalary,
-        String status
+        EmployeeStatus status
 ) {}

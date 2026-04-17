@@ -6,6 +6,8 @@ import com.niclabs.erp.auth.dto.RoleRequestDTO;
 import com.niclabs.erp.auth.dto.RoleResponseDTO;
 import com.niclabs.erp.auth.repository.PermissionRepository;
 import com.niclabs.erp.auth.repository.RoleRepository;
+import com.niclabs.erp.exception.DuplicateResourceException;
+import com.niclabs.erp.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,30 +18,52 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Manages roles and their associated permissions for access-control configuration.
+ *
+ * <p>Write operations are wrapped in {@code @Transactional}. Read operations use
+ * {@code readOnly = true} to skip dirty checking and optimise connection pool usage.</p>
+ */
 @Service
 @RequiredArgsConstructor
-public class RoleService {
+public class RoleService implements IRoleService {
 
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
 
-    // Lista todos os Cargos e suas respectivas Permissões
+    /**
+     * Returns all roles together with their assigned permissions.
+     *
+     * @return list of {@link RoleResponseDTO}
+     */
+    @Transactional(readOnly = true)
     public List<RoleResponseDTO> getAllRoles() {
         return roleRepository.findAll().stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
 
-    // Lista todas as Permissões cadastradas no banco (Para o React montar os checkboxes)
+    /**
+     * Returns all permissions available in the system, used to populate role-editor checkboxes.
+     *
+     * @return list of {@link Permission}
+     */
+    @Transactional(readOnly = true)
     public List<Permission> getAllPermissions() {
         return permissionRepository.findAll();
     }
 
-    // Cria um Cargo novo já com as permissões amarradas
+    /**
+     * Creates a new role with the given name and initial set of permissions.
+     *
+     * @param dto role name and permission names to assign
+     * @return the created {@link RoleResponseDTO}
+     * @throws DuplicateResourceException if a role with the same name already exists
+     */
     @Transactional
     public RoleResponseDTO createRole(RoleRequestDTO dto) {
         if (roleRepository.findByName(dto.name()).isPresent()) {
-            throw new RuntimeException("Este cargo já existe no sistema.");
+            throw new DuplicateResourceException("Este cargo já existe no sistema.");
         }
 
         Role role = new Role();
@@ -50,11 +74,18 @@ public class RoleService {
         return mapToDTO(roleRepository.save(role));
     }
 
-    // Atualiza APENAS as permissões de um Cargo que já existe
+    /**
+     * Replaces the full set of permissions assigned to a role.
+     *
+     * @param roleId      target role identifier
+     * @param permissions new list of permission names
+     * @return updated {@link RoleResponseDTO}
+     * @throws ResourceNotFoundException if no role exists with the given id
+     */
     @Transactional
     public RoleResponseDTO updateRolePermissions(UUID roleId, List<String> permissions) {
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new RuntimeException("Cargo não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Cargo não encontrado."));
 
         role.setPermissions(getPermissionsFromNames(permissions));
         return mapToDTO(roleRepository.save(role));

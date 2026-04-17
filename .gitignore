@@ -7,6 +7,9 @@ Thumbs.db
 logs/
 log/
 
+# Variaveis de ambiente — NUNCA commitar
+.env
+
 # ==========================================
 # IDEs e Editores
 # ==========================================

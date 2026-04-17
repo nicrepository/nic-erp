@@ -2,13 +2,43 @@ import { useState, useEffect } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Sun, Moon, Menu, Ticket, Briefcase } from "lucide-react"
+import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Sun, Moon, Menu, Ticket, Briefcase, ChevronRight } from "lucide-react"
 import { useTheme } from "../contexts/ThemeProvider"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { useAuth } from "../contexts/AuthContext"
+
+// Navigation item type
+interface NavItem {
+  label: string
+  path: string
+  icon: React.ReactNode
+}
+
+const navGroups = [
+  {
+    label: "Principal",
+    items: [
+      { label: "Visão Geral", path: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+    ],
+  },
+  {
+    label: "Operacional",
+    items: [
+      { label: "Helpdesk", path: "/helpdesk", icon: <Ticket className="h-4 w-4" /> },
+      { label: "Inventário", path: "/inventario", icon: <Package className="h-4 w-4" /> },
+      { label: "Recursos Humanos", path: "/recursoshumanos", icon: <Briefcase className="h-4 w-4" /> },
+    ],
+  },
+  {
+    label: "Administração",
+    items: [
+      { label: "Usuários", path: "/usuarios", icon: <Users className="h-4 w-4" /> },
+    ],
+  },
+]
 
 export function AppLayout() {
   const { user } = useAuth()
@@ -16,6 +46,7 @@ export function AppLayout() {
   const location = useLocation()
   const { setTheme } = useTheme()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [notifications, setNotifications] = useState<any[]>([])
 
   const handleLogout = () => {
     localStorage.removeItem("token")
@@ -24,7 +55,12 @@ export function AppLayout() {
 
   const isActive = (path: string) => location.pathname === path
 
-  const [notifications, setNotifications] = useState<any[]>([])
+  // Page title from current route
+  const currentTitle = (() => {
+    const all: NavItem[] = navGroups.flatMap(g => g.items)
+    const found = all.find(i => i.path === location.pathname)
+    return found?.label ?? "N-HUB"
+  })()
 
   const fetchNotifications = async () => {
     try {
@@ -38,6 +74,8 @@ export function AppLayout() {
 
   useEffect(() => {
     fetchNotifications()
+    const interval = setInterval(fetchNotifications, 60_000)
+    return () => clearInterval(interval)
   }, [])
 
   const markAsRead = async (id: string) => {
@@ -51,240 +89,188 @@ export function AppLayout() {
     } catch (error) { console.error("Erro ao marcar como lida:", error) }
   }
 
-  // --- FUNÇÃO AUXILIAR PARA ESTILIZAR OS BOTÕES DO MENU ---
-  const getLinkStyle = (path: string) => {
-    const active = isActive(path);
-    return `w-full justify-start gap-3 relative transition-all duration-200 h-10 ${
-      active 
-        ? 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary font-semibold' 
-        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground font-medium'
-    }`;
-  };
+  const NavItem = ({ item, onClick }: { item: NavItem; onClick?: () => void }) => {
+    const active = isActive(item.path)
+    return (
+      <button
+        onClick={() => { navigate(item.path); onClick?.() }}
+        className={`
+          w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
+          transition-colors duration-150 relative group
+          ${active
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }
+        `}
+      >
+        {active && (
+          <span className="absolute left-0 top-1 bottom-1 w-0.5 bg-primary rounded-r-full" />
+        )}
+        <span className={active ? "text-primary" : ""}>{item.icon}</span>
+        <span>{item.label}</span>
+        {active && <ChevronRight className="ml-auto h-3 w-3 opacity-50" />}
+      </button>
+    )
+  }
 
-  // --- INDICADOR VISUAL PARA A ABA ATIVA ---
-  const ActiveIndicator = ({ path }: { path: string }) => 
-    isActive(path) ? <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-md" /> : null;
-
-  // --- LINKS DO MENU ---
-  const NavLinks = () => (
-    <div className="space-y-6">
-      
-      {/* GRUPO 1: MENU PRINCIPAL */}
-      <div className="space-y-1">
-        <h3 className="px-4 text-[10px] font-bold tracking-wider text-muted-foreground/70 uppercase mb-2">
-          Menu Principal
-        </h3>
-        
-        <Button variant="ghost" className={getLinkStyle('/dashboard')} onClick={() => { navigate('/dashboard'); setIsMobileMenuOpen(false); }}>
-          <ActiveIndicator path="/dashboard" />
-          <LayoutDashboard className="h-[18px] w-[18px]" /> Visão Geral
-        </Button>
-
+  const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
+    <div className="flex flex-col h-full">
+      {/* Brand header */}
+      <div className="h-[44px] flex items-center gap-2.5 px-4 border-b border-border shrink-0">
+        <img src="/logo.png" alt="N-HUB" className="h-6 w-auto object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
+        <span className="text-base font-bold tracking-tight text-foreground">N-HUB</span>
       </div>
 
-      {/* GRUPO 2: OPERACIONAL */}
-      <div className="space-y-1">
-        <h3 className="px-4 text-[10px] font-bold tracking-wider text-muted-foreground/70 uppercase mb-2">
-          Operacional
-        </h3>
-        
-        <Button variant="ghost" className={getLinkStyle('/helpdesk')} onClick={() => { navigate('/helpdesk'); setIsMobileMenuOpen(false); }}>
-          <ActiveIndicator path="/helpdesk" />
-          <Ticket className="h-[18px] w-[18px]" /> Helpdesk
-        </Button>
+      {/* Nav groups */}
+      <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-5">
+        {navGroups.map(group => (
+          <div key={group.label}>
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map(item => (
+                <NavItem key={item.path} item={item} onClick={onNavigate} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
 
-        <Button variant="ghost" className={getLinkStyle('/inventario')} onClick={() => { navigate('/inventario'); setIsMobileMenuOpen(false); }}>
-          <ActiveIndicator path="/inventario" />
-          <Package className="h-[18px] w-[18px]" /> Inventário
-        </Button>
-
-        <Button variant="ghost" className={getLinkStyle('/recursoshumanos')} onClick={() => { navigate('/recursoshumanos'); setIsMobileMenuOpen(false); }}>
-          <ActiveIndicator path="/recursoshumanos" />
-          <Briefcase className="h-[18px] w-[18px]" /> Recursos Humanos
-        </Button>
-
+      {/* Footer */}
+      <div className="border-t border-border px-2 py-3 space-y-0.5 shrink-0">
+        <NavItem item={{ label: "Configurações", path: "/configuracoes", icon: <Settings className="h-4 w-4" /> }} onClick={onNavigate} />
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sair</span>
+        </button>
       </div>
-
-      {/* GRUPO 3: ADMINISTRAÇÃO */}
-      <div className="space-y-1">
-        <h3 className="px-4 text-[10px] font-bold tracking-wider text-muted-foreground/70 uppercase mb-2">
-          Administração
-        </h3>
-        
-        <Button variant="ghost" className={getLinkStyle('/usuarios')} onClick={() => { navigate('/usuarios'); setIsMobileMenuOpen(false); }}>
-          <ActiveIndicator path="/usuarios" />
-          <Users className="h-[18px] w-[18px]" /> Usuários
-        </Button>
-      </div>
-
     </div>
   )
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
-      
-      {/* ========================================================= */}
-      {/* 1. BARRA LATERAL (DESKTOP) */}
-      {/* ========================================================= */}
-      <aside className="w-64 flex-col border-r border-border bg-card hidden md:flex">
-        
-        {/* CABEÇALHO DO MENU (LOGO) */}
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-border/50 shrink-0">
-          <img src="/logo.png" alt="Logo N-HUB" className="h-7 w-auto object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-          <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-            N-HUB
-          </h1>
-        </div>
-        
-        <nav className="flex-1 overflow-y-auto px-3 py-6">
-          <NavLinks />
-        </nav>
 
-        {/* RODAPÉ DO MENU */}
-        <div className="mt-auto border-t border-border/50 p-3 space-y-1">
-          <Button variant="ghost" className={getLinkStyle('/configuracoes')} onClick={() => navigate('/configuracoes')}>
-            <ActiveIndicator path="/configuracoes" />
-            <Settings className="h-[18px] w-[18px]" /> Configurações
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-3 h-10 font-medium transition-colors text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/20 dark:hover:text-red-300" 
-            onClick={handleLogout}
-          >
-            <LogOut className="h-[18px] w-[18px]" /> Sair
-          </Button>
-        </div>
+      {/* ── Sidebar (desktop) ── */}
+      <aside className="w-56 flex-col bg-card border-r border-border hidden md:flex shrink-0">
+        <SidebarContent />
       </aside>
 
-      {/* ========================================================= */}
-      {/* 2. ÁREA PRINCIPAL */}
-      {/* ========================================================= */}
-      <main className="flex-1 flex flex-col overflow-hidden w-full bg-muted/10">
-        
-        {/* CABEÇALHO SUPERIOR */}
-        <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-4 md:px-8 shrink-0 z-10 sticky top-0">
-          
-          <div className="flex items-center gap-3">
-            {/* MENU HAMBÚRGUER (MOBILE) */}
-            <div className="md:hidden">
-              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Abrir menu</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-64 bg-card border-border p-0 flex flex-col">
-                  {/* Necessário para acessibilidade do Modal do Sheet */}
-                  <div className="sr-only">
-                    <SheetTitle>Menu de Navegação</SheetTitle>
-                    <SheetDescription>Acesse os módulos do sistema N-HUB.</SheetDescription>
-                  </div>
-                  
-                  <div className="h-16 flex items-center gap-3 px-6 border-b border-border/50 shrink-0">
-                    <img src="/logo.png" alt="Logo N-HUB" className="h-6 w-auto object-contain" />
-                    <h1 className="text-xl font-bold tracking-tight text-foreground">N-HUB</h1>
-                  </div>
-                  
-                  <nav className="flex-1 overflow-y-auto p-4">
-                    <NavLinks />
-                  </nav>
-                  
-                  {/* Rodapé do Menu Mobile */}
-                  <div className="border-t border-border/50 p-4 space-y-2 mt-auto">
-                    <Button variant="ghost" className={getLinkStyle('/configuracoes')} onClick={() => { navigate('/configuracoes'); setIsMobileMenuOpen(false); }}>
-                      <ActiveIndicator path="/configuracoes" />
-                      <Settings className="h-[18px] w-[18px]" /> Configurações
-                    </Button>
-                    <Button variant="ghost" className="w-full justify-start gap-3 text-destructive hover:bg-destructive/10" onClick={handleLogout}>
-                      <LogOut className="h-[18px] w-[18px]" /> Sair
-                    </Button>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
-            
-            {/* TÍTULO DA PÁGINA NO HEADER */}
-            <h2 className="text-lg font-semibold tracking-tight hidden sm:block text-foreground/90">Painel de Controle</h2>
-          </div>
-          
-          <div className="flex items-center gap-2 md:gap-4">
-            {/* BOTÃO DE TROCA DE TEMA */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-full">
-                  <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                  <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                  <span className="sr-only">Trocar tema</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover border-border text-foreground">
-                <DropdownMenuItem className="cursor-pointer" onClick={() => setTheme("light")}>Claro</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => setTheme("dark")}>Escuro</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => setTheme("system")}>Sistema</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+      {/* ── Main area ── */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-            {/* SINO DE NOTIFICAÇÕES */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:bg-muted/50 hover:text-foreground rounded-full">
-                  <Bell className="h-5 w-5" />
-                  {notifications.length > 0 && (
-                    <span className="absolute top-1 right-1 flex h-2 w-2 rounded-full bg-red-600 ring-2 ring-background"></span>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 bg-popover border-border text-foreground p-0 mt-1 shadow-lg">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                  <span className="font-semibold text-sm">Notificações</span>
-                  <Badge variant="secondary" className="text-xs">{notifications.length} novas</Badge>
-                </div>
-                <div className="max-h-[300px] overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
-                      <Bell className="h-8 w-8 text-muted-foreground/30" />
-                      Nenhuma notificação no momento.
+        {/* ── Shell bar (Fiori-style top bar) ── */}
+        <header className="shrink-0 bg-card border-b border-border sticky top-0 z-20">
+          {/* Purple brand stripe at very top */}
+          <div className="h-0.5 w-full bg-primary" />
+
+          <div className="h-11 flex items-center justify-between px-4 md:px-6 gap-3">
+            {/* Left: mobile menu + breadcrumb */}
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="md:hidden">
+                <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                      <Menu className="h-4 w-4" />
+                      <span className="sr-only">Menu</span>
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-56 bg-card border-border p-0">
+                    <div className="sr-only">
+                      <SheetTitle>Navegação</SheetTitle>
+                      <SheetDescription>Menu principal do N-HUB</SheetDescription>
                     </div>
-                  ) : (
-                    notifications.map(notif => (
-                      <div key={notif.id} className="p-4 border-b border-border/50 hover:bg-muted/50 transition-colors flex flex-col gap-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="font-medium text-sm leading-tight">{notif.title}</span>
-                          <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 hover:bg-muted" onClick={(e) => { e.stopPropagation(); markAsRead(notif.id); }}>
-                            Marcar lida
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed mt-1">
-                          {notif.message}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <SidebarContent onNavigate={() => setIsMobileMenuOpen(false)} />
+                  </SheetContent>
+                </Sheet>
+              </div>
 
-            {/* AVATAR DO USUÁRIO */}
-            <div className="ml-2 h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary overflow-hidden border-2 border-primary/20 cursor-pointer hover:border-primary/50 transition-colors shadow-sm">
-              {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
-              ) : (
-                user?.name?.substring(0, 2).toUpperCase() || "US"
-              )}
+              <div className="flex items-center gap-1.5 text-sm min-w-0">
+                <span className="font-semibold text-foreground truncate">{currentTitle}</span>
+              </div>
+            </div>
+
+            {/* Right: actions */}
+            <div className="flex items-center gap-1 shrink-0">
+
+              {/* Theme toggle */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                    <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="sr-only">Tema</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border text-foreground text-sm min-w-[120px]">
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => setTheme("light")}>☀️ Claro</DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => setTheme("dark")}>🌙 Escuro</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="cursor-pointer" onClick={() => setTheme("system")}>💻 Sistema</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Notifications */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative h-8 w-8 text-muted-foreground hover:text-foreground">
+                    <Bell className="h-4 w-4" />
+                    {notifications.length > 0 && (
+                      <span className="absolute top-1 right-1 flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-card" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 bg-popover border-border text-foreground p-0 shadow-lg">
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+                    <span className="font-semibold text-sm">Notificações</span>
+                    {notifications.length > 0 && (
+                      <Badge variant="secondary" className="text-[10px] h-5">{notifications.length}</Badge>
+                    )}
+                  </div>
+                  <div className="max-h-[320px] overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+                        <Bell className="h-7 w-7 opacity-25" />
+                        Sem notificações
+                      </div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div key={notif.id} className="px-4 py-3 border-b border-border/50 hover:bg-muted/40 transition-colors">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-medium text-sm leading-snug">{notif.title}</p>
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 shrink-0 hover:bg-primary/10 hover:text-primary"
+                              onClick={(e) => { e.stopPropagation(); markAsRead(notif.id) }}>
+                              Lida
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{notif.message}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* User avatar */}
+              <div className="ml-1 h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary overflow-hidden border border-primary/20 cursor-pointer hover:border-primary/50 transition-colors shrink-0">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                ) : (
+                  user?.name?.substring(0, 2).toUpperCase() || "US"
+                )}
+              </div>
             </div>
           </div>
         </header>
 
-        {/* ========================================================= */}
-        {/* 3. CONTEÚDO DINÂMICO (OUTLET) */}
-        {/* ========================================================= */}
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto relative">
-          <Outlet /> 
-        </div>
-      </main>
-
+        {/* ── Page content ── */}
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

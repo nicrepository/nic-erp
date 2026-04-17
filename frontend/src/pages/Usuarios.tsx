@@ -55,7 +55,7 @@ export function Usuarios() {
       })
       if (response.ok) {
         const data = await response.json()
-        setUsersList(data)
+        setUsersList(data.content || [])
       }
     } catch (error) {
       console.error("Erro ao buscar usuários:", error)
@@ -200,20 +200,20 @@ export function Usuarios() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="flex flex-col min-h-full">
+      {/* Fiori page header */}
+      <div className="fiori-page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Gestão de Acessos</h1>
-          <p className="text-sm text-muted-foreground">Administre os colaboradores e suas permissões no sistema.</p>
+          <h1 className="text-lg font-semibold text-foreground">Gestão de Acessos</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Administre os colaboradores e suas permissões no sistema.</p>
         </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <div className="relative w-full sm:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Buscar usuário..."
-              className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground"
+              className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground h-9"
               value={searchUser}
               onChange={(e) => setSearchUser(e.target.value)}
             />
@@ -222,7 +222,7 @@ export function Usuarios() {
           {isAdmin && (
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2 w-full sm:w-auto">
+                <Button className="gap-2 w-full sm:w-auto h-9">
                   <PlusCircle className="h-4 w-4" /> Novo Colaborador
                 </Button>
               </DialogTrigger>
@@ -269,6 +269,7 @@ export function Usuarios() {
         </div>
       </div>
 
+      <div className="p-4 md:p-6">
       <div className="rounded-md border border-border bg-card shadow-sm w-full">
         <div className="overflow-x-auto">
           <Table className="w-full">
@@ -395,42 +396,7 @@ export function Usuarios() {
           </DialogContent>
         </Dialog>
       )}
-      {/* MODAL DE EDIÇÃO DE USUÁRIO (SÓ ADMIN VÊ) */}
-      {isAdmin && (
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
-            <DialogHeader>
-              <DialogTitle>Editar Colaborador</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                Altere os dados de identificação corporativa deste usuário.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleEditUser}>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="editName">Nome Completo</Label>
-                  <div className="relative">
-                    <Users className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input id="editName" className="pl-8 bg-background" value={editUserName} onChange={(e) => setEditUserName(e.target.value)} required />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="editEmail">E-mail Corporativo</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input id="editEmail" type="email" className="pl-8 bg-background" value={editUserEmail} onChange={(e) => setEditUserEmail(e.target.value)} required />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
-                <Button type="submit">Salvar Alterações</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
+      </div>
     </div>
   )
 }

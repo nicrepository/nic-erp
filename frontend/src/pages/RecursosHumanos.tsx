@@ -68,7 +68,7 @@ export function RecursosHumanos() {
     try {
       const token = localStorage.getItem("token")
       const response = await fetch('/hr/employees', { headers: { 'Authorization': `Bearer ${token}` } })
-      if (response.ok) setEmployees(await response.json())
+      if (response.ok) { const d = await response.json(); setEmployees(d.content || []) }
     } catch (error) { console.error("Erro ao buscar colaboradores:", error) }
   }
 
@@ -76,7 +76,7 @@ export function RecursosHumanos() {
     try {
       const token = localStorage.getItem("token")
       const response = await fetch('/hr/absences', { headers: { 'Authorization': `Bearer ${token}` } })
-      if (response.ok) setAbsences(await response.json())
+      if (response.ok) { const d = await response.json(); setAbsences(d.content || []) }
     } catch (error) { console.error("Erro ao buscar ausências:", error) }
   }
 
@@ -222,14 +222,14 @@ export function RecursosHumanos() {
   const selectClassName = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Recursos Humanos</h1>
-          <p className="text-sm text-muted-foreground">Gestão de colaboradores, admissões e controle de ausências.</p>
-        </div>
+    <div className="flex flex-col min-h-full">
+      {/* Fiori page header */}
+      <div className="fiori-page-header">
+        <h1 className="text-lg font-semibold text-foreground">Recursos Humanos</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Gestão de colaboradores, admissões e controle de ausências.</p>
       </div>
 
+      <div className="p-4 md:p-6 space-y-4">
       <Tabs defaultValue="diretorio" className="w-full">
         <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-2 max-w-[400px] mb-4 h-auto gap-1 sm:gap-0">
           <TabsTrigger value="diretorio" className="gap-2 w-full">
@@ -511,6 +511,7 @@ export function RecursosHumanos() {
           </form>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   )
 }

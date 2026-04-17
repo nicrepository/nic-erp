@@ -33,14 +33,23 @@ public class DataSeeder implements CommandLineRunner {
     @Value("${admin.seed.email:admin@nic-labs.com}")
     private String adminEmail;
 
-    @Value("${admin.seed.password:admin123}")
+    @Value("${admin.seed.password}")
     private String adminPassword;
 
     @Override
     @Transactional
     public void run(String... args) throws Exception {
+        seedPermissions();
+        seedRoles();
+        seedAdminUser();
+    }
 
-        // 1. LISTA DE PERMISSÕES OFICIAIS DO NIC-ERP
+    /**
+     * Ensures all system permissions exist in the database.
+     * Permissions are the atomic capabilities (e.g. ACCESS_INVENTORY_ADMIN) checked by @PreAuthorize.
+     * New permissions added here will be created on next startup without data loss.
+     */
+    private void seedPermissions() {
         List<String> systemPermissions = List.of(
                 "ACCESS_INVENTORY_ADMIN",
                 "ACCESS_INVENTORY_IT",
@@ -50,7 +59,6 @@ public class DataSeeder implements CommandLineRunner {
                 "ACCESS_ANNOUNCEMENTS_MANAGE"
         );
 
-        // 2. SALVA AS PERMISSÕES NO BANCO SE ELAS NÃO EXISTIREM
         for (String permName : systemPermissions) {
             if (permissionRepository.findByName(permName).isEmpty()) {
                 Permission newPerm = new Permission();
@@ -59,13 +67,17 @@ public class DataSeeder implements CommandLineRunner {
                 permissionRepository.save(newPerm);
             }
         }
+    }
 
-        // 3. GARANTE QUE A ROLE_ADMIN E A ROLE_USER EXISTEM PARA O SISTEMA NÃO QUEBRAR
+    /**
+     * Ensures ROLE_ADMIN (all permissions) and ROLE_USER (no permissions) exist.
+     * ROLE_USER is the default role assigned to every new registered user.
+     */
+    private void seedRoles() {
         if (roleRepository.findByName("ROLE_ADMIN").isEmpty()) {
             Role adminRole = new Role();
             adminRole.setId(UUID.randomUUID());
             adminRole.setName("ROLE_ADMIN");
-            // O Admin ganha todas as permissões por padrão
             adminRole.setPermissions(new HashSet<>(permissionRepository.findAll()));
             roleRepository.save(adminRole);
         }
@@ -74,11 +86,15 @@ public class DataSeeder implements CommandLineRunner {
             Role userRole = new Role();
             userRole.setId(UUID.randomUUID());
             userRole.setName("ROLE_USER");
-            // Usuário comum nasce sem permissões especiais, só o básico
             roleRepository.save(userRole);
         }
+    }
 
-        // 4. CRIA O USUÁRIO ADMIN INICIAL SE O BANCO NÃO TIVER NENHUM USUÁRIO
+    /**
+     * Creates the initial admin user only when the users table is completely empty.
+     * Credentials are sourced from environment variables to support secure deployments.
+     */
+    private void seedAdminUser() {
         if (userRepository.count() == 0) {
             Role adminRole = roleRepository.findByName("ROLE_ADMIN")
                     .orElseThrow(() -> new IllegalStateException("ROLE_ADMIN não encontrada após seed"));

@@ -1,22 +1,39 @@
 package com.niclabs.erp.notification.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+/**
+ * SMTP-based e-mail delivery service.
+ *
+ * <p>All send operations are {@link Async} so they never block the calling thread.
+ * Failures are logged but not re-thrown, ensuring a transient mail server outage
+ * does not roll back the business operation that triggered the notification.</p>
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-public class EmailService {
+public class EmailService implements IEmailService {
 
     private final JavaMailSender mailSender;
 
-    // Pega o e-mail que você configurou no application.properties
     @Value("${spring.mail.username}")
     private String remetente;
 
+    /**
+     * Base URL of the front-end application used to build password-reset links.
+     * Defaults to {@code http://localhost:5173} for local development; override
+     * with the {@code APP_FRONTEND_URL} environment variable in production.
+     */
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
+    @Override
     @Async
     public void sendTicketResolvedEmail(String destinatario, String idChamado, String titulo) {
         try {
@@ -25,7 +42,6 @@ public class EmailService {
             message.setTo(destinatario);
             message.setSubject("Nic-ERP | Chamado Resolvido: " + titulo);
 
-            // Corpo do e-mail
             String texto = String.format(
                     "Olá!\n\nO seu chamado #%s (%s) foi marcado como RESOLVIDO pela nossa equipe de TI.\n\n" +
                             "Caso o problema persista ou você tenha novas dúvidas, por favor, abra um novo chamado no sistema.\n\n" +
@@ -34,29 +50,24 @@ public class EmailService {
             );
 
             message.setText(texto);
-
-            // Dispara para o servidor do Google
             mailSender.send(message);
 
-            System.out.println("✅ E-mail de resolução enviado com sucesso para: " + destinatario);
+            log.info("E-mail de resolução enviado com sucesso para: {}", destinatario);
 
         } catch (Exception e) {
-            System.err.println("❌ Erro ao enviar e-mail em segundo plano: " + e.getMessage());
+            log.error("Erro ao enviar e-mail de resolução: {}", e.getMessage(), e);
         }
     }
 
+    @Override
     @Async
     public void sendMassAnnouncementEmail(java.util.List<String> bccEmails, String titulo, String conteudo) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(remetente);
-
-            // O segredo do envio em massa: transforma a lista do Java num Array e joga no BCC (Cópia Oculta)
             message.setBcc(bccEmails.toArray(new String[0]));
-
             message.setSubject("Nic-ERP | Novo Aviso no Mural: " + titulo);
 
-            // Monta o corpo da mensagem
             String texto = String.format(
                     "Olá equipe!\n\nUm novo aviso foi publicado no mural do ERP:\n\n" +
                             "📌 %s\n\n%s\n\n" +
@@ -65,17 +76,16 @@ public class EmailService {
             );
 
             message.setText(texto);
-
-            // Dispara uma única vez para o servidor do Google, e ele se vira para entregar para os 100 funcionários
             mailSender.send(message);
 
-            System.out.println("✅ Aviso em massa disparado com sucesso para " + bccEmails.size() + " colaboradores.");
+            log.info("Aviso em massa disparado com sucesso para {} colaboradores.", bccEmails.size());
 
         } catch (Exception e) {
-            System.err.println("❌ Erro ao enviar aviso em massa: " + e.getMessage());
+            log.error("Erro ao enviar aviso em massa: {}", e.getMessage(), e);
         }
     }
 
+    @Override
     @Async
     public void sendPasswordResetEmail(String destinatario, String token) {
         try {
@@ -84,9 +94,7 @@ public class EmailService {
             message.setTo(destinatario);
             message.setSubject("Nic-ERP | Recuperação de Senha");
 
-            // Dica de Arquitetura: No futuro, esse link apontará para a tela do seu front-end em React (ex: localhost:3000)
-            // Por enquanto, vamos apontar para a própria API apenas para visualizarmos o token
-            String resetUrl = "http://localhost:5173/reset-password?token=" + token;
+            String resetUrl = frontendUrl + "/reset-password?token=" + token;
 
             String texto = "Olá!\n\nVocê solicitou a recuperação da sua senha.\n\n" +
                     "Clique no link abaixo para criar uma nova senha:\n" +
@@ -94,13 +102,12 @@ public class EmailService {
                     "Este link expira em 2 horas.\nSe você não solicitou a alteração, ignore este e-mail.";
 
             message.setText(texto);
-
             mailSender.send(message);
 
-            System.out.println("✅ E-mail de recuperação enviado com sucesso para: " + destinatario);
+            log.info("E-mail de recuperação enviado com sucesso para: {}", destinatario);
 
         } catch (Exception e) {
-            System.err.println("❌ Erro ao enviar e-mail de recuperação: " + e.getMessage());
+            log.error("Erro ao enviar e-mail de recuperação: {}", e.getMessage(), e);
         }
     }
 }

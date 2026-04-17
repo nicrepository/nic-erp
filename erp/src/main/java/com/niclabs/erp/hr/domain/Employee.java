@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,6 +20,8 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@SQLDelete(sql = "UPDATE hr.employees SET deleted_at = NOW() WHERE id = ?")
+@SQLRestriction("deleted_at IS NULL")
 public class Employee {
 
     @Id
@@ -64,8 +68,9 @@ public class Employee {
     @Column(name = "base_salary", precision = 10, scale = 2)
     private BigDecimal baseSalary;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private String status = "ATIVO";
+    private EmployeeStatus status = EmployeeStatus.ATIVO;
 
     // Auditoria
     @Column(name = "created_at", updatable = false)
@@ -73,6 +78,9 @@ public class Employee {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @PrePersist
     protected void onCreate() {

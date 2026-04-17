@@ -3,85 +3,151 @@
 @tailwind utilities;
 
 @layer base {
+  /* =====================================================================
+   * NIC-ERP Design System — SAP Fiori Horizon inspired, Nic-Labs colors
+   * Primary brand: #5A179B (Nic-Labs purple)
+   * ===================================================================== */
   :root {
-    /* Cores Semânticas baseadas na paleta Nic-Labs */
-    
-    /* Fundo Branco Principal (#FFFFFF) */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    
-    /* Cartões e Popovers em Branco */
+    /* Page background: Fiori uses a very light warm gray */
+    --background: 220 14% 96%;
+    --foreground: 220 13% 18%;
+
+    /* Shell bar & sidebar: pure white for clean Fiori look */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 220 13% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 220 13% 18%;
 
-    /* Cor Primária: Roxo Vibrante (#5A179B) */
+    /* Primary: Nic-Labs purple #5A179B → hsl(267,76%,35%) */
     --primary: 267 76% 35%;
-    --primary-foreground: 0 0% 98%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Cores Muted/Secondary: Lilás Muito Claro (#FAEDFD) */
-    --secondary: 267 85% 97%;
-    --secondary-foreground: 267 76% 25%;
-    
-    --muted: 267 85% 97%;
-    --muted-foreground: 267 15% 40%;
-    
-    /* Cor Accent: Roxo Médio (#784AA0) */
-    --accent: 267 38% 46%;
-    --accent-foreground: 0 0% 98%;
+    /* Secondary / Muted: very light lavender tint */
+    --secondary: 267 50% 96%;
+    --secondary-foreground: 267 60% 30%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 10% 46%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 267 76% 35%; /* O anel de foco segue a primária roxa */
-    
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem
+    /* Accent: medium purple for hover states */
+    --accent: 267 45% 91%;
+    --accent-foreground: 267 76% 28%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Fiori uses very subtle borders */
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 267 76% 35%;
+
+    /* Chart colors */
+    --chart-1: 267 76% 45%;
+    --chart-2: 207 90% 54%;
+    --chart-3: 142 71% 45%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
+
+    --radius: 0.5rem;
+
+    /* Fiori shell bar height */
+    --shell-bar-height: 2.75rem;
   }
-  
+
   .dark {
-    /* Mapeamento de Cores para Modo Escuro (Fundo muito escuro) */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    /* Fiori Horizon Dark — deep blue-gray tones */
+    --background: 222 20% 11%;
+    --foreground: 210 20% 92%;
 
-    /* Cor Primária Suavizada (Roxo Vibrante no Dark) */
-    --primary: 267 85% 65%;
-    --primary-foreground: 240 5.9% 10%;
+    --card: 222 20% 15%;
+    --card-foreground: 210 20% 92%;
+    --popover: 222 20% 15%;
+    --popover-foreground: 210 20% 92%;
 
-    /* Cores Muted/Secondary Escurecidas (Lilás sutil no Dark) */
-    --secondary: 267 30% 12%;
-    --secondary-foreground: 0 0% 98%;
-    
-    --muted: 267 30% 12%;
-    --muted-foreground: 267 15% 65%;
-    
-    /* Cor Accent Escurecida (Roxo Médio no Dark) */
-    --accent: 267 40% 18%;
-    --accent-foreground: 0 0% 98%;
+    /* Primary: brighter purple for dark backgrounds */
+    --primary: 267 80% 68%;
+    --primary-foreground: 222 20% 10%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 267 85% 65%;
-    
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%
+    --secondary: 267 25% 20%;
+    --secondary-foreground: 267 70% 80%;
+    --muted: 222 18% 20%;
+    --muted-foreground: 220 12% 60%;
+
+    --accent: 267 30% 22%;
+    --accent-foreground: 267 80% 80%;
+
+    --destructive: 0 60% 42%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 15% 25%;
+    --input: 222 15% 25%;
+    --ring: 267 80% 68%;
+
+    --chart-1: 267 70% 65%;
+    --chart-2: 207 80% 60%;
+    --chart-3: 142 60% 50%;
+    --chart-4: 38 80% 55%;
+    --chart-5: 0 70% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* =========================================================
+ * SAP Fiori–style utilities
+ * ========================================================= */
+@layer components {
+  /* Shell bar top stripe using primary brand color */
+  .fiori-shell-stripe {
+    @apply h-1 w-full bg-primary;
+  }
+
+  /* Page header pattern (object page header) */
+  .fiori-page-header {
+    @apply bg-card border-b border-border px-6 py-4 mb-0;
+  }
+
+  /* Toolbar above tables */
+  .fiori-toolbar {
+    @apply flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 
+           bg-card border border-border rounded-t-lg px-4 py-3;
+  }
+
+  /* Content section card */
+  .fiori-section {
+    @apply bg-card border border-border rounded-lg shadow-sm overflow-hidden;
+  }
+
+  /* Compact badge pill */
+  .fiori-status-positive {
+    @apply inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 
+           text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400 
+           text-[11px] font-medium px-2 py-0.5;
+  }
+  .fiori-status-negative {
+    @apply inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 
+           text-red-700 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400 
+           text-[11px] font-medium px-2 py-0.5;
+  }
+  .fiori-status-warning {
+    @apply inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 
+           text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400 
+           text-[11px] font-medium px-2 py-0.5;
+  }
+  .fiori-status-info {
+    @apply inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 
+           text-blue-700 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400 
+           text-[11px] font-medium px-2 py-0.5;
+  }
+  .fiori-status-neutral {
+    @apply inline-flex items-center gap-1 rounded-full bg-muted border border-border 
+           text-muted-foreground text-[11px] font-medium px-2 py-0.5;
   }
 }

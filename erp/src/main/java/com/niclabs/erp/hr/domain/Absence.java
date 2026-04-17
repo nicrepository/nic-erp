@@ -27,8 +27,9 @@ public class Absence {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "absence_type", nullable = false, length = 50)
-    private String type; // FERIAS, DAY_OFF, ATESTADO, LICENCA
+    private AbsenceType type;
 
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
@@ -39,8 +40,9 @@ public class Absence {
     @Column(length = 255)
     private String description;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private String status = "AGENDADO";
+    private AbsenceStatus status = AbsenceStatus.AGENDADO;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

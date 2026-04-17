@@ -7,6 +7,7 @@ import com.niclabs.erp.hr.repository.AbsenceRepository;
 import com.niclabs.erp.notification.domain.Notification;
 import com.niclabs.erp.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AbsenceNotifierJob {
@@ -89,6 +91,6 @@ public class AbsenceNotifierJob {
             notificationRepository.save(notification);
         }
 
-        System.out.println("Relatório de ausências gerado e enviado para " + targetUsers.size() + " gestores.");
+        log.info("Relatório de ausências gerado e enviado para {} gestores.", targetUsers.size());
     }
 }

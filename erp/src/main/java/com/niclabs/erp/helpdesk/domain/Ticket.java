@@ -69,5 +69,6 @@ public class Ticket {
             joinColumns = @JoinColumn(name = "ticket_id")
     )
     @Column(name = "file_name", nullable = false)
+    @org.hibernate.annotations.BatchSize(size = 50)
     private java.util.List<String> attachments = new java.util.ArrayList<>();
 }

@@ -123,7 +123,7 @@ export function Inventario() {
       })
       if (response.ok) {
         const data = await response.json()
-        setUsers(data)
+        setUsers(data.content || [])
       }
     } catch (error) {
       console.error("Erro ao buscar usuários:", error)
@@ -277,7 +277,7 @@ export function Inventario() {
       })
       if (response.ok) {
         const data = await response.json()
-        setStockItems(data)
+        setStockItems(data.content || [])
       }
     } catch (error) {
       console.error("Erro ao buscar estoque:", error)
@@ -292,7 +292,8 @@ export function Inventario() {
       })
       if (response.ok) {
         const data = await response.json()
-        const sortedData = data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        const items = data.content || data
+        const sortedData = items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         setMovements(sortedData)
       }
     } catch (error) {
@@ -423,16 +424,16 @@ export function Inventario() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Inventário</h1>
-          <p className="text-sm text-muted-foreground">
-            Gestão do parque de equipamentos de TI e controle de materiais de consumo.
-          </p>
-        </div>
+    <div className="flex flex-col min-h-full">
+      {/* Fiori page header */}
+      <div className="fiori-page-header">
+        <h1 className="text-lg font-semibold text-foreground">Inventário</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Gestão do parque de equipamentos de TI e controle de materiais de consumo.
+        </p>
       </div>
 
+      <div className="p-4 md:p-6 space-y-4">
       <Tabs defaultValue={(isAdmin || isTI) ? "it-assets" : "stock"} className="w-full">
         {/* Abas responsivas: empilham em telas pequenas */}
         <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-3 max-w-[700px] mb-4 h-auto gap-1 sm:gap-0">
@@ -1181,6 +1182,7 @@ export function Inventario() {
           </TabsContent>
         )}
       </Tabs>
+      </div>
     </div>
   )
 }

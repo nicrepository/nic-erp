@@ -5,7 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -14,6 +17,8 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@SQLDelete(sql = "UPDATE inventory.stock_items SET deleted_at = NOW() WHERE id = ?")
+@SQLRestriction("deleted_at IS NULL")
 public class StockItem {
 
     @Id
@@ -30,4 +35,7 @@ public class StockItem {
 
     @Column(name = "minimum_stock", nullable = false)
     private Integer minimumStock;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 }

@@ -30,5 +30,6 @@ public class Role {
             joinColumns = @JoinColumn(name = "role_id"),
             inverseJoinColumns = @JoinColumn(name = "permission_id")
     )
+    @org.hibernate.annotations.BatchSize(size = 50)
     private Set<Permission> permissions;
 }

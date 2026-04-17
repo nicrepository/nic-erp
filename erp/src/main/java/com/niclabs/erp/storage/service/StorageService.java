@@ -17,7 +17,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 @Service
-public class StorageService {
+public class StorageService implements IStorageService {
 
     // Lê o caminho da pasta que configuramos no application.properties
     @Value("${file.upload-dir}")

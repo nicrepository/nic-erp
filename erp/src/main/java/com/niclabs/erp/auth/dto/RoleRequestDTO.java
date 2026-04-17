@@ -1,9 +1,14 @@
 package com.niclabs.erp.auth.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 import java.util.List;
 
-// Usado para o React ENVIAR os dados de um novo Cargo
 public record RoleRequestDTO(
-        String name, // Ex: ROLE_FINANCEIRO
-        List<String> permissions // Ex: ["ACCESS_INVENTORY", "ACCESS_HELPDESK"]
+        @NotBlank(message = "O nome do cargo é obrigatório.")
+        @Size(max = 50, message = "O nome do cargo deve ter no máximo 50 caracteres.")
+        String name,
+
+        List<String> permissions
 ) {}

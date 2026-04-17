@@ -1,4 +1,9 @@
 package com.niclabs.erp.helpdesk.dto;
 
-public record TicketCommentRequestDTO(String content) {
+import jakarta.validation.constraints.NotBlank;
+
+public record TicketCommentRequestDTO(
+        @NotBlank(message = "O conteúdo do comentário é obrigatório.")
+        String content
+) {
 }
