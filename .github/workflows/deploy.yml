@@ -19,7 +19,7 @@ jobs:
           COMPOSE="/opt/nic-labs/core/compose-09-nhub.yml"
           
           # 1. Sincroniza o código fonte do projeto
-          rsync -av --exclude='.git/' ./ $CODIGO/
+          sudo rsync -av --exclude='.git/' ./ $CODIGO/
 
           # 2. Copia o compose para o local padrão do core
           sudo cp $CODIGO/compose.yml $COMPOSE
