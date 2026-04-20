@@ -35,6 +35,11 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
+    --success: 142 71% 35%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 100%;
+
     /* Fiori uses very subtle borders */
     --border: 220 13% 88%;
     --input: 220 13% 88%;
@@ -77,6 +82,11 @@
 
     --destructive: 0 60% 42%;
     --destructive-foreground: 0 0% 100%;
+
+    --success: 142 60% 50%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 80% 55%;
+    --warning-foreground: 222 20% 10%;
 
     --border: 222 15% 25%;
     --input: 222 15% 25%;

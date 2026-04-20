@@ -6,6 +6,10 @@ import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.auth.repository.PermissionRepository;
 import com.niclabs.erp.auth.repository.RoleRepository;
 import com.niclabs.erp.auth.repository.UserRepository;
+import com.niclabs.erp.helpdesk.domain.TicketCategory;
+import com.niclabs.erp.helpdesk.domain.TicketDepartment;
+import com.niclabs.erp.helpdesk.domain.TicketPriority;
+import com.niclabs.erp.helpdesk.repository.TicketCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -26,6 +30,7 @@ public class DataSeeder implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TicketCategoryRepository ticketCategoryRepository;
 
     @Value("${admin.seed.name:Administrador}")
     private String adminName;
@@ -42,6 +47,7 @@ public class DataSeeder implements CommandLineRunner {
         seedPermissions();
         seedRoles();
         seedAdminUser();
+        seedCategories();
     }
 
     /**
@@ -107,6 +113,27 @@ public class DataSeeder implements CommandLineRunner {
             admin.setActive(true);
             admin.setRoles(Set.of(adminRole));
             userRepository.save(admin);
+        }
+    }
+
+    /**
+     * Seeds default ticket categories on first startup.
+     */
+    private void seedCategories() {
+        if (ticketCategoryRepository.count() == 0) {
+            List<TicketCategory> defaults = List.of(
+                new TicketCategory(UUID.randomUUID(), "Sistema fora do ar", "Indisponibilidade total de sistema ou serviço", TicketPriority.URGENT, TicketDepartment.IT, true, null),
+                new TicketCategory(UUID.randomUUID(), "Sem acesso a sistemas", "Usuário não consegue acessar sistema ou aplicação", TicketPriority.URGENT, TicketDepartment.IT, true, null),
+                new TicketCategory(UUID.randomUUID(), "Equipamento com defeito", "Hardware com mau funcionamento ou falha", TicketPriority.HIGH, TicketDepartment.IT, true, null),
+                new TicketCategory(UUID.randomUUID(), "Instalação de software", "Solicitação de instalação ou atualização de programa", TicketPriority.MEDIUM, TicketDepartment.IT, true, null),
+                new TicketCategory(UUID.randomUUID(), "Impressora / Periférico", "Problemas com impressora, scanner ou outros periféricos", TicketPriority.MEDIUM, TicketDepartment.IT, true, null),
+                new TicketCategory(UUID.randomUUID(), "Solicitação de acesso", "Pedido de criação ou liberação de acesso a sistemas", TicketPriority.LOW, TicketDepartment.IT, true, null),
+                new TicketCategory(UUID.randomUUID(), "Manutenção predial", "Reparos elétricos, hidráulicos ou estruturais", TicketPriority.HIGH, TicketDepartment.MAINTENANCE, true, null),
+                new TicketCategory(UUID.randomUUID(), "Requisição de RH", "Férias, documentos, benefícios e outros pedidos de RH", TicketPriority.LOW, TicketDepartment.HR, true, null),
+                new TicketCategory(UUID.randomUUID(), "Solicitação administrativa", "Compras, suprimentos e demandas do administrativo", TicketPriority.LOW, TicketDepartment.ADMIN, true, null),
+                new TicketCategory(UUID.randomUUID(), "Dúvida / Orientação", "Questões gerais que não se enquadram nas categorias acima", TicketPriority.LOW, TicketDepartment.IT, true, null)
+            );
+            ticketCategoryRepository.saveAll(defaults);
         }
     }
 }

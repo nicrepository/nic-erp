@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import { useToast } from "../contexts/ToastContext"
+import { Pagination, usePagination } from "@/components/ui/pagination"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search, History, ArrowDownRight, ArrowUpRight } from "lucide-react"
+import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search, History, ArrowDownRight, ArrowUpRight, Loader2, InboxIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,8 +19,21 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 
+const ITEMS_PER_PAGE = 10
+
+type AssetSortField = "brand" | "model" | "serialNumber"
+type SortDir = "asc" | "desc"
+
+function SortIcon({ field, sortField, sortDir }: { field: string; sortField: string; sortDir: string }) {
+  if (field !== sortField) return <ArrowUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/50 inline" />
+  return sortDir === "asc"
+    ? <ArrowUp className="ml-1 h-3.5 w-3.5 text-primary inline" />
+    : <ArrowDown className="ml-1 h-3.5 w-3.5 text-primary inline" />
+}
+
 export function Inventario() {
-  const { user } = useAuth() 
+  const { user } = useAuth()
+  const toast = useToast()
 
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
   const isTI = user?.roles?.includes('ROLE_TI')
@@ -72,6 +87,17 @@ export function Inventario() {
   // ESTADO DO HISTÓRICO DO EQUIPAMENTO ---
   const [assetHistory, setAssetHistory] = useState<any[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
+  // ESTADOS: PAGINAÇÃO ---
+  const [itAssetPage, setItAssetPage] = useState(1)
+  const [stockPage, setStockPage] = useState(1)
+
+  // ESTADOS: ORDENAÇÃO ---
+  const [assetSortField, setAssetSortField] = useState<AssetSortField>("brand")
+  const [assetSortDir, setAssetSortDir] = useState<SortDir>("asc")
+
+  // ESTADOS: LOADING ---
+  const [isCreatingAsset, setIsCreatingAsset] = useState(false)
 
   // BUSCA O HISTÓRICO QUANDO O MODAL ABRE ---
   useEffect(() => {
@@ -137,6 +163,7 @@ export function Inventario() {
 
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsCreatingAsset(true)
     try {
       const token = localStorage.getItem("token")
       const response = await fetch('/inventory/it/assets', {
@@ -156,11 +183,14 @@ export function Inventario() {
         setDetails("") 
         setIsAssetModalOpen(false)
         fetchITAssets()
+        toast.success("Equipamento cadastrado!", "O ativo foi adicionado ao inventário.")
       } else {
-        alert("Erro ao cadastrar equipamento.")
+        toast.error("Erro ao cadastrar equipamento", "Verifique os dados e tente novamente.")
       }
     } catch (error) {
       console.error("Erro:", error)
+    } finally {
+      setIsCreatingAsset(false)
     }
   }
 
@@ -174,9 +204,10 @@ export function Inventario() {
       })
       if (response.ok) {
         setIsDetailModalOpen(false) 
-        fetchITAssets() 
+        fetchITAssets()
+        toast.success("Equipamento desvinculado!", "O ativo está disponível novamente.")
       } else {
-        alert("Erro ao desvincular equipamento.")
+        toast.error("Erro ao desvincular equipamento", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -194,9 +225,10 @@ export function Inventario() {
       if (response.ok) {
         setIsAssignModalOpen(false)
         setSelectedUserId("")
-        fetchITAssets() 
+        fetchITAssets()
+        toast.success("Equipamento atribuído!", "O ativo foi vinculado ao colaborador.")
       } else {
-        alert("Erro ao atribuir equipamento.")
+        toast.error("Erro ao atribuir equipamento", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -205,7 +237,7 @@ export function Inventario() {
 
   const handleWriteOffAsset = async () => {
     if (!writeOffReason.trim()) {
-      alert("É obrigatório informar o motivo da baixa.");
+      toast.warning("Motivo obrigatório", "Informe o motivo antes de confirmar a baixa.")
       return;
     }
 
@@ -225,10 +257,11 @@ export function Inventario() {
         setIsDetailModalOpen(false) 
         setWriteOffConfirmText("")
         setWriteOffReason("")
-        fetchITAssets() 
+        fetchITAssets()
+        toast.success("Baixa realizada!", "O ativo foi removido do inventário.")
       } else {
         const errorMsg = await response.text()
-        alert(`Erro ao dar baixa: ${errorMsg}`)
+        toast.error("Erro ao dar baixa", errorMsg)
       }
     } catch (error) { console.error("Erro de conexão:", error) }
   }
@@ -260,9 +293,10 @@ export function Inventario() {
         const updatedAsset = await response.json()
         setSelectedAsset(updatedAsset) 
         setIsEditingAsset(false) 
-        fetchITAssets() 
+        fetchITAssets()
+        toast.success("Equipamento atualizado!")
       } else {
-        alert("Erro ao atualizar o equipamento.")
+        toast.error("Erro ao atualizar equipamento", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -330,9 +364,10 @@ export function Inventario() {
         setItemCategory("")
         setItemMinStock("")
         setIsStockModalOpen(false)
-        fetchStockItems() 
+        fetchStockItems()
+        toast.success("Item cadastrado!", "O material foi adicionado ao estoque.")
       } else {
-        alert("Erro ao cadastrar item de estoque.")
+        toast.error("Erro ao cadastrar item", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -356,10 +391,11 @@ export function Inventario() {
       })
 
       if (response.ok) {
-        fetchStockItems() 
-        setIsManageStockModalOpen(false) 
+        fetchStockItems()
+        setIsManageStockModalOpen(false)
+        toast.success("Material atualizado!")
       } else {
-        alert("Erro ao atualizar o material.")
+        toast.error("Erro ao atualizar material", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -368,7 +404,7 @@ export function Inventario() {
 
   const handleStockMovement = async (type: 'add' | 'remove') => {
     if (!movementQuantity || Number(movementQuantity) <= 0) {
-      alert("Digite uma quantidade válida maior que zero.")
+      toast.warning("Quantidade inválida", "Digite um valor maior que zero.")
       return
     }
 
@@ -381,11 +417,12 @@ export function Inventario() {
 
       if (response.ok) {
         setMovementQuantity("") 
-        fetchStockItems() 
-        setIsManageStockModalOpen(false) 
+        fetchStockItems()
+        setIsManageStockModalOpen(false)
+        toast.success("Movimentação registrada!")
       } else {
         const errorMsg = await response.text()
-        alert(`Erro: ${errorMsg}`) 
+        toast.error("Erro na movimentação", errorMsg)
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -412,6 +449,24 @@ export function Inventario() {
       (item.category || "").toLowerCase().includes(searchTerm)
     )
   })
+
+  const toggleAssetSort = (field: AssetSortField) => {
+    if (assetSortField === field) setAssetSortDir(d => d === "asc" ? "desc" : "asc")
+    else { setAssetSortField(field); setAssetSortDir("asc") }
+    setItAssetPage(1)
+  }
+
+  const sortedItAssets = [...filteredItAssets].sort((a, b) => {
+    const av = (a[assetSortField] || "").toLowerCase()
+    const bv = (b[assetSortField] || "").toLowerCase()
+    return assetSortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av)
+  })
+
+  const { totalPages: itTotalPages, paginate: paginateIt } = usePagination(sortedItAssets, ITEMS_PER_PAGE)
+  const paginatedItAssets = paginateIt(itAssetPage)
+
+  const { totalPages: stockTotalPages, paginate: paginateStock } = usePagination(filteredStockItems, ITEMS_PER_PAGE)
+  const paginatedStockItems = paginateStock(stockPage)
 
   if (!isAdmin && !isTI && !isRH) {
     return (
@@ -474,7 +529,7 @@ export function Inventario() {
                     placeholder="Buscar patrimônio, usuário..."
                     className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground"
                     value={searchItAsset}
-                    onChange={(e) => setSearchItAsset(e.target.value)}
+                    onChange={(e) => { setSearchItAsset(e.target.value); setItAssetPage(1) }}
                   />
                 </div>
 
@@ -523,7 +578,10 @@ export function Inventario() {
                       </div>
                       <DialogFooter>
                         <Button type="button" variant="outline" className="w-full sm:w-auto mb-2 sm:mb-0" onClick={() => setIsAssetModalOpen(false)}>Cancelar</Button>
-                        <Button type="submit" className="w-full sm:w-auto">Salvar Equipamento</Button>
+                        <Button type="submit" disabled={isCreatingAsset} className="w-full sm:w-auto gap-2">
+                          {isCreatingAsset && <Loader2 className="h-4 w-4 animate-spin" />}
+                          {isCreatingAsset ? "Cadastrando..." : "Cadastrar Equipamento"}
+                        </Button>
                       </DialogFooter>
                     </form>
                   </DialogContent>
@@ -533,26 +591,37 @@ export function Inventario() {
 
             <div className="rounded-md border border-border bg-card shadow-sm w-full">
               <div className="overflow-x-auto">
-                <Table className="w-full">
+                <Table className="w-full" aria-label="Ativos de TI">
                   <TableHeader>
                     <TableRow className="hover:bg-muted/50 border-border">
                       <TableHead className="text-muted-foreground min-w-[120px]">Patrimônio</TableHead>
-                      <TableHead className="text-muted-foreground min-w-[180px]">Marca / Modelo</TableHead>
-                      <TableHead className="text-muted-foreground min-w-[150px]">Número de Série</TableHead>
+                      <TableHead className="text-muted-foreground min-w-[180px]">
+                        <button onClick={() => toggleAssetSort("brand")} className="flex items-center hover:text-foreground transition-colors">
+                          Marca / Modelo <SortIcon field="brand" sortField={assetSortField} sortDir={assetSortDir} />
+                        </button>
+                      </TableHead>
+                      <TableHead className="text-muted-foreground min-w-[150px]">
+                        <button onClick={() => toggleAssetSort("serialNumber")} className="flex items-center hover:text-foreground transition-colors">
+                          Número de Série <SortIcon field="serialNumber" sortField={assetSortField} sortDir={assetSortDir} />
+                        </button>
+                      </TableHead>
                       <TableHead className="text-muted-foreground min-w-[120px]">Status</TableHead>
                       <TableHead className="text-muted-foreground min-w-[150px]">Responsável</TableHead>
                       <TableHead className="text-right text-muted-foreground min-w-[100px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredItAssets.length === 0 ? (
+                    {paginatedItAssets.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          Nenhum equipamento cadastrado ainda.
+                        <TableCell colSpan={6} className="py-16 text-center">
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <InboxIcon className="h-10 w-10 opacity-30" />
+                            <p className="text-sm font-medium">Nenhum ativo encontrado</p>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredItAssets.map((asset) => (
+                      paginatedItAssets.map((asset) => (
                         <TableRow key={asset.id} className="hover:bg-muted/50 border-border">
                           <TableCell className="font-medium text-foreground whitespace-nowrap">{asset.assetTag}</TableCell>
                           <TableCell className="text-muted-foreground whitespace-nowrap">{asset.brand} - {asset.model}</TableCell>
@@ -596,6 +665,7 @@ export function Inventario() {
                 </Table>
               </div>
             </div>
+            <Pagination currentPage={itAssetPage} totalPages={itTotalPages} totalItems={filteredItAssets.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setItAssetPage} />
 
             <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
               <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
@@ -910,7 +980,7 @@ export function Inventario() {
                     placeholder="Buscar material..."
                     className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground"
                     value={searchStockItem}
-                    onChange={(e) => setSearchStockItem(e.target.value)}
+                    onChange={(e) => { setSearchStockItem(e.target.value); setStockPage(1) }}
                   />
                 </div>
 
@@ -955,7 +1025,7 @@ export function Inventario() {
 
             <div className="rounded-md border border-border bg-card shadow-sm w-full">
               <div className="overflow-x-auto">
-                <Table className="w-full">
+                <Table className="w-full" aria-label="Estoque administrativo">
                   <TableHeader>
                     <TableRow className="hover:bg-muted/50 border-border">
                       <TableHead className="text-muted-foreground min-w-[200px]">Item</TableHead>
@@ -967,14 +1037,17 @@ export function Inventario() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredStockItems.length === 0 ? (
+                    {paginatedStockItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          Nenhum material cadastrado no estoque.
+                        <TableCell colSpan={6} className="py-16 text-center">
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <InboxIcon className="h-10 w-10 opacity-30" />
+                            <p className="text-sm font-medium">Nenhum material encontrado</p>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredStockItems.map((item) => {
+                      paginatedStockItems.map((item) => {
                         const isLowStock = (item.quantity || 0) <= item.minimumStock;
                         
                         return (
@@ -1017,6 +1090,7 @@ export function Inventario() {
                 </Table>
               </div>
             </div>
+            <Pagination currentPage={stockPage} totalPages={stockTotalPages} totalItems={filteredStockItems.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setStockPage} />
             
             <Dialog open={isManageStockModalOpen} onOpenChange={setIsManageStockModalOpen}>
               <DialogContent className="sm:max-w-[500px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
@@ -1117,7 +1191,7 @@ export function Inventario() {
 
             <div className="rounded-md border border-border bg-card shadow-sm w-full">
               <div className="overflow-x-auto">
-                <Table className="w-full">
+                <Table className="w-full" aria-label="Histórico de movimentações">
                   <TableHeader>
                     <TableRow className="hover:bg-muted/50 border-border">
                       <TableHead className="text-muted-foreground min-w-[150px]">Data e Hora</TableHead>

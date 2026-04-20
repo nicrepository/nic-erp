@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import { useToast } from "../contexts/ToastContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,13 +10,21 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Shield, PlusCircle, UserCog, Settings, Key, Mail } from "lucide-react"
+import { Shield, PlusCircle, UserCog, Settings, Key, Mail, Loader2, Tag, MoreHorizontal } from "lucide-react"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export function Configuracoes() {
   const { user, updateUser } = useAuth()
+  const toast = useToast()
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
 
   // Estados para os dados da API
@@ -41,6 +50,22 @@ export function Configuracoes() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [isCreatingRole, setIsCreatingRole] = useState(false)
+
+  // Category management
+  const [categories, setCategories] = useState<any[]>([])
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false)
+  const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false)
+  const [isEditCategoryOpen, setIsEditCategoryOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<any>(null)
+  const [isSavingCategory, setIsSavingCategory] = useState(false)
+
+  // Form fields for category create/edit
+  const [catName, setCatName] = useState("")
+  const [catDescription, setCatDescription] = useState("")
+  const [catPriority, setCatPriority] = useState("")
+  const [catDepartment, setCatDepartment] = useState("")
+  const [catActive, setCatActive] = useState(true)
 
   // Dicionário amigável para traduzir o nome das permissões do back-end para o usuário
   const translatePermission = (perm: string) => {
@@ -79,12 +104,136 @@ export function Configuracoes() {
   }
 
   useEffect(() => {
-    if (isAdmin) fetchData()
+    if (isAdmin) {
+      fetchData()
+      fetchCategories()
+    }
   }, [isAdmin])
 
-  // Função para criar um novo Cargo
-  const handleCreateRole = async (e: React.FormEvent) => {
+  const fetchCategories = async () => {
+    setIsLoadingCategories(true)
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch('/helpdesk/categories/all', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) setCategories(await res.json())
+    } catch (error) {
+      console.error("Erro ao buscar categorias:", error)
+    } finally {
+      setIsLoadingCategories(false)
+    }
+  }
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSavingCategory(true)
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch('/helpdesk/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: catName, description: catDescription, priority: catPriority, department: catDepartment, active: catActive })
+      })
+      if (res.ok) {
+        setIsCreateCategoryOpen(false)
+        resetCatForm()
+        fetchCategories()
+        toast.success("Categoria criada!", "A nova categoria já está disponível no Helpdesk.")
+      } else {
+        toast.error("Erro ao criar categoria", "Verifique se já existe uma categoria com esse nome.")
+      }
+    } catch (error) {
+      toast.error("Erro de conexão", "Tente novamente.")
+    } finally {
+      setIsSavingCategory(false)
+    }
+  }
+
+  const handleUpdateCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingCategory) return
+    setIsSavingCategory(true)
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`/helpdesk/categories/${editingCategory.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: catName, description: catDescription, priority: catPriority, department: catDepartment, active: catActive })
+      })
+      if (res.ok) {
+        setIsEditCategoryOpen(false)
+        setEditingCategory(null)
+        resetCatForm()
+        fetchCategories()
+        toast.success("Categoria atualizada!", "As alterações foram salvas.")
+      } else {
+        toast.error("Erro ao atualizar categoria", "Tente novamente.")
+      }
+    } catch (error) {
+      toast.error("Erro de conexão", "Tente novamente.")
+    } finally {
+      setIsSavingCategory(false)
+    }
+  }
+
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`/helpdesk/categories/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        fetchCategories()
+        toast.success("Categoria removida!", "A categoria foi excluída do sistema.")
+      } else {
+        toast.error("Erro ao remover categoria", "Tente novamente.")
+      }
+    } catch (error) {
+      toast.error("Erro de conexão", "Tente novamente.")
+    }
+  }
+
+  const resetCatForm = () => {
+    setCatName("")
+    setCatDescription("")
+    setCatPriority("")
+    setCatDepartment("")
+    setCatActive(true)
+  }
+
+  const openEditCategory = (cat: any) => {
+    setEditingCategory(cat)
+    setCatName(cat.name)
+    setCatDescription(cat.description || "")
+    setCatPriority(cat.priority)
+    setCatDepartment(cat.department)
+    setCatActive(cat.active)
+    setIsEditCategoryOpen(true)
+  }
+
+  const translatePriorityCat = (p: string) => {
+    const map: Record<string, string> = { LOW: 'Baixa', MEDIUM: 'Média', HIGH: 'Alta', URGENT: 'Urgente' }
+    return map[p] || p
+  }
+  const translateDeptCat = (d: string) => {
+    const map: Record<string, string> = { IT: 'TI', ADMIN: 'Administrativo', HR: 'RH', MAINTENANCE: 'Manutenção' }
+    return map[d] || d
+  }
+  const priorityColor = (p: string) => {
+    const map: Record<string, string> = {
+      URGENT: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30',
+      HIGH: 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30',
+      MEDIUM: 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-500 border-yellow-500/30',
+      LOW: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30',
+    }
+    return map[p] || ''
+  }
+
+  // Função para criar um novo Cargo
+  const handleCreateRole = async (e: React.FormEvent) => {e.preventDefault()
+    setIsCreatingRole(true)
     try {
       const token = localStorage.getItem("token")
       // Garante que o nome comece com ROLE_ para seguir o padrão do Spring
@@ -104,11 +253,14 @@ export function Configuracoes() {
         setNewRoleName("")
         setNewRolePermissions([])
         fetchData()
+        toast.success("Cargo criado!", "O novo cargo foi adicionado ao sistema.")
       } else {
-        alert("Erro ao criar cargo. Ele já pode existir.")
+        toast.error("Erro ao criar cargo", "Este cargo já pode existir.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
+    } finally {
+      setIsCreatingRole(false)
     }
   }
 
@@ -132,8 +284,9 @@ export function Configuracoes() {
         setIsEditModalOpen(false)
         setEditingRole(null)
         fetchData()
+        toast.success("Permissões atualizadas!", "As permissões do cargo foram salvas.")
       } else {
-        alert("Erro ao atualizar permissões.")
+        toast.error("Erro ao atualizar permissões", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -178,10 +331,11 @@ export function Configuracoes() {
         const updatedUserData = await response.json() 
         
         // Injetamos a URL da foto direto no contexto do React (atualiza o cabeçalho e o perfil na hora!)
-        updateUser({ avatarUrl: updatedUserData.avatarUrl }) 
+        updateUser({ avatarUrl: updatedUserData.avatarUrl })
+        toast.success("Foto atualizada!", "Sua foto de perfil foi atualizada.")
         
       } else {
-        alert("Erro ao enviar a foto de perfil.")
+        toast.error("Erro no upload", "Não foi possível enviar a foto. Tente novamente.")
       }
     } catch (error) {
       console.error("Erro no upload:", error)
@@ -194,7 +348,7 @@ export function Configuracoes() {
     e.preventDefault()
     
     if (newPassword !== confirmPassword) {
-      alert("As novas senhas não coincidem!")
+      toast.warning("Senhas não conferem", "A nova senha e a confirmação devem ser iguais.")
       return
     }
 
@@ -211,18 +365,18 @@ export function Configuracoes() {
       })
 
       if (response.ok) {
-        alert("Senha alterada com sucesso!")
+        toast.success("Senha alterada!", "Sua senha foi atualizada com sucesso.")
         // Limpa os campos após o sucesso
         setCurrentPassword("")
         setNewPassword("")
         setConfirmPassword("")
       } else {
         const errorMsg = await response.text()
-        alert(`Erro: ${errorMsg}`)
+        toast.error("Erro ao alterar senha", errorMsg)
       }
     } catch (error) {
       console.error("Erro ao alterar senha:", error)
-      alert("Erro de conexão ao alterar a senha.")
+      toast.error("Erro de conexão", "Verifique sua rede e tente novamente.")
     } finally {
       setIsChangingPassword(false)
     }
@@ -238,13 +392,18 @@ export function Configuracoes() {
 
       <div className="p-4 md:p-6">
       <Tabs defaultValue="perfil" className="w-full">
-        <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-2 max-w-[400px] mb-4 h-auto gap-1 sm:gap-0">
+        <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-3 max-w-[600px] mb-4 h-auto gap-1 sm:gap-0">
           <TabsTrigger value="perfil" className="gap-2 w-full">
             <UserCog className="h-4 w-4" /> Meu Perfil
           </TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="sistema" className="gap-2 w-full">
               <Settings className="h-4 w-4" /> Sistema & Acessos
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="helpdesk" className="gap-2 w-full">
+              <Tag className="h-4 w-4" /> Helpdesk
             </TabsTrigger>
           )}
         </TabsList>
@@ -356,8 +515,9 @@ export function Configuracoes() {
               </div>
 
               <div className="pt-2 flex justify-end">
-                <Button type="submit" disabled={isChangingPassword}>
-                  {isChangingPassword ? "Salvando..." : "Atualizar Senha"}
+                <Button type="submit" disabled={isChangingPassword} className="gap-2">
+                  {isChangingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {isChangingPassword ? "Alterando..." : "Alterar Senha"}
                 </Button>
               </div>
             </form>
@@ -418,7 +578,10 @@ export function Configuracoes() {
                     </div>
                     <DialogFooter>
                       <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancelar</Button>
-                      <Button type="submit">Salvar Cargo</Button>
+                      <Button type="submit" disabled={isCreatingRole} className="gap-2">
+                        {isCreatingRole && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {isCreatingRole ? "Criando..." : "Salvar Cargo"}
+                      </Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -427,7 +590,7 @@ export function Configuracoes() {
 
             <div className="rounded-md border border-border bg-card shadow-sm w-full">
               <div className="overflow-x-auto">
-                <Table className="w-full">
+                <Table className="w-full" aria-label="Cargos e permissões">
                   <TableHeader>
                     <TableRow className="hover:bg-muted/50 border-border">
                       <TableHead className="text-muted-foreground min-w-[150px]">Cargo (Role)</TableHead>
@@ -525,6 +688,191 @@ export function Configuracoes() {
               </DialogContent>
             </Dialog>
 
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="helpdesk" className="mt-4">
+            <div className="rounded-md border border-border bg-card shadow-sm">
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Categorias do Helpdesk</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Gerencie as categorias disponíveis ao abrir chamados. A prioridade é definida automaticamente.</p>
+                </div>
+                <Dialog open={isCreateCategoryOpen} onOpenChange={(open) => { setIsCreateCategoryOpen(open); if (!open) resetCatForm() }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="gap-2">
+                      <PlusCircle className="h-4 w-4" /> Nova Categoria
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[480px] bg-background border-border text-foreground">
+                    <DialogHeader>
+                      <DialogTitle>Nova Categoria</DialogTitle>
+                      <DialogDescription className="text-muted-foreground">Defina o nome, área responsável e prioridade automática.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateCategory}>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="cat-name">Nome</Label>
+                          <Input id="cat-name" placeholder="Ex: Sistema fora do ar" value={catName} onChange={e => setCatName(e.target.value)} required className="bg-background" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="cat-desc">Descrição (opcional)</Label>
+                          <Textarea id="cat-desc" placeholder="Descreva quando usar esta categoria..." value={catDescription} onChange={e => setCatDescription(e.target.value)} className="bg-background min-h-[80px]" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label>Área Responsável</Label>
+                            <Select value={catDepartment} onValueChange={setCatDepartment} required>
+                              <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="IT">TI</SelectItem>
+                                <SelectItem value="ADMIN">Administrativo</SelectItem>
+                                <SelectItem value="HR">RH</SelectItem>
+                                <SelectItem value="MAINTENANCE">Manutenção</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Prioridade</Label>
+                            <Select value={catPriority} onValueChange={setCatPriority} required>
+                              <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="LOW">Baixa</SelectItem>
+                                <SelectItem value="MEDIUM">Média</SelectItem>
+                                <SelectItem value="HIGH">Alta</SelectItem>
+                                <SelectItem value="URGENT">Urgente</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox id="cat-active" checked={catActive} onCheckedChange={(v) => setCatActive(v === true)} />
+                          <Label htmlFor="cat-active">Categoria ativa</Label>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsCreateCategoryOpen(false)}>Cancelar</Button>
+                        <Button type="submit" disabled={!catName || !catDepartment || !catPriority || isSavingCategory}>
+                          {isSavingCategory ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</> : "Criar"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {/* Edit category dialog */}
+              <Dialog open={isEditCategoryOpen} onOpenChange={(open) => { setIsEditCategoryOpen(open); if (!open) { setEditingCategory(null); resetCatForm() } }}>
+                <DialogContent className="sm:max-w-[480px] bg-background border-border text-foreground">
+                  <DialogHeader>
+                    <DialogTitle>Editar Categoria</DialogTitle>
+                    <DialogDescription className="text-muted-foreground">Atualize os dados da categoria.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleUpdateCategory}>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-cat-name">Nome</Label>
+                        <Input id="edit-cat-name" value={catName} onChange={e => setCatName(e.target.value)} required className="bg-background" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-cat-desc">Descrição (opcional)</Label>
+                        <Textarea id="edit-cat-desc" value={catDescription} onChange={e => setCatDescription(e.target.value)} className="bg-background min-h-[80px]" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label>Área Responsável</Label>
+                          <Select value={catDepartment} onValueChange={setCatDepartment} required>
+                            <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="IT">TI</SelectItem>
+                              <SelectItem value="ADMIN">Administrativo</SelectItem>
+                              <SelectItem value="HR">RH</SelectItem>
+                              <SelectItem value="MAINTENANCE">Manutenção</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Prioridade</Label>
+                          <Select value={catPriority} onValueChange={setCatPriority} required>
+                            <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="LOW">Baixa</SelectItem>
+                              <SelectItem value="MEDIUM">Média</SelectItem>
+                              <SelectItem value="HIGH">Alta</SelectItem>
+                              <SelectItem value="URGENT">Urgente</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="edit-cat-active" checked={catActive} onCheckedChange={(v) => setCatActive(v === true)} />
+                        <Label htmlFor="edit-cat-active">Categoria ativa</Label>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsEditCategoryOpen(false)}>Cancelar</Button>
+                      <Button type="submit" disabled={!catName || !catDepartment || !catPriority || isSavingCategory}>
+                        {isSavingCategory ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Salvando...</> : "Salvar"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              <Table aria-label="Categorias do Helpdesk">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead className="hidden sm:table-cell">Área</TableHead>
+                    <TableHead className="hidden sm:table-cell">Prioridade</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoadingCategories ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                  ) : categories.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhuma categoria cadastrada.</TableCell></TableRow>
+                  ) : (
+                    categories.map(cat => (
+                      <TableRow key={cat.id} className={!cat.active ? "opacity-50" : ""}>
+                        <TableCell>
+                          <div className="font-medium text-foreground text-sm">{cat.name}</div>
+                          {cat.description && <div className="text-xs text-muted-foreground mt-0.5 hidden md:block">{cat.description}</div>}
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge variant="outline" className="text-xs">{translateDeptCat(cat.department)}</Badge>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge className={`text-xs ${priorityColor(cat.priority)}`}>{translatePriorityCat(cat.priority)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={cat.active ? "default" : "secondary"} className="text-xs">
+                            {cat.active ? "Ativa" : "Inativa"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Mais opções">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => openEditCategory(cat)}>Editar</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteCategory(cat.id)}>Excluir</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </TabsContent>
         )}
       </Tabs>

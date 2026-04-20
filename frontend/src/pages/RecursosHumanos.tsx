@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import { useToast } from "../contexts/ToastContext"
+import { Pagination, usePagination } from "@/components/ui/pagination"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, PlusCircle, Briefcase, UserCheck, UserX, AlertTriangle, MoreHorizontal, Edit, CalendarDays, Stethoscope, Cake, Plane } from "lucide-react"
+import { Search, PlusCircle, Briefcase, UserCheck, UserX, AlertTriangle, MoreHorizontal, Edit, CalendarDays, Stethoscope, Cake, Plane, InboxIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { format, parseISO } from "date-fns"
 // ptBR removido daqui, pois não estava em uso no momento
 import {
@@ -16,8 +19,21 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+const ITEMS_PER_PAGE = 10
+
+type EmpSortField = "fullName" | "jobTitle"
+type SortDir = "asc" | "desc"
+
+function SortIcon({ field, sortField, sortDir }: { field: string; sortField: string; sortDir: string }) {
+  if (field !== sortField) return <ArrowUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/50 inline" />
+  return sortDir === "asc"
+    ? <ArrowUp className="ml-1 h-3.5 w-3.5 text-primary inline" />
+    : <ArrowDown className="ml-1 h-3.5 w-3.5 text-primary inline" />
+}
+
 export function RecursosHumanos() {
   const { user } = useAuth()
+  const toast = useToast()
   const isRHOrAdmin = user?.roles?.includes('ROLE_ADMIN') || user?.roles?.includes('ACCESS_HR')
 
   // --- ESTADOS: DIRETÓRIO ---
@@ -43,6 +59,17 @@ export function RecursosHumanos() {
   const [absences, setAbsences] = useState<any[]>([])
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false)
   const [isSubmittingAbsence, setIsSubmittingAbsence] = useState(false)
+
+  // ESTADOS: PAGINAÇÃO ---
+  const [employeePage, setEmployeePage] = useState(1)
+  const [absencePage, setAbsencePage] = useState(1)
+
+  // ESTADO: CONFIRMAÇÃO DE EXCLUSÃO
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; absenceId: string | null }>({ isOpen: false, absenceId: null })
+
+  // ESTADOS: ORDENAÇÃO ---
+  const [empSortField, setEmpSortField] = useState<EmpSortField>("fullName")
+  const [empSortDir, setEmpSortDir] = useState<SortDir>("asc")
   
   const initialAbsenceState = {
     employeeId: "", type: "FERIAS", startDate: "", endDate: "", description: ""
@@ -125,8 +152,8 @@ export function RecursosHumanos() {
       const method = editingEmployeeId ? 'PUT' : 'POST'
       const response = await fetch(url, { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
 
-      if (response.ok) { setIsModalOpen(false); fetchEmployees(); setFormData(initialFormState); } 
-      else { const errorMsg = await response.text(); alert(`Erro: ${errorMsg}`); }
+      if (response.ok) { setIsModalOpen(false); fetchEmployees(); setFormData(initialFormState); toast.success(editingEmployeeId ? "Colaborador atualizado!" : "Colaborador cadastrado!", "Os dados foram salvos com sucesso.") } 
+      else { const errorMsg = await response.text(); toast.error("Erro ao salvar colaborador", errorMsg); }
     } catch (error) { console.error("Erro na operação:", error) } 
     finally { setIsSubmitting(false) }
   }
@@ -157,10 +184,11 @@ export function RecursosHumanos() {
         fetchAbsences() 
         fetchEmployees() 
         setAbsenceData(initialAbsenceState)
-        setEditingAbsenceId(null) 
+        setEditingAbsenceId(null)
+        toast.success("Ausência registrada!", "O período foi registrado com sucesso.")
       } else {
         const errorMsg = await response.text()
-        alert(`Erro ao registrar/editar ausência: ${errorMsg}`)
+        toast.error("Erro ao registrar ausência", errorMsg)
       }
     } catch (error) { console.error("Erro na operação:", error) } 
     finally { setIsSubmittingAbsence(false) }
@@ -179,22 +207,45 @@ export function RecursosHumanos() {
   }
 
   const handleDeleteAbsence = async (id: string) => {
-    if (!window.confirm("Tem certeza que deseja cancelar esta ausência?")) return
+    setConfirmDelete({ isOpen: true, absenceId: id })
+  }
+
+  const doDeleteAbsence = async () => {
+    if (!confirmDelete.absenceId) return
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch(`/hr/absences/${id}`, {
+      const response = await fetch(`/hr/absences/${confirmDelete.absenceId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         fetchAbsences()
-        fetchEmployees() 
-      } else { alert("Erro ao cancelar ausência.") }
+        fetchEmployees()
+        toast.success("Ausência cancelada!", "O registro foi removido.")
+      } else { toast.error("Erro ao cancelar", "Não foi possível cancelar a ausência. Tente novamente.") }
     } catch (error) { console.error(error) }
   }
 
   // --- RENDERS AUXILIARES ---
   const filteredEmployees = employees.filter(emp => emp.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || emp.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) || emp.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase()))
+
+  const toggleEmpSort = (field: EmpSortField) => {
+    if (empSortField === field) setEmpSortDir(d => d === "asc" ? "desc" : "asc")
+    else { setEmpSortField(field); setEmpSortDir("asc") }
+    setEmployeePage(1)
+  }
+
+  const sortedEmployees = [...filteredEmployees].sort((a, b) => {
+    const av = (a[empSortField] || "").toLowerCase()
+    const bv = (b[empSortField] || "").toLowerCase()
+    return empSortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av)
+  })
+
+  const { totalPages: empTotalPages, paginate: paginateEmp } = usePagination(sortedEmployees, ITEMS_PER_PAGE)
+  const paginatedEmployees = paginateEmp(employeePage)
+
+  const { totalPages: absTotalPages, paginate: paginateAbs } = usePagination(absences, ITEMS_PER_PAGE)
+  const paginatedAbsences = paginateAbs(absencePage)
 
   const getStatusBadge = (status: string) => {
     switch(status) {
@@ -245,7 +296,7 @@ export function RecursosHumanos() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input type="text" placeholder="Buscar colaborador..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <Input type="text" placeholder="Buscar colaborador..." className="pl-8" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setEmployeePage(1) }} />
             </div>
             <Button onClick={openCreateModal} className="gap-2">
               <PlusCircle className="h-4 w-4" /> Registrar Admissão
@@ -253,11 +304,19 @@ export function RecursosHumanos() {
           </div>
 
           <div className="rounded-md border border-border bg-card shadow-sm w-full overflow-x-auto">
-            <Table className="w-full">
+            <Table className="w-full" aria-label="Diretório de colaboradores">
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border">
-                  <TableHead className="min-w-[200px]">Colaborador</TableHead>
-                  <TableHead className="min-w-[150px]">Cargo / Depto</TableHead>
+                  <TableHead className="min-w-[200px]">
+                    <button onClick={() => toggleEmpSort("fullName")} className="flex items-center hover:text-foreground transition-colors">
+                      Nome <SortIcon field="fullName" sortField={empSortField} sortDir={empSortDir} />
+                    </button>
+                  </TableHead>
+                  <TableHead className="min-w-[150px]">
+                    <button onClick={() => toggleEmpSort("jobTitle")} className="flex items-center hover:text-foreground transition-colors">
+                      Cargo / Depto <SortIcon field="jobTitle" sortField={empSortField} sortDir={empSortDir} />
+                    </button>
+                  </TableHead>
                   <TableHead>Matrícula</TableHead>
                   <TableHead>Admissão</TableHead>
                   <TableHead>Status</TableHead>
@@ -265,10 +324,17 @@ export function RecursosHumanos() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEmployees.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum colaborador encontrado.</TableCell></TableRow>
+                {paginatedEmployees.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <InboxIcon className="h-10 w-10 opacity-30" />
+                        <p className="text-sm font-medium">Nenhum colaborador encontrado</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  filteredEmployees.map((emp) => (
+                  paginatedEmployees.map((emp) => (
                     <TableRow key={emp.id} className="border-border hover:bg-muted/50">
                       <TableCell className="font-medium whitespace-nowrap">
                         {emp.fullName}
@@ -286,7 +352,7 @@ export function RecursosHumanos() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></Button>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted" aria-label="Mais opções"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48 bg-popover text-popover-foreground border-border">
                             <DropdownMenuItem className="cursor-pointer" onClick={() => openEditModal(emp)}>
@@ -301,6 +367,7 @@ export function RecursosHumanos() {
               </TableBody>
             </Table>
           </div>
+          <Pagination currentPage={employeePage} totalPages={empTotalPages} totalItems={filteredEmployees.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setEmployeePage} />
         </TabsContent>
 
         {/* GESTÃO DE AUSÊNCIAS */}
@@ -313,7 +380,7 @@ export function RecursosHumanos() {
           </div>
 
           <div className="rounded-md border border-border bg-card shadow-sm w-full overflow-x-auto">
-            <Table className="w-full">
+            <Table className="w-full" aria-label="Histórico de ausências">
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border">
                   <TableHead>Colaborador</TableHead>
@@ -325,10 +392,17 @@ export function RecursosHumanos() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {absences.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma ausência registrada no sistema.</TableCell></TableRow>
+                {paginatedAbsences.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <InboxIcon className="h-10 w-10 opacity-30" />
+                        <p className="text-sm font-medium">Nenhuma ausência registrada</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  absences.map((abs) => (
+                  paginatedAbsences.map((abs) => (
                     <TableRow key={abs.id} className="border-border hover:bg-muted/50">
                       <TableCell className="font-medium">{abs.employeeName}</TableCell>
                       <TableCell>{getAbsenceTypeBadge(abs.type)}</TableCell>
@@ -341,7 +415,7 @@ export function RecursosHumanos() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted" aria-label="Mais opções">
                               <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -361,6 +435,7 @@ export function RecursosHumanos() {
               </TableBody>
             </Table>
           </div>
+          <Pagination currentPage={absencePage} totalPages={absTotalPages} totalItems={absences.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setAbsencePage} />
         </TabsContent>
       </Tabs>
 
@@ -488,7 +563,7 @@ export function RecursosHumanos() {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="startDate">Data de Início *</Label>
                 <Input id="startDate" name="startDate" type="date" value={absenceData.startDate} onChange={handleAbsenceInputChange} required />
@@ -512,6 +587,17 @@ export function RecursosHumanos() {
         </DialogContent>
       </Dialog>
       </div>
+
+      {/* Dialog de confirmação de exclusão de ausência */}
+      <ConfirmDialog
+        isOpen={confirmDelete.isOpen}
+        onClose={() => setConfirmDelete({ isOpen: false, absenceId: null })}
+        onConfirm={doDeleteAbsence}
+        title="Cancelar Ausência"
+        description="Tem certeza que deseja cancelar esta ausência? Esta ação não pode ser desfeita."
+        confirmLabel="Cancelar Ausência"
+        isDestructive
+      />
     </div>
   )
 }

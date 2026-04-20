@@ -216,7 +216,7 @@ export function AppLayout() {
               {/* Notifications */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative h-8 w-8 text-muted-foreground hover:text-foreground">
+                  <Button variant="ghost" size="icon" className="relative h-8 w-8 text-muted-foreground hover:text-foreground" aria-label="Notificações">
                     <Bell className="h-4 w-4" />
                     {notifications.length > 0 && (
                       <span className="absolute top-1 right-1 flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-card" />
@@ -268,7 +268,9 @@ export function AppLayout() {
 
         {/* ── Page content ── */}
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          <div key={location.pathname} className="animate-in fade-in duration-200 min-h-full">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

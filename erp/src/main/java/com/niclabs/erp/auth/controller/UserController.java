@@ -39,6 +39,18 @@ public class UserController {
     private final IStorageService storageService;
 
     /**
+     * Returns the profile of the currently authenticated user.
+     * Accessible to any authenticated user — no admin role required.
+     *
+     * @param principal the currently authenticated user
+     * @return 200 OK with the {@link UserResponseDTO} for the caller
+     */
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDTO> getMe(Principal principal) {
+        return ResponseEntity.ok(userService.getCurrentUser(principal.getName()));
+    }
+
+    /**
      * Retrieves a paginated list of all registered users.
      *
      * @param pageable pagination and sort parameters (default: page 0, size 20, sorted by name)

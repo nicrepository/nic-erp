@@ -97,6 +97,15 @@ public interface IUserService {
     UserResponseDTO updateUserDetailsByAdmin(UUID id, UpdateUserAdminDTO dto);
 
     /**
+     * Returns the profile of the currently authenticated user identified by e-mail.
+     *
+     * @param email e-mail claim from the JWT (Principal name)
+     * @return user summary
+     * @throws com.niclabs.erp.exception.ResourceNotFoundException if no user matches the e-mail
+     */
+    UserResponseDTO getCurrentUser(String email);
+
+    /**
      * Soft-deactivates a user account. The record is preserved in the database
      * but the account can no longer be used to authenticate.
      *

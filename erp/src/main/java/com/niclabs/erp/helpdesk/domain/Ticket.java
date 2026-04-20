@@ -38,6 +38,9 @@ public class Ticket {
     @Column(nullable = false)
     private TicketDepartment department;
 
+    @Column(name = "category_id")
+    private UUID categoryId;
+
     @Column(name = "requester_id", nullable = false)
     private UUID requesterId;
 

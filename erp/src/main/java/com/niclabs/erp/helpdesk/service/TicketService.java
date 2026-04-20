@@ -4,10 +4,12 @@ import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.auth.repository.UserRepository;
 import com.niclabs.erp.common.SecurityUtils;
 import com.niclabs.erp.helpdesk.domain.Ticket;
+import com.niclabs.erp.helpdesk.domain.TicketCategory;
 import com.niclabs.erp.helpdesk.domain.TicketDepartment;
 import com.niclabs.erp.helpdesk.domain.TicketStatus;
 import com.niclabs.erp.helpdesk.dto.TicketRequestDTO;
 import com.niclabs.erp.helpdesk.dto.TicketResponseDTO;
+import com.niclabs.erp.helpdesk.repository.TicketCategoryRepository;
 import com.niclabs.erp.helpdesk.repository.TicketRepository;
 import com.niclabs.erp.exception.ResourceNotFoundException;
 import com.niclabs.erp.notification.service.IEmailService;
@@ -35,6 +37,7 @@ import java.util.UUID;
 public class TicketService implements ITicketService {
 
     private final TicketRepository ticketRepository;
+    private final TicketCategoryRepository ticketCategoryRepository;
     private final IStorageService storageService;
     private final UserRepository userRepository;
     private final IEmailService emailService;
@@ -49,16 +52,21 @@ public class TicketService implements ITicketService {
     public TicketResponseDTO openTicket(TicketRequestDTO dto) {
         User loggedInUser = SecurityUtils.getCurrentUser();
 
+        TicketCategory category = ticketCategoryRepository.findById(dto.categoryId())
+                .filter(TicketCategory::isActive)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada ou inativa."));
+
         Ticket ticket = new Ticket();
         ticket.setId(UUID.randomUUID());
         ticket.setTitle(dto.title());
         ticket.setDescription(dto.description());
-        ticket.setPriority(dto.priority());
-        ticket.setDepartment(dto.department());
+        ticket.setPriority(category.getPriority());
+        ticket.setDepartment(category.getDepartment());
+        ticket.setCategoryId(category.getId());
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setRequesterId(loggedInUser.getId());
 
-        return TicketResponseDTO.fromEntity(ticketRepository.save(ticket));
+        return TicketResponseDTO.fromEntity(ticketRepository.save(ticket), category);
     }
 
     /**

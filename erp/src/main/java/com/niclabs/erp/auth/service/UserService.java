@@ -246,4 +246,18 @@ public class UserService implements IUserService {
         user.setActive(false);
         userRepository.save(user);
     }
+
+    /**
+     * Returns the profile of the currently authenticated user identified by e-mail.
+     *
+     * @param email e-mail claim from the JWT (Principal name)
+     * @return user summary
+     * @throws ResourceNotFoundException if no user matches the e-mail
+     */
+    @Transactional(readOnly = true)
+    public UserResponseDTO getCurrentUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+        return mapToDTO(user);
+    }
 }

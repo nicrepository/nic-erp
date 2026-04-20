@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Ticket, Laptop, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 
@@ -10,6 +11,9 @@ export function Dashboard() {
   const [tickets, setTickets] = useState<any[]>([])
   const [itAssets, setItAssets] = useState<any[]>([])
   const [stockItems, setStockItems] = useState<any[]>([])
+  const [isLoadingTickets, setIsLoadingTickets] = useState(true)
+  const [isLoadingAssets, setIsLoadingAssets] = useState(true)
+  const [isLoadingStock, setIsLoadingStock] = useState(true)
 
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
   const isTI = user?.roles?.includes('ROLE_TI')
@@ -17,6 +21,7 @@ export function Dashboard() {
 
   useEffect(() => {
     const fetchTickets = async () => {
+      setIsLoadingTickets(true)
       try {
         const token = localStorage.getItem("token")
         let endpoint = '/helpdesk/tickets/my'
@@ -34,11 +39,13 @@ export function Dashboard() {
         }
       } catch (error) {
         console.error("Erro ao buscar chamados no dashboard:", error)
+      } finally {
+        setIsLoadingTickets(false)
       }
     }
 
     const fetchITAssets = async () => {
-      if (!isAdmin && !isTI) return
+      if (!isAdmin && !isTI) { setIsLoadingAssets(false); return }
       try {
         const token = localStorage.getItem("token")
         const response = await fetch('/inventory/it/assets', {
@@ -50,11 +57,13 @@ export function Dashboard() {
         }
       } catch (error) {
         console.error("Erro ao buscar ativos:", error)
+      } finally {
+        setIsLoadingAssets(false)
       }
     }
 
     const fetchStockItems = async () => {
-      if (!isAdmin && !isRH) return
+      if (!isAdmin && !isRH) { setIsLoadingStock(false); return }
       try {
         const token = localStorage.getItem("token")
         const response = await fetch('/inventory/administrative/items', {
@@ -66,6 +75,8 @@ export function Dashboard() {
         }
       } catch (error) {
         console.error("Erro ao buscar estoque:", error)
+      } finally {
+        setIsLoadingStock(false)
       }
     }
 
@@ -75,30 +86,37 @@ export function Dashboard() {
   }, [isAdmin, isTI, isRH])
 
   // --- MATEMÁTICA E PREPARAÇÃO DOS DADOS ---
-  
-  // 1. Dados para o Gráfico de Chamados
-  const pendingTickets = tickets.filter(t => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length
-  
-  const ticketChartData = [
-    { name: 'Abertos', total: tickets.filter(t => t.status === 'OPEN').length, fill: '#ef4444' }, // red
-    { name: 'Em Andamento', total: tickets.filter(t => t.status === 'IN_PROGRESS').length, fill: '#eab308' }, // yellow
-    { name: 'Resolvidos', total: tickets.filter(t => t.status === 'RESOLVED').length, fill: '#22c55e' }, // green
-    { name: 'Fechados', total: tickets.filter(t => t.status === 'CLOSED').length, fill: '#71717a' }, // zinc
-  ]
 
-  // 2. Dados para o Gráfico de Equipamentos
-  const totalAssets = itAssets.length
-  const inUseAssets = itAssets.filter(a => a.assignedTo !== null).length
-  const availableAssets = totalAssets - inUseAssets
+  const pendingTickets = useMemo(
+    () => tickets.filter(t => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length,
+    [tickets]
+  )
 
-  const assetChartData = [
-    { name: 'Em Uso', value: inUseAssets, color: '#3b82f6' }, // blue
-    { name: 'Disponíveis', value: availableAssets, color: '#22c55e' } // green
-  ]
+  const ticketChartData = useMemo(() => [
+    { name: 'Abertos',     total: tickets.filter(t => t.status === 'OPEN').length,        fill: '#ef4444' },
+    { name: 'Em Andamento',total: tickets.filter(t => t.status === 'IN_PROGRESS').length, fill: '#eab308' },
+    { name: 'Resolvidos',  total: tickets.filter(t => t.status === 'RESOLVED').length,    fill: '#22c55e' },
+    { name: 'Fechados',    total: tickets.filter(t => t.status === 'CLOSED').length,       fill: '#71717a' },
+  ], [tickets])
 
-  // 3. Dados para a Lista de Alerta de Estoque
-  const lowStockItems = stockItems.filter(item => (item.quantity || 0) <= item.minimumStock)
-  const lowStockCount = lowStockItems.length
+  const { totalAssets, inUseAssets, availableAssets, assetChartData } = useMemo(() => {
+    const total = itAssets.length
+    const inUse = itAssets.filter(a => a.assignedTo !== null).length
+    return {
+      totalAssets: total,
+      inUseAssets: inUse,
+      availableAssets: total - inUse,
+      assetChartData: [
+        { name: 'Em Uso',      value: inUse,         color: '#3b82f6' },
+        { name: 'Disponíveis', value: total - inUse,  color: '#22c55e' },
+      ],
+    }
+  }, [itAssets])
+
+  const { lowStockItems, lowStockCount } = useMemo(() => {
+    const items = stockItems.filter(item => (item.quantity || 0) <= item.minimumStock)
+    return { lowStockItems: items, lowStockCount: items.length }
+  }, [stockItems])
 
   return (
     <div className="flex flex-col min-h-full">
@@ -120,10 +138,19 @@ export function Dashboard() {
             <Ticket className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{pendingTickets}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {pendingTickets > 0 ? "Requerem atenção na fila" : "Fila zerada! Bom trabalho."}
-            </p>
+            {isLoadingTickets ? (
+              <>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-36" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">{pendingTickets}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {pendingTickets > 0 ? "Requerem atenção na fila" : "Fila zerada! Bom trabalho."}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -134,10 +161,19 @@ export function Dashboard() {
               <Laptop className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{totalAssets}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Ativos de TI registrados no sistema
-              </p>
+              {isLoadingAssets ? (
+                <>
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-3 w-44" />
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-foreground">{totalAssets}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ativos de TI registrados no sistema
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
@@ -146,19 +182,28 @@ export function Dashboard() {
           <Card className={`bg-card shadow-sm ${lowStockCount > 0 ? "border-red-500/50" : "border-border"}`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Status do Estoque</CardTitle>
-              {lowStockCount > 0 ? (
+              {isLoadingStock ? null : lowStockCount > 0 ? (
                 <AlertTriangle className="h-4 w-4 text-red-500" />
               ) : (
                 <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400" />
               )}
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${lowStockCount > 0 ? "text-red-600 dark:text-red-500" : "text-foreground"}`}>
-                {lowStockCount === 0 ? "OK" : lowStockCount}
-              </div>
-              <p className={`text-xs mt-1 ${lowStockCount > 0 ? "text-red-600/80 dark:text-red-400/80 font-medium" : "text-muted-foreground"}`}>
-                {lowStockCount === 0 ? "Estoque adequado" : "Item(ns) requerem reposição"}
-              </p>
+              {isLoadingStock ? (
+                <>
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-3 w-32" />
+                </>
+              ) : (
+                <>
+                  <div className={`text-2xl font-bold ${lowStockCount > 0 ? "text-red-600 dark:text-red-500" : "text-foreground"}`}>
+                    {lowStockCount === 0 ? "OK" : lowStockCount}
+                  </div>
+                  <p className={`text-xs mt-1 ${lowStockCount > 0 ? "text-red-600/80 dark:text-red-400/80 font-medium" : "text-muted-foreground"}`}>
+                    {lowStockCount === 0 ? "Estoque adequado" : "Item(ns) requerem reposição"}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
@@ -174,33 +219,49 @@ export function Dashboard() {
             <CardDescription>Distribuição de todos os chamados sob sua visão.</CardDescription>
           </CardHeader>
           <CardContent className="h-[250px] w-full mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={ticketChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#888888" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                />
-                <YAxis 
-                  stroke="#888888" 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tickFormatter={(value) => `${value}`} 
-                />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(0,0,0,0.05)' }} 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
-                />
-                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                  {ticketChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
+            {isLoadingTickets ? (
+              <div className="h-full flex flex-col justify-end gap-2 pb-4">
+                <div className="flex items-end gap-4 h-[200px] px-2">
+                  <Skeleton className="w-full h-[60%] rounded-t-md rounded-b-none" />
+                  <Skeleton className="w-full h-[80%] rounded-t-md rounded-b-none" />
+                  <Skeleton className="w-full h-[40%] rounded-t-md rounded-b-none" />
+                  <Skeleton className="w-full h-[20%] rounded-t-md rounded-b-none" />
+                </div>
+                <div className="flex justify-around">
+                  {["Abertos","Em Andamento","Resolvidos","Fechados"].map(l => (
+                    <Skeleton key={l} className="h-3 w-16" />
                   ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={ticketChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#888888" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                  />
+                  <YAxis 
+                    stroke="#888888" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(value) => `${value}`} 
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(0,0,0,0.05)' }} 
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                  />
+                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                    {ticketChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -214,7 +275,15 @@ export function Dashboard() {
                 <CardTitle className="text-base text-foreground">Disponibilidade de Hardware</CardTitle>
               </CardHeader>
               <CardContent className="h-[180px]">
-                {totalAssets === 0 ? (
+                {isLoadingAssets ? (
+                  <div className="h-full flex flex-col items-center justify-center gap-3">
+                    <Skeleton className="h-[120px] w-[120px] rounded-full" />
+                    <div className="flex gap-4">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                ) : totalAssets === 0 ? (
                   <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Nenhum equipamento</div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
@@ -238,16 +307,18 @@ export function Dashboard() {
                   </ResponsiveContainer>
                 )}
                 {/* Legenda Customizada */}
-                <div className="flex justify-center gap-4 mt-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span className="text-xs text-muted-foreground">Em Uso ({inUseAssets})</span>
+                {!isLoadingAssets && (
+                  <div className="flex justify-center gap-4 mt-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                      <span className="text-xs text-muted-foreground">Em Uso ({inUseAssets})</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      <span className="text-xs text-muted-foreground">Disponível ({availableAssets})</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                    <span className="text-xs text-muted-foreground">Disponível ({availableAssets})</span>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -258,11 +329,23 @@ export function Dashboard() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base text-foreground flex items-center gap-2">
                   Itens para Reposição
-                  {lowStockCount > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{lowStockCount}</span>}
+                  {!isLoadingStock && lowStockCount > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{lowStockCount}</span>}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {lowStockCount === 0 ? (
+                {isLoadingStock ? (
+                  <div className="space-y-3">
+                    {[1,2,3].map(i => (
+                      <div key={i} className="flex items-center justify-between pb-2 border-b border-border last:border-0">
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                        <Skeleton className="h-6 w-8" />
+                      </div>
+                    ))}
+                  </div>
+                ) : lowStockCount === 0 ? (
                   <div className="text-sm text-muted-foreground text-center py-4 italic">
                     Tudo certo no estoque administrativo.
                   </div>

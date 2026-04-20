@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import { useToast } from "../contexts/ToastContext"
 import { Button } from "@/components/ui/button"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { PlusCircle, MoreHorizontal, Search, ListFilter, AlertCircle, UserSquare, CheckCircle2, RefreshCw } from "lucide-react"
+import { PlusCircle, MoreHorizontal, Search, ListFilter, AlertCircle, AlertTriangle, UserSquare, CheckCircle2, RefreshCw, Loader2, InboxIcon } from "lucide-react"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -19,26 +20,40 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Pagination, usePagination } from "@/components/ui/pagination"
+
+const ITEMS_PER_PAGE = 10
 
 export function Helpdesk() {
   const { user } = useAuth()
+  const toast = useToast()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tickets, setTickets] = useState<any[]>([])
   const [title, setTitle] = useState("")
-  const [department, setDepartment] = useState("")
-  const [priority, setPriority] = useState("")
+  const [categories, setCategories] = useState<any[]>([])
+  const [categoryId, setCategoryId] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<any>(null)
   const [description, setDescription] = useState("")
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
   const [comments, setComments] = useState<any[]>([])
   const [newComment, setNewComment] = useState("")
   const [searchTicket, setSearchTicket] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false)
+  const [isSendingComment, setIsSendingComment] = useState(false)
+
+  // ESTADOS: VALIDAÇÃO DO FORMULÁRIO ---
+  const [titleError, setTitleError] = useState("")
+  const [descError, setDescError] = useState("")
   
   const [activeTab, setActiveTab] = useState("all")
 
   // NOVO ESTADO: Lista de Usuários para traduzir os IDs em Nomes
   const [users, setUsers] = useState<any[]>([])
+  // UUID do usuário logado (obtido via /users/me — acessível a todos)
+  const [currentUserId, setCurrentUserId] = useState<string>("")
 
   // NOVA FUNÇÃO: Busca os usuários (Igual ao que fizemos no Inventário)
   const fetchUsers = async () => {
@@ -53,6 +68,34 @@ export function Helpdesk() {
       }
     } catch (error) {
       console.error("Erro ao buscar usuários:", error)
+    }
+  }
+
+  // Busca o UUID do usuário logado — funciona para qualquer role
+  const fetchCurrentUser = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/users/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const me = await response.json()
+        setCurrentUserId(me.id)
+      }
+    } catch (error) {
+      console.error("Erro ao buscar usuário atual:", error)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/helpdesk/categories', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) setCategories(await response.json())
+    } catch (error) {
+      console.error("Erro ao buscar categorias:", error)
     }
   }
 
@@ -102,7 +145,7 @@ export function Helpdesk() {
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !selectedTicket) return
-
+    setIsSendingComment(true)
     try {
       const token = localStorage.getItem("token")
       const response = await fetch(`/helpdesk/tickets/${selectedTicket.id}/comments`, {
@@ -118,16 +161,19 @@ export function Helpdesk() {
         setNewComment("") 
         fetchComments(selectedTicket.id) 
       } else {
-        alert("Erro ao enviar comentário.")
+        toast.error("Erro ao enviar comentário", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
+      toast.error("Erro de conexão", "Verifique sua rede e tente novamente.")
+    } finally {
+      setIsSendingComment(false)
     }
   }
 
   const handleResolveTicket = async () => {
     if (!newComment.trim()) {
-      alert("Atenção: É obrigatório detalhar o que foi feito na caixa de comentários antes de marcar como resolvido.");
+      toast.warning("Comentário obrigatório", "Descreva o que foi feito antes de marcar como resolvido.");
       document.getElementById("nota-resolucao")?.focus();
       return; 
     }
@@ -145,12 +191,18 @@ export function Helpdesk() {
       })
       
       if (response.ok) {
-        fetchTickets() 
+        const updated = await response.json()
+        fetchTickets()
+        // Atualiza o modal com o novo status e assigneeId retornados pelo backend
+        if (selectedTicket && selectedTicket.id === ticketId) {
+          setSelectedTicket({ ...selectedTicket, status: updated.status, assigneeId: updated.assigneeId })
+        }
       } else {
-        alert("Erro ao atribuir chamado. Verifique suas permissões.")
+        toast.error("Erro ao atribuir chamado", "Verifique suas permissões.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
+      toast.error("Erro de conexão", "Verifique sua rede e tente novamente.")
     }
   }
 
@@ -169,10 +221,11 @@ export function Helpdesk() {
           setSelectedTicket({ ...selectedTicket, status: newStatus })
         }
       } else {
-        alert("Erro ao atualizar o status do chamado.")
+        toast.error("Erro ao atualizar status", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
+      toast.error("Erro de conexão", "Verifique sua rede e tente novamente.")
     }
   }
 
@@ -186,8 +239,10 @@ export function Helpdesk() {
 
   useEffect(() => {
     // 1. Busca os dados imediatamente quando a tela é aberta
-    fetchUsers() 
+    fetchUsers()
+    fetchCurrentUser()
     fetchTickets()
+    fetchCategories()
 
     // 2. Inicia o relógio (Polling): A cada 30 segundos, atualiza apenas a fila de chamados
     const intervalId = setInterval(() => {
@@ -207,13 +262,22 @@ export function Helpdesk() {
     return foundUser ? foundUser.name : "Usuário Desconhecido"
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status?.toUpperCase()) {
+  const getStatusBadge = (status: string) => {    switch (status?.toUpperCase()) {
       case "OPEN": return <Badge variant="destructive" className="bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30 hover:bg-red-500/25">Aberto</Badge>
       case "IN_PROGRESS": return <Badge className="bg-yellow-500/15 text-yellow-700 dark:text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/25">Em Andamento</Badge>
       case "RESOLVED": return <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30 hover:bg-green-500/25">Resolvido</Badge>
       case "CLOSED": return <Badge variant="outline" className="text-muted-foreground border-border">Fechado</Badge>
       default: return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const getPriorityBadge = (priority: string) => {
+    switch (priority?.toUpperCase()) {
+      case "URGENT": return <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30">Urgente</Badge>
+      case "HIGH":   return <Badge className="bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30">Alta</Badge>
+      case "MEDIUM": return <Badge className="bg-yellow-500/15 text-yellow-700 dark:text-yellow-500 border-yellow-500/30">Média</Badge>
+      case "LOW":    return <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30">Baixa</Badge>
+      default:       return <Badge variant="outline">{priority}</Badge>
     }
   }
 
@@ -237,10 +301,22 @@ export function Helpdesk() {
     }
   }
 
+  const validateTitle = (v: string) => {
+    if (!v.trim()) return "Título é obrigatório"
+    if (v.trim().length < 5) return "Título deve ter ao menos 5 caracteres"
+    return ""
+  }
+  const validateDesc = (v: string) => {
+    if (!v.trim()) return "Descrição é obrigatória"
+    if (v.trim().length < 10) return "Descrição deve ter ao menos 10 caracteres"
+    return ""
+  }
+  const isTicketFormValid = !titleError && !descError && title.trim() !== "" && description.trim() !== "" && categoryId !== ""
+
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    const newTicketPayload = { title, description, priority, department }
+    setIsCreatingTicket(true)
+    const newTicketPayload = { title, description, categoryId }
     const token = localStorage.getItem("token")
 
     try {
@@ -255,16 +331,19 @@ export function Helpdesk() {
 
       if (response.ok) {
         setTitle("")
-        setDepartment("")
-        setPriority("")
+        setCategoryId("")
+        setSelectedCategory(null)
         setDescription("")
         setIsModalOpen(false)
         fetchTickets()
+        toast.success("Chamado criado!", "Seu chamado foi registrado e será atendido em breve.")
       } else {
-        alert("Erro ao criar chamado. Verifique se os dados estão corretos.")
+        toast.error("Erro ao criar chamado", "Verifique se todos os campos estão preenchidos corretamente.")
       }
     } catch (error) {
-      alert("Erro de conexão. O servidor Spring Boot está rodando?")
+      toast.error("Erro de conexão", "O servidor não está respondendo. Tente novamente.")
+    } finally {
+      setIsCreatingTicket(false)
     }
   }
 
@@ -299,24 +378,17 @@ export function Helpdesk() {
     
     if (activeTab === "mine") {
       const responsavelId = ticket.assigneeId || ticket.assignee?.id || ticket.assignedTo || ticket.technicianId;
-      
-      // O JWT guarda o e-mail. Vamos achar o usuário na nossa lista que tem esse e-mail!
-      const emailLogado = (user as any)?.id || (user as any)?.sub || (user as any)?.email;
-      const usuarioRealDaLista = users.find(u => u.email === emailLogado || u.id === emailLogado);
-      
-      // Agora sim pegamos o UUID verdadeiro para comparar!
-      const meuUuidVerdadeiro = usuarioRealDaLista?.id;
-      
-      const isMyTicket = String(responsavelId) === String(meuUuidVerdadeiro);
       const isActiveStatus = ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS';
-      
-      return isMyTicket && isActiveStatus; 
+      return String(responsavelId) === currentUserId && isActiveStatus;
     }
     
     if (activeTab === "closed") return ticket.status === 'RESOLVED' || ticket.status === 'CLOSED';
     
     return true;
   });
+
+  const { totalPages, paginate } = usePagination(displayTickets, ITEMS_PER_PAGE)
+  const paginatedTickets = paginate(currentPage)
 
   return (
     <div className="flex flex-col min-h-full">
@@ -334,13 +406,13 @@ export function Helpdesk() {
               placeholder="Buscar título, status, pessoa..."
               className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground h-9"
               value={searchTicket}
-              onChange={(e) => setSearchTicket(e.target.value)}
+              onChange={(e) => { setSearchTicket(e.target.value); setCurrentPage(1) }}
             />
           </div>
-          <Button variant="outline" size="icon" onClick={fetchTickets} className="hidden sm:flex h-9 w-9" title="Atualizar fila">
+          <Button variant="outline" size="icon" onClick={fetchTickets} className="hidden sm:flex h-9 w-9" title="Atualizar fila" aria-label="Atualizar fila">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) { setTitleError(""); setDescError("") } }}>
             <DialogTrigger asChild>
               <Button className="gap-2 w-full sm:w-auto h-9">
                 <PlusCircle className="h-4 w-4" /> Novo Chamado
@@ -356,45 +428,54 @@ export function Helpdesk() {
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
                     <Label htmlFor="title">Título do Problema</Label>
-                    <Input id="title" placeholder="Ex: Erro no sistema" className="bg-background" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                    <Input id="title" placeholder="Ex: Erro no sistema" className="bg-background" value={title} onChange={(e) => { setTitle(e.target.value); setTitleError(validateTitle(e.target.value)) }} onBlur={(e) => setTitleError(validateTitle(e.target.value))} />
+                    {titleError && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{titleError}</p>}
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="department">Departamento</Label>
-                        <Select value={department} onValueChange={setDepartment} required>
-                          <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="IT">Tecnologia da Informação (TI)</SelectItem>
-                            <SelectItem value="ADMIN">Administrativo / Financeiro</SelectItem>
-                            <SelectItem value="HR">Recursos Humanos</SelectItem>
-                            <SelectItem value="MAINTENANCE">Manutenção Predial</SelectItem>
-                          </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="priority">Prioridade</Label>
-                        <Select value={priority} onValueChange={setPriority} required>
-                          <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="LOW">Baixa</SelectItem>
-                            <SelectItem value="MEDIUM">Média</SelectItem>
-                            <SelectItem value="HIGH">Alta</SelectItem>
-                            <SelectItem value="URGENT">Urgente</SelectItem>
-                          </SelectContent>
-                        </Select>
-                    </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="category">Categoria</Label>
+                    <Select
+                      value={categoryId}
+                      onValueChange={(val) => {
+                        setCategoryId(val)
+                        setSelectedCategory(categories.find(c => c.id === val) || null)
+                      }}
+                      required
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Selecione a categoria do problema" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map(cat => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedCategory && (
+                      <div className="flex items-center gap-2 mt-1 p-2 rounded-md bg-muted/50 border border-border">
+                        <span className="text-xs text-muted-foreground">Prioridade atribuída automaticamente:</span>
+                        {getPriorityBadge(selectedCategory.priority)}
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          Área: {translateDepartment(selectedCategory.department)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid gap-2">
                     <Label htmlFor="description">Descrição Detalhada</Label>
-                    <Textarea id="description" placeholder="Descreva o que está acontecendo..." className="min-h-[100px] bg-background" value={description} onChange={(e) => setDescription(e.target.value)} required />
+                    <Textarea id="description" placeholder="Descreva o que está acontecendo..." className="min-h-[100px] bg-background" value={description} onChange={(e) => { setDescription(e.target.value); setDescError(validateDesc(e.target.value)) }} onBlur={(e) => setDescError(validateDesc(e.target.value))} />
+                    {descError && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{descError}</p>}
                   </div>
                 </div>
 
                 <DialogFooter>
                   <Button type="button" variant="outline" className="w-full sm:w-auto mb-2 sm:mb-0" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button type="submit" className="w-full sm:w-auto">Criar Chamado</Button>
+                  <Button type="submit" className="w-full sm:w-auto" disabled={!isTicketFormValid || isCreatingTicket}>
+                    {isCreatingTicket ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Criando...</> : "Criar Chamado"}
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
@@ -432,7 +513,7 @@ export function Helpdesk() {
                 </div>
                 <div className="col-span-2 sm:col-span-1">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Prioridade</h4>
-                  <p className="text-sm text-foreground">{translatePriority(selectedTicket.priority)}</p>
+                  <div className="mt-1">{getPriorityBadge(selectedTicket.priority)}</div>
                 </div>
               </div>
 
@@ -483,9 +564,9 @@ export function Helpdesk() {
                   <Button 
                     className="h-auto w-full sm:w-auto" 
                     onClick={handleAddComment}
-                    disabled={!newComment.trim()}
+                    disabled={!newComment.trim() || isSendingComment}
                   >
-                    Enviar
+                    {isSendingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar"}
                   </Button>
                 </div>
               </div>
@@ -498,7 +579,7 @@ export function Helpdesk() {
                 <Button 
                   variant="secondary" 
                   className="w-full sm:w-auto"
-                  onClick={() => handleUpdateStatus(selectedTicket.id, 'IN_PROGRESS')}
+                  onClick={() => handleAssignTicket(selectedTicket.id)}
                 >
                   Iniciar Atendimento
                 </Button>
@@ -522,7 +603,7 @@ export function Helpdesk() {
       </Dialog>
 
       {/* --- SISTEMA DE ABAS (FILTROS) --- */}
-      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs defaultValue="all" value={activeTab} onValueChange={(v) => { setActiveTab(v); setCurrentPage(1) }} className="w-full">
         
         <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-4 lg:w-[600px] mb-4 h-auto gap-1 sm:gap-0">
           <TabsTrigger value="all" className="gap-2 w-full">
@@ -541,11 +622,10 @@ export function Helpdesk() {
 
         <div className="rounded-md border border-border bg-card shadow-sm w-full">
           <div className="overflow-x-auto">
-            <Table className="w-full">
+            <Table className="w-full" aria-label="Lista de chamados">
               <TableHeader>
                 <TableRow className="hover:bg-muted/50 border-border">
                   <TableHead className="w-[100px] min-w-[100px] text-muted-foreground">ID</TableHead>
-                  {/* NOVA COLUNA ADICIONADA: SOLICITANTE */}
                   <TableHead className="text-muted-foreground min-w-[150px]">Solicitante</TableHead>
                   <TableHead className="text-muted-foreground min-w-[200px]">Título</TableHead>
                   <TableHead className="text-muted-foreground min-w-[150px]">Departamento</TableHead>
@@ -555,40 +635,40 @@ export function Helpdesk() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayTickets.length === 0 ? (
+                {paginatedTickets.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhum chamado encontrado para esta categoria.
+                    <TableCell colSpan={7} className="py-16 text-center">
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <InboxIcon className="h-10 w-10 opacity-30" />
+                        <p className="text-sm font-medium">Nenhum chamado encontrado</p>
+                        <p className="text-xs opacity-70">
+                          {searchTicket ? "Tente buscar com outros termos." : "Nenhum chamado nesta categoria."}
+                        </p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  displayTickets.map((ticket) => (
+                  paginatedTickets.map((ticket) => (
                     <TableRow key={ticket.id} className="hover:bg-muted/50 border-border">
                       <TableCell className="font-medium text-foreground uppercase whitespace-nowrap">
                         {ticket.id ? ticket.id.substring(0, 8) : 'TCK-NEW'}
                       </TableCell>
-                      
-                      {/* AQUI MOSTRAMOS O NOME NA TABELA PRINCIPAL */}
                       <TableCell className="font-medium text-foreground whitespace-nowrap">
-                        {/* Se o seu back-end usar outro nome, troque ticket.requesterId para o correto */}
                         {getUserName(ticket.requesterId)}
                       </TableCell>
-                      
                       <TableCell className="text-foreground">{ticket.title}</TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{translateDepartment(ticket.department)}</TableCell>
                       <TableCell className="whitespace-nowrap">{getStatusBadge(ticket.status)}</TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">{translatePriority(ticket.priority)}</TableCell>
-                      
+                      <TableCell className="whitespace-nowrap">{getPriorityBadge(ticket.priority)}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted">
+                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-muted" aria-label="Mais opções">
                               <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-[160px] bg-popover text-popover-foreground border-border">
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            
                             <DropdownMenuItem 
                               className="cursor-pointer focus:bg-muted focus:text-accent-foreground" 
                               onClick={() => {
@@ -598,7 +678,6 @@ export function Helpdesk() {
                             >
                               Ver detalhes
                             </DropdownMenuItem>
-                            
                             {ticket.status === 'OPEN' && (
                               <DropdownMenuItem 
                                 className="cursor-pointer focus:bg-muted focus:text-accent-foreground"
@@ -607,7 +686,6 @@ export function Helpdesk() {
                                 Atribuir a mim
                               </DropdownMenuItem>
                             )}
-                            
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -618,6 +696,13 @@ export function Helpdesk() {
             </Table>
           </div>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={displayTickets.length}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={setCurrentPage}
+        />
       </Tabs>
       </div>
     </div>

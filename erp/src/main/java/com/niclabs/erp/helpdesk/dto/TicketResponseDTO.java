@@ -1,6 +1,7 @@
 package com.niclabs.erp.helpdesk.dto;
 
 import com.niclabs.erp.helpdesk.domain.Ticket;
+import com.niclabs.erp.helpdesk.domain.TicketCategory;
 import com.niclabs.erp.helpdesk.domain.TicketDepartment;
 import com.niclabs.erp.helpdesk.domain.TicketPriority;
 import com.niclabs.erp.helpdesk.domain.TicketStatus;
@@ -16,10 +17,12 @@ public record TicketResponseDTO(
         TicketStatus status,
         UUID requesterId,
         UUID assigneeId,
-        java.util.List<String> attachments
+        java.util.List<String> attachments,
+        UUID categoryId,
+        String categoryName,
+        String categoryDescription
 ) {
-    // Método auxiliar para facilitar a conversão da Page no Service
-    public static TicketResponseDTO fromEntity(Ticket ticket) {
+    public static TicketResponseDTO fromEntity(Ticket ticket, TicketCategory category) {
         return new TicketResponseDTO(
                 ticket.getId(),
                 ticket.getTitle(),
@@ -29,7 +32,15 @@ public record TicketResponseDTO(
                 ticket.getStatus(),
                 ticket.getRequesterId(),
                 ticket.getAssigneeId(),
-                ticket.getAttachments()
+                ticket.getAttachments(),
+                category != null ? category.getId() : ticket.getCategoryId(),
+                category != null ? category.getName() : null,
+                category != null ? category.getDescription() : null
         );
     }
+
+    public static TicketResponseDTO fromEntity(Ticket ticket) {
+        return fromEntity(ticket, null);
+    }
 }
+

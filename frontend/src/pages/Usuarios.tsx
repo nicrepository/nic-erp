@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import { useToast } from "../contexts/ToastContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -7,16 +8,30 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Users, Shield, ShieldAlert, PlusCircle, Search, Mail, Key, MoreHorizontal, AlertTriangle } from "lucide-react"
+import { Users, Shield, ShieldAlert, PlusCircle, Search, Mail, Key, MoreHorizontal, AlertTriangle, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Pagination, usePagination } from "@/components/ui/pagination"
+
+const ITEMS_PER_PAGE = 10
+
+type SortField = "name" | "email"
+type SortDir = "asc" | "desc"
+
+function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField; sortDir: SortDir }) {
+  if (field !== sortField) return <ArrowUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/50 inline" />
+  return sortDir === "asc"
+    ? <ArrowUp className="ml-1 h-3.5 w-3.5 text-primary inline" />
+    : <ArrowDown className="ml-1 h-3.5 w-3.5 text-primary inline" />
+}
 
 export function Usuarios() {
   const { user } = useAuth()
+  const toast = useToast()
   const isAdmin = user?.roles?.includes('ROLE_ADMIN')
 
   // --- BARREIRA DE ACESSO NEGADO ---
@@ -35,17 +50,32 @@ export function Usuarios() {
   const [usersList, setUsersList] = useState<any[]>([])
   const [availableRoles, setAvailableRoles] = useState<any[]>([])
   const [searchUser, setSearchUser] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
   
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newUserName, setNewUserName] = useState("")
   const [newUserEmail, setNewUserEmail] = useState("")
   const [newUserPassword, setNewUserPassword] = useState("")
+  const [isCreating, setIsCreating] = useState(false)
+
+  // Validação em tempo real — novo usuário
+  const [nameError, setNameError] = useState("")
+  const [emailError, setEmailError] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+
+  // Ordenação da tabela
+  const [sortField, setSortField] = useState<SortField>("name")
+  const [sortDir, setSortDir] = useState<SortDir>("asc")
+
+  // Indicador de salvando permissões
+  const [savingRoleForUserId, setSavingRoleForUserId] = useState<string | null>(null)
 
   // ESTADOS DO MODAL DE EDIÇÃO
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const [editUserName, setEditUserName] = useState("")
   const [editUserEmail, setEditUserEmail] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
 
   const fetchUsers = async () => {
     try {
@@ -87,6 +117,7 @@ export function Usuarios() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsCreating(true)
     try {
       const response = await fetch('/auth/register', {
         method: 'POST',
@@ -99,17 +130,22 @@ export function Usuarios() {
         setNewUserName("")
         setNewUserEmail("")
         setNewUserPassword("")
-        fetchUsers() 
+        fetchUsers()
+        toast.success("Colaborador criado!", "A conta foi criada com sucesso.")
       } else {
         const errorMsg = await response.text()
-        alert(`Erro ao criar usuário: ${errorMsg}`)
+        toast.error("Erro ao criar usuário", errorMsg)
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
+      toast.error("Erro de conexão", "Verifique sua rede e tente novamente.")
+    } finally {
+      setIsCreating(false)
     }
   }
 
   const handleToggleRole = async (userId: string, currentRoles: string[], toggledRole: string, isChecked: boolean) => {
+    setSavingRoleForUserId(userId)
     try {
       const token = localStorage.getItem("token")
       let updatedRoles = [...currentRoles]
@@ -131,10 +167,12 @@ export function Usuarios() {
         body: JSON.stringify(updatedRoles)
       })
 
-      if (response.ok) fetchUsers() 
-      else alert("Erro ao alterar permissões. Tente novamente.")
+      if (response.ok) fetchUsers()
+      else toast.error("Erro ao alterar permissões", "Tente novamente.")
     } catch (error) {
       console.error("Erro de conexão:", error)
+    } finally {
+      setSavingRoleForUserId(null)
     }
   }
 
@@ -152,22 +190,57 @@ export function Usuarios() {
     }
   }
 
-  const filteredUsers = usersList.filter(u => {
+  const validateName = (v: string) => {
+    if (!v.trim()) return "Nome é obrigatório"
+    if (v.trim().length < 3) return "Nome deve ter ao menos 3 caracteres"
+    return ""
+  }
+  const validateEmail = (v: string) => {
+    if (!v.trim()) return "E-mail é obrigatório"
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Informe um e-mail válido"
+    return ""
+  }
+  const validatePassword = (v: string) => {
+    if (!v) return "Senha é obrigatória"
+    if (v.length < 6) return "A senha deve ter ao menos 6 caracteres"
+    return ""
+  }
+  const isNewUserFormValid = !nameError && !emailError && !passwordError &&
+    newUserName.trim() !== "" && newUserEmail.trim() !== "" && newUserPassword !== ""
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortDir("asc")
+    }
+    setCurrentPage(1)
+  }
+
+  const filteredUsers = useMemo(() => usersList.filter(u => {
     const search = searchUser.toLowerCase()
     const userRolesList = u.roles || (u.role ? [u.role] : ["ROLE_USER"])
     const translatedRolesText = userRolesList.map((r: string) => translateRole(r).label.toLowerCase()).join(" ")
-    
     return (
       (u.name || "").toLowerCase().includes(search) ||
       (u.email || "").toLowerCase().includes(search) ||
       translatedRolesText.includes(search)
     )
-  })
+  }), [usersList, searchUser])
+
+  const sortedUsers = useMemo(() => [...filteredUsers].sort((a, b) => {
+    const av = (a[sortField] || "").toLowerCase()
+    const bv = (b[sortField] || "").toLowerCase()
+    return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av)
+  }), [filteredUsers, sortField, sortDir])
+  const { totalPages, paginate } = usePagination(sortedUsers, ITEMS_PER_PAGE)
+  const paginatedUsers = paginate(currentPage)
 
   const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
-
+    setIsSaving(true)
     try {
       const token = localStorage.getItem("token")
       const response = await fetch(`/users/${editingUser.id}`, {
@@ -181,13 +254,17 @@ export function Usuarios() {
 
       if (response.ok) {
         setIsEditModalOpen(false)
-        fetchUsers() // Recarrega a tabela para mostrar o nome/email novos
+        fetchUsers()
+        toast.success("Dados atualizados!", "As informações do colaborador foram salvas.")
       } else {
         const errorMsg = await response.text()
-        alert(`Erro ao editar: ${errorMsg}`)
+        toast.error("Erro ao editar", errorMsg)
       }
     } catch (error) {
       console.error("Erro na edição:", error)
+      toast.error("Erro de conexão", "Verifique sua rede e tente novamente.")
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -215,12 +292,15 @@ export function Usuarios() {
               placeholder="Buscar usuário..."
               className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground h-9"
               value={searchUser}
-              onChange={(e) => setSearchUser(e.target.value)}
+              onChange={(e) => { setSearchUser(e.target.value); setCurrentPage(1) }}
             />
           </div>
 
           {isAdmin && (
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <Dialog open={isModalOpen} onOpenChange={(open) => {
+              setIsModalOpen(open)
+              if (!open) { setNewUserName(""); setNewUserEmail(""); setNewUserPassword(""); setNameError(""); setEmailError(""); setPasswordError("") }
+            }}>
               <DialogTrigger asChild>
                 <Button className="gap-2 w-full sm:w-auto h-9">
                   <PlusCircle className="h-4 w-4" /> Novo Colaborador
@@ -240,27 +320,60 @@ export function Usuarios() {
                       <Label htmlFor="name">Nome Completo</Label>
                       <div className="relative">
                         <Users className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input id="name" className="pl-8 bg-background" placeholder="Ex: Caio Almeida" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required />
+                        <Input
+                          id="name"
+                          className={`pl-8 bg-background ${nameError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                          placeholder="Ex: Caio Almeida"
+                          value={newUserName}
+                          onChange={(e) => { setNewUserName(e.target.value); setNameError(validateName(e.target.value)) }}
+                          onBlur={(e) => setNameError(validateName(e.target.value))}
+                          required
+                        />
                       </div>
+                      {nameError && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{nameError}</p>}
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="email">E-mail Corporativo</Label>
                       <div className="relative">
                         <Mail className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input id="email" type="email" className="pl-8 bg-background" placeholder="caio@niclabs.com.br" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} required />
+                        <Input
+                          id="email"
+                          type="email"
+                          className={`pl-8 bg-background ${emailError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                          placeholder="caio@niclabs.com.br"
+                          value={newUserEmail}
+                          onChange={(e) => { setNewUserEmail(e.target.value); setEmailError(validateEmail(e.target.value)) }}
+                          onBlur={(e) => setEmailError(validateEmail(e.target.value))}
+                          required
+                        />
                       </div>
+                      {emailError && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{emailError}</p>}
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="password">Senha Inicial</Label>
                       <div className="relative">
                         <Key className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input id="password" type="password" className="pl-8 bg-background" placeholder="Defina uma senha segura" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} required minLength={6} />
+                        <Input
+                          id="password"
+                          type="password"
+                          className={`pl-8 bg-background ${passwordError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                          placeholder="Mínimo 6 caracteres"
+                          value={newUserPassword}
+                          onChange={(e) => { setNewUserPassword(e.target.value); setPasswordError(validatePassword(e.target.value)) }}
+                          onBlur={(e) => setPasswordError(validatePassword(e.target.value))}
+                          required
+                          minLength={6}
+                        />
                       </div>
+                      {passwordError && <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{passwordError}</p>}
                     </div>
                   </div>
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                    <Button type="submit">Criar Conta</Button>
+                    <Button type="submit" disabled={isCreating || !isNewUserFormValid} className="gap-2">
+                      {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {isCreating ? "Criando..." : "Criar Conta"}
+                    </Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -272,24 +385,38 @@ export function Usuarios() {
       <div className="p-4 md:p-6">
       <div className="rounded-md border border-border bg-card shadow-sm w-full">
         <div className="overflow-x-auto">
-          <Table className="w-full">
+          <Table className="w-full" aria-label="Lista de colaboradores">
             <TableHeader>
               <TableRow className="hover:bg-muted/50">
-                <TableHead className="text-muted-foreground min-w-[150px]">Colaborador</TableHead>
-                <TableHead className="text-muted-foreground min-w-[180px]">E-mail</TableHead>
+                <TableHead className="text-muted-foreground min-w-[150px]">
+                  <button
+                    onClick={() => toggleSort("name")}
+                    className="flex items-center hover:text-foreground transition-colors"
+                  >
+                    Colaborador <SortIcon field="name" sortField={sortField} sortDir={sortDir} />
+                  </button>
+                </TableHead>
+                <TableHead className="text-muted-foreground min-w-[180px]">
+                  <button
+                    onClick={() => toggleSort("email")}
+                    className="flex items-center hover:text-foreground transition-colors"
+                  >
+                    E-mail <SortIcon field="email" sortField={sortField} sortDir={sortDir} />
+                  </button>
+                </TableHead>
                 <TableHead className="text-muted-foreground min-w-[200px]">Cargos</TableHead>
                 {isAdmin && <TableHead className="text-right text-muted-foreground w-[80px]">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.length === 0 ? (
+              {paginatedUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-8 text-muted-foreground">
-                    Nenhum colaborador encontrado.
+                  <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-12 text-muted-foreground">
+                    {searchUser ? "Nenhum colaborador encontrado para esta busca." : "Nenhum colaborador cadastrado."}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredUsers.map((u) => {
+                paginatedUsers.map((u) => {
                   const userRolesList = u.roles || (u.role ? [u.role] : ["ROLE_USER"])
                   
                   return (
@@ -314,9 +441,12 @@ export function Usuarios() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted" disabled={savingRoleForUserId === u.id}>
                                 <span className="sr-only">Abrir menu</span>
-                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                                {savingRoleForUserId === u.id
+                                  ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                  : <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                                }
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48 bg-popover text-popover-foreground border-border">
@@ -390,12 +520,22 @@ export function Usuarios() {
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
-                <Button type="submit">Salvar Alterações</Button>
+                <Button type="submit" disabled={isSaving} className="gap-2">
+                  {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {isSaving ? "Salvando..." : "Salvar Alterações"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filteredUsers.length}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={setCurrentPage}
+      />
       </div>
     </div>
   )
