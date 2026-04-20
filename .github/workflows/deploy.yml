@@ -18,8 +18,11 @@ jobs:
           CODIGO="/opt/nic-labs/core/n-hub"
           COMPOSE="/opt/nic-labs/core/compose-09-nhub.yml"
           
-          # 1. Sincroniza o código fonte do projeto
-          sudo rsync -av --exclude='.git/' ./ $CODIGO/
+          # 1. Garante que o runner é dono do diretório destino (evita Permission Denied no rsync)
+          sudo chown -R $(whoami):$(whoami) $CODIGO
+
+          # 2. Sincroniza o código fonte do projeto
+          rsync -av --exclude='.git/' ./ $CODIGO/
 
           # 2. Copia o compose para o local padrão do core
           sudo cp $CODIGO/compose.yml $COMPOSE
