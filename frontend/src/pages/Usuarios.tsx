@@ -86,9 +86,12 @@ export function Usuarios() {
       if (response.ok) {
         const data = await response.json()
         setUsersList(data.content || [])
+      } else {
+        toast.error("Erro ao carregar usuários", `Servidor retornou ${response.status}. Verifique suas permissões.`)
       }
     } catch (error) {
       console.error("Erro ao buscar usuários:", error)
+      toast.error("Erro de conexão", "Não foi possível carregar a lista de usuários.")
     }
   }
 
@@ -119,9 +122,13 @@ export function Usuarios() {
     e.preventDefault()
     setIsCreating(true)
     try {
+      const token = localStorage.getItem("token")
       const response = await fetch('/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ name: newUserName, email: newUserEmail, password: newUserPassword })
       })
 
