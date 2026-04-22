@@ -34,7 +34,9 @@ jobs:
           # 3.1 Remove containers órfãos pelo nome (de projetos anteriores)
           docker rm -f erp_db erp_backend erp_frontend 2>/dev/null || true
 
-          # 4. Limpa cache obsoleto do BuildKit
+          # 4. Reinicia o BuildKit para liberar refs/locks travados de builds anteriores
+          sudo systemctl restart docker
+          sleep 5
           docker builder prune -f
 
           # 5. Build sequencial e sobe os containers do ERP
