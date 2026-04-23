@@ -38,10 +38,12 @@ public class TokenService implements ITokenService {
      */
     @PostConstruct
     void validateSecret() {
-        if (secret == null || secret.length() < AppConstants.JWT_SECRET_MIN_LENGTH) {
+        int len = secret == null ? 0 : secret.length();
+        log.info("JWT secret configured, length: {} chars", len);
+        if (len < AppConstants.JWT_SECRET_MIN_LENGTH) {
             throw new IllegalStateException(
                     "JWT secret must be at least " + AppConstants.JWT_SECRET_MIN_LENGTH +
-                    " characters. Set the JWT_SECRET environment variable.");
+                    " characters (got " + len + "). Set the JWT_SECRET environment variable.");
         }
         if (secret.startsWith("dev-secret-key-NOT-for-production")) {
             log.warn("⚠️  SECURITY WARNING: Application is using the development JWT secret. " +
