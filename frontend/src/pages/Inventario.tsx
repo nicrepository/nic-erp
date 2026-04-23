@@ -702,7 +702,7 @@ export function Inventario() {
             </Dialog>
 
             <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-              <DialogContent className="sm:max-w-[600px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
+              <DialogContent className="sm:max-w-[680px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
                 <DialogHeader>
                   <DialogTitle>
                     {isEditingAsset ? "Editar Equipamento" : "Detalhes do Equipamento"}
@@ -749,20 +749,12 @@ export function Inventario() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-muted/50 p-4 rounded-lg border border-border">
-                          <div className="col-span-2 sm:col-span-1">
+                        <div className="grid grid-cols-2 gap-3 bg-muted/50 p-4 rounded-lg border border-border">
+                          <div>
                             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Patrimônio</h4>
                             <p className="text-sm font-medium text-foreground">{selectedAsset.assetTag}</p>
                           </div>
-                          <div className="col-span-2 sm:col-span-1">
-                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Serial</h4>
-                            <p className="text-sm font-medium text-foreground">{selectedAsset.serialNumber}</p>
-                          </div>
-                          <div className="col-span-2 sm:col-span-1">
-                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Marca/Modelo</h4>
-                            <p className="text-sm text-foreground">{selectedAsset.brand} - {selectedAsset.model}</p>
-                          </div>
-                          <div className="col-span-2 sm:col-span-1">
+                          <div>
                             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Status</h4>
                             {selectedAsset.status === 'WRITTEN_OFF' ? (
                               <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Baixado / Descartado</p>
@@ -771,6 +763,14 @@ export function Inventario() {
                             ) : (
                               <p className="text-sm font-medium text-green-600 dark:text-green-400">Disponível</p>
                             )}
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Marca / Modelo</h4>
+                            <p className="text-sm text-foreground">{selectedAsset.brand} — {selectedAsset.model}</p>
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Número de Série</h4>
+                            <p className="text-sm font-medium text-foreground break-all">{selectedAsset.serialNumber}</p>
                           </div>
                         </div>
                         <div className="pt-2">
@@ -786,7 +786,7 @@ export function Inventario() {
                             <h4 className="text-sm font-semibold text-foreground">Histórico do Equipamento</h4>
                           </div>
 
-                          <div className="space-y-4 max-h-[150px] overflow-y-auto pr-2">
+                          <div className="space-y-4 max-h-[200px] overflow-y-auto pr-2">
                             {isLoadingHistory ? (
                               <p className="text-xs text-center text-muted-foreground py-2">Carregando histórico...</p>
                             ) : assetHistory.length === 0 ? (

@@ -4,7 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -59,6 +60,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponseDTO.of(HttpStatus.BAD_REQUEST.value(), "Requisição Inválida", ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler({BadCredentialsException.class, DisabledException.class})
+    public ResponseEntity<ErrorResponseDTO> handleBadCredentials(
+            Exception ex, HttpServletRequest request) {
+
+        log.warn("Falha de autenticação em {}: {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ErrorResponseDTO.of(HttpStatus.FORBIDDEN.value(), "Acesso Negado",
+                        "E-mail ou senha inválidos.", request.getRequestURI()));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
