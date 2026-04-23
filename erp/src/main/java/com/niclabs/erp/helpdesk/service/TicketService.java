@@ -2,6 +2,7 @@ package com.niclabs.erp.helpdesk.service;
 
 import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.auth.repository.UserRepository;
+import com.niclabs.erp.common.AppConstants;
 import com.niclabs.erp.common.SecurityUtils;
 import com.niclabs.erp.helpdesk.domain.Ticket;
 import com.niclabs.erp.helpdesk.domain.TicketCategory;
@@ -17,6 +18,7 @@ import com.niclabs.erp.notification.service.EmailService;
 import com.niclabs.erp.storage.service.IStorageService;
 import com.niclabs.erp.storage.service.StorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
@@ -169,12 +171,18 @@ public class TicketService implements ITicketService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Chamado não encontrado."));
 
-        // 1. Manda o motor salvar o arquivo fisicamente no HD
+        // A01: Verify the current user owns this ticket or has helpdesk/admin access
+        User currentUser = SecurityUtils.getCurrentUser();
+        boolean isOwner = ticket.getRequesterId().equals(currentUser.getId());
+        boolean hasHelpdeskAccess = currentUser.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .anyMatch(a -> a.equals(AppConstants.PERM_ACCESS_HELPDESK) || a.equals(AppConstants.ROLE_ADMIN));
+        if (!isOwner && !hasHelpdeskAccess) {
+            throw new AccessDeniedException("Você não tem permissão para anexar arquivos a este chamado.");
+        }
+
         String generatedFileName = storageService.store(file);
-
-        // 2. Adiciona o nome gerado na lista do chamado
         ticket.getAttachments().add(generatedFileName);
-
         ticketRepository.save(ticket);
 
         return TicketResponseDTO.fromEntity(ticket);

@@ -14,8 +14,11 @@ public final class AppConstants {
     /** Issuer claim embedded in every JWT. Must match on generation and validation. */
     public static final String TOKEN_ISSUER = "nic-erp";
 
-    /** Duration in hours before an access token expires. */
-    public static final int TOKEN_EXPIRY_HOURS = 2;
+    /** Duration in minutes before an access token expires (A04: short-lived tokens). */
+    public static final int TOKEN_EXPIRY_MINUTES = 30;
+
+    /** Minimum length in characters required for the JWT signing secret (A04). */
+    public static final int JWT_SECRET_MIN_LENGTH = 32;
 
     /** UTC offset used for token expiry calculations. */
     public static final String TIMEZONE_OFFSET = "-03:00";

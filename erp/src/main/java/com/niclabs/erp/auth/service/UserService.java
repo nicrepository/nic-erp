@@ -21,6 +21,8 @@ import com.niclabs.erp.notification.service.IEmailService;
 import com.niclabs.erp.notification.service.EmailService;
 import java.time.LocalDateTime;
 
+import java.security.SecureRandom;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -134,7 +136,10 @@ public class UserService implements IUserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
-        String token = UUID.randomUUID().toString();
+        // A07: Use SecureRandom instead of UUID for password reset tokens (32 bytes = 64 hex chars)
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        String token = HexFormat.of().formatHex(bytes);
 
         PasswordResetToken resetToken = new PasswordResetToken();
         resetToken.setToken(token);
