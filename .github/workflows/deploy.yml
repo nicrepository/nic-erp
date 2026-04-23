@@ -51,7 +51,11 @@ jobs:
             exit 1
           fi
 
-          cd /opt/nic-labs/core && docker compose -f $COMPOSE --env-file /opt/nic-labs/core/secrets/erp_backend.env up -d
+          # 5.2 Garante que variáveis do runner não sobrescrevam o env_file dos containers
+          #     (Docker Compose V2 prioriza env do shell sobre env_file do serviço)
+          unset JWT_SECRET ADMIN_SEED_PASSWORD POSTGRES_PASSWORD APP_FRONTEND_URL DB_URL DB_USERNAME DB_PASSWORD
+
+          cd /opt/nic-labs/core && docker compose -f $COMPOSE up -d
           
       - name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f
