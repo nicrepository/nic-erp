@@ -51,11 +51,17 @@ jobs:
             exit 1
           fi
 
-          # 5.2 Garante que variáveis do runner não sobrescrevam o env_file dos containers
-          #     env -u é mais confiável que unset pois funciona mesmo com vars de systemd/etc/environment
-          cd /opt/nic-labs/core && env -u JWT_SECRET -u ADMIN_SEED_PASSWORD -u POSTGRES_PASSWORD \
-            -u APP_FRONTEND_URL -u DB_URL -u DB_USERNAME -u DB_PASSWORD \
-            docker compose -f $COMPOSE up -d
+          # 5.1 Diagnóstico: mostra se o runner tem JWT_SECRET no próprio ambiente
+          echo "=== DIAGNOSTIC: Runner shell JWT_SECRET length: ${#JWT_SECRET} chars ==="
+
+          # 5.2 Garante valores corretos das variáveis críticas
+          #     Docker Compose v2 usa shell env com prioridade sobre env_file — sobrescrevemos
+          #     com os valores corretos direto do secrets file (não expõe valor, só define)
+          export JWT_SECRET="$(grep '^JWT_SECRET=' /opt/nic-labs/core/secrets/erp_backend.env | tail -1 | cut -d= -f2-)"
+          export ADMIN_SEED_PASSWORD="$(grep '^ADMIN_SEED_PASSWORD=' /opt/nic-labs/core/secrets/erp_backend.env | tail -1 | cut -d= -f2-)"
+          echo "=== DIAGNOSTIC: JWT_SECRET after loading from secrets: ${#JWT_SECRET} chars ==="
+
+          cd /opt/nic-labs/core && docker compose -f $COMPOSE up -d
           
       - name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f
