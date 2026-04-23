@@ -68,15 +68,10 @@ jobs:
 
           # 5.5 Mostra o que Docker Compose realmente resolve para JWT_SECRET
           echo "=== DIAGNOSTIC: docker compose resolved JWT_SECRET length ==="
-          cd /opt/nic-labs/core && docker compose -f $COMPOSE config 2>/dev/null | python3 -c "
-import sys, yaml
-cfg = yaml.safe_load(sys.stdin)
-env = cfg.get('services', {}).get('erp_backend', {}).get('environment', {})
-jwt = env.get('JWT_SECRET', None)
-admin = env.get('ADMIN_SEED_PASSWORD', None)
-print(f'Resolved JWT_SECRET length: {len(str(jwt)) if jwt else 0} chars (None={jwt is None})')
-print(f'Resolved ADMIN_SEED_PASSWORD length: {len(str(admin)) if admin else 0} chars (None={admin is None})')
-" || echo "WARNING: python3 yaml parse failed"
+          RESOLVED_JWT=$(cd /opt/nic-labs/core && docker compose -f $COMPOSE config 2>/dev/null | grep '^\s*JWT_SECRET:' | head -1 | sed 's/.*JWT_SECRET: //' | tr -d '"'"'"'')
+          echo "=== DIAGNOSTIC: Resolved JWT_SECRET length: ${#RESOLVED_JWT} chars ==="
+          RESOLVED_ADMIN=$(cd /opt/nic-labs/core && docker compose -f $COMPOSE config 2>/dev/null | grep '^\s*ADMIN_SEED_PASSWORD:' | head -1 | sed 's/.*ADMIN_SEED_PASSWORD: //' | tr -d '"'"'"'')
+          echo "=== DIAGNOSTIC: Resolved ADMIN_SEED_PASSWORD length: ${#RESOLVED_ADMIN} chars ==="
 
           cd /opt/nic-labs/core && docker compose -f $COMPOSE up -d
           

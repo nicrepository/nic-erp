@@ -51,3 +51,8 @@ erp/.mvn/timing.properties
 *.jar
 !erp/.mvn/wrapper/maven-wrapper.jar
 *.env
+
+
+
+ServerCopia/
+ServerCopia/*
