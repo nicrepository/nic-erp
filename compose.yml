@@ -29,7 +29,7 @@ services:
       # Variáveis críticas passadas explicitamente para garantir precedência máxima
       # sobre env_file (que sofre interpolação pelo Docker Compose v2).
       # O deploy script exporta esses valores do secrets file antes de `docker compose up`.
-      JWT_SECRET: "${JWT_SECRET}"
+      NIC_ERP_JWT_SECRET: "${NIC_ERP_JWT_SECRET}"
       ADMIN_SEED_PASSWORD: "${ADMIN_SEED_PASSWORD}"
     env_file:
       - /opt/nic-labs/core/secrets/erp_backend.env

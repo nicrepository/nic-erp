@@ -44,32 +44,30 @@ jobs:
           cd /opt/nic-labs/core && docker compose -f $COMPOSE build --no-cache erp_frontend
 
           # 5.1 Verifica JWT_SECRET antes de subir (falha rápido com mensagem clara)
-          JWT_LEN=$(docker run --rm --env-file /opt/nic-labs/core/secrets/erp_backend.env alpine sh -c 'echo -n "${#JWT_SECRET}"')
-          echo "✅ JWT_SECRET length in secrets file: $JWT_LEN chars"
+          JWT_LEN=$(docker run --rm --env-file /opt/nic-labs/core/secrets/erp_backend.env alpine sh -c 'echo -n "${#NIC_ERP_JWT_SECRET}"')
+          echo "✅ NIC_ERP_JWT_SECRET length in secrets file: $JWT_LEN chars"
           if [ "$JWT_LEN" -lt 32 ]; then
-            echo "❌ JWT_SECRET must be at least 32 characters in /opt/nic-labs/core/secrets/erp_backend.env"
+            echo "❌ NIC_ERP_JWT_SECRET must be at least 32 characters in /opt/nic-labs/core/secrets/erp_backend.env"
             exit 1
           fi
 
-          # 5.2 Diagnóstico: mostra se o runner tem JWT_SECRET no próprio ambiente
-          echo "=== DIAGNOSTIC: Runner shell JWT_SECRET length: ${#JWT_SECRET} chars ==="
+          # 5.2 Diagnóstico: mostra se o runner tem NIC_ERP_JWT_SECRET no próprio ambiente
+          echo "=== DIAGNOSTIC: Runner shell NIC_ERP_JWT_SECRET length: ${#NIC_ERP_JWT_SECRET} chars ==="
 
           # 5.3 Garante valores corretos das variáveis críticas
-          #     Docker Compose v2 usa shell env com prioridade sobre env_file — sobrescrevemos
-          #     com os valores corretos direto do secrets file (não expõe valor, só define)
-          export JWT_SECRET="$(grep '^JWT_SECRET=' /opt/nic-labs/core/secrets/erp_backend.env | tail -1 | cut -d= -f2-)"
+          export NIC_ERP_JWT_SECRET="$(grep '^NIC_ERP_JWT_SECRET=' /opt/nic-labs/core/secrets/erp_backend.env | tail -1 | cut -d= -f2-)"
           export ADMIN_SEED_PASSWORD="$(grep '^ADMIN_SEED_PASSWORD=' /opt/nic-labs/core/secrets/erp_backend.env | tail -1 | cut -d= -f2-)"
-          echo "=== DIAGNOSTIC: JWT_SECRET after loading from secrets: ${#JWT_SECRET} chars ==="
+          echo "=== DIAGNOSTIC: NIC_ERP_JWT_SECRET after loading from secrets: ${#NIC_ERP_JWT_SECRET} chars ==="
           echo "=== DIAGNOSTIC: ADMIN_SEED_PASSWORD after loading: ${#ADMIN_SEED_PASSWORD} chars ==="
 
-          # 5.4 Verifica que o compose file no servidor tem o bloco environment para JWT_SECRET
-          echo "=== DIAGNOSTIC: JWT_SECRET in compose file ==="
-          grep -A3 "JWT_SECRET" $COMPOSE || echo "WARNING: JWT_SECRET not found in $COMPOSE"
+          # 5.4 Verifica que o compose file no servidor tem o bloco environment para NIC_ERP_JWT_SECRET
+          echo "=== DIAGNOSTIC: NIC_ERP_JWT_SECRET in compose file ==="
+          grep -A3 "NIC_ERP_JWT_SECRET" $COMPOSE || echo "WARNING: NIC_ERP_JWT_SECRET not found in $COMPOSE"
 
-          # 5.5 Mostra o que Docker Compose realmente resolve para JWT_SECRET
-          echo "=== DIAGNOSTIC: docker compose resolved JWT_SECRET length ==="
-          RESOLVED_JWT=$(cd /opt/nic-labs/core && docker compose -f $COMPOSE config 2>/dev/null | grep '^\s*JWT_SECRET:' | head -1 | sed 's/.*JWT_SECRET: //' | tr -d '"'"'"'')
-          echo "=== DIAGNOSTIC: Resolved JWT_SECRET length: ${#RESOLVED_JWT} chars ==="
+          # 5.5 Mostra o que Docker Compose realmente resolve para NIC_ERP_JWT_SECRET
+          echo "=== DIAGNOSTIC: docker compose resolved NIC_ERP_JWT_SECRET length ==="
+          RESOLVED_JWT=$(cd /opt/nic-labs/core && docker compose -f $COMPOSE config 2>/dev/null | grep '^\s*NIC_ERP_JWT_SECRET:' | head -1 | sed 's/.*NIC_ERP_JWT_SECRET: //' | tr -d '"'"'"'')
+          echo "=== DIAGNOSTIC: Resolved NIC_ERP_JWT_SECRET length: ${#RESOLVED_JWT} chars ==="
           RESOLVED_ADMIN=$(cd /opt/nic-labs/core && docker compose -f $COMPOSE config 2>/dev/null | grep '^\s*ADMIN_SEED_PASSWORD:' | head -1 | sed 's/.*ADMIN_SEED_PASSWORD: //' | tr -d '"'"'"'')
           echo "=== DIAGNOSTIC: Resolved ADMIN_SEED_PASSWORD length: ${#RESOLVED_ADMIN} chars ==="
 

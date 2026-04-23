@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 @Service
 public class TokenService implements ITokenService {
 
-    @Value("${api.security.token.secret}")
+    @Value("${nic.erp.jwt.secret}")
     private String secret;
 
     /**
