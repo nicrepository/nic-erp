@@ -42,7 +42,16 @@ jobs:
           # 5. Build sequencial e sobe os containers do ERP
           cd /opt/nic-labs/core && docker compose -f $COMPOSE build --no-cache erp_backend
           cd /opt/nic-labs/core && docker compose -f $COMPOSE build --no-cache erp_frontend
-          cd /opt/nic-labs/core && docker compose -f $COMPOSE up -d
+
+          # 5.1 Verifica JWT_SECRET antes de subir (falha rápido com mensagem clara)
+          JWT_LEN=$(docker run --rm --env-file /opt/nic-labs/core/secrets/erp_backend.env alpine sh -c 'echo -n "${#JWT_SECRET}"')
+          echo "✅ JWT_SECRET length in secrets file: $JWT_LEN chars"
+          if [ "$JWT_LEN" -lt 32 ]; then
+            echo "❌ JWT_SECRET must be at least 32 characters in /opt/nic-labs/core/secrets/erp_backend.env"
+            exit 1
+          fi
+
+          cd /opt/nic-labs/core && docker compose -f $COMPOSE --env-file /opt/nic-labs/core/secrets/erp_backend.env up -d
           
       - name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f
