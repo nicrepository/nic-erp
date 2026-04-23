@@ -29,7 +29,7 @@ jobs:
           
           # 3. Para apenas os containers do ERP e remove as imagens
           #    (Outros serviços críticos NÃO são afetados pois não estão neste compose)
-          docker compose -f $COMPOSE down --rmi all
+          cd /opt/nic-labs/core && docker compose -f $COMPOSE down --rmi all
 
           # 3.1 Remove containers órfãos pelo nome (de projetos anteriores)
           docker rm -f erp_db erp_backend erp_frontend 2>/dev/null || true
@@ -40,9 +40,9 @@ jobs:
           docker buildx create --use --name default 2>/dev/null || true
 
           # 5. Build sequencial e sobe os containers do ERP
-          docker compose -f $COMPOSE build --no-cache erp_backend
-          docker compose -f $COMPOSE build --no-cache erp_frontend
-          docker compose -f $COMPOSE up -d
+          cd /opt/nic-labs/core && docker compose -f $COMPOSE build --no-cache erp_backend
+          cd /opt/nic-labs/core && docker compose -f $COMPOSE build --no-cache erp_frontend
+          cd /opt/nic-labs/core && docker compose -f $COMPOSE up -d
           
       - name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f
