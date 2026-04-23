@@ -52,10 +52,10 @@ jobs:
           fi
 
           # 5.2 Garante que variáveis do runner não sobrescrevam o env_file dos containers
-          #     (Docker Compose V2 prioriza env do shell sobre env_file do serviço)
-          unset JWT_SECRET ADMIN_SEED_PASSWORD POSTGRES_PASSWORD APP_FRONTEND_URL DB_URL DB_USERNAME DB_PASSWORD
-
-          cd /opt/nic-labs/core && docker compose -f $COMPOSE up -d
+          #     env -u é mais confiável que unset pois funciona mesmo com vars de systemd/etc/environment
+          cd /opt/nic-labs/core && env -u JWT_SECRET -u ADMIN_SEED_PASSWORD -u POSTGRES_PASSWORD \
+            -u APP_FRONTEND_URL -u DB_URL -u DB_USERNAME -u DB_PASSWORD \
+            docker compose -f $COMPOSE up -d
           
       - name: Limpar lixo do Docker
         run: docker image prune -f && docker builder prune -f
