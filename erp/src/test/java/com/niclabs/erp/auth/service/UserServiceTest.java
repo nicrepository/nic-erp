@@ -2,10 +2,12 @@ package com.niclabs.erp.auth.service;
 
 import com.niclabs.erp.auth.domain.Role;
 import com.niclabs.erp.auth.domain.User;
+import com.niclabs.erp.auth.dto.FirstLoginPasswordDTO;
 import com.niclabs.erp.auth.dto.RegisterDTO;
 import com.niclabs.erp.auth.repository.PasswordResetTokenRepository;
 import com.niclabs.erp.auth.repository.RoleRepository;
 import com.niclabs.erp.auth.repository.UserRepository;
+import com.niclabs.erp.exception.BusinessException;
 import com.niclabs.erp.exception.DuplicateResourceException;
 import com.niclabs.erp.exception.ResourceNotFoundException;
 import com.niclabs.erp.notification.service.EmailService;
@@ -66,6 +68,49 @@ class UserServiceTest {
 
         verify(userRepository).save(any());
         assertThat(result.getEmail()).isEqualTo("joao@email.com");
+        assertThat(result.isMustChangePassword()).isTrue();
+    }
+
+    // ── setFirstLoginPassword ──────────────────────────────────────────────────
+
+    @Test
+    void setFirstLoginPassword_shouldUpdatePasswordAndClearFlag_whenFlagIsSet() {
+        User user = new User();
+        user.setPassword("hashed-old");
+        user.setMustChangePassword(true);
+
+        when(userRepository.findByEmail("joao@email.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("novaSenha123")).thenReturn("hashed-new");
+        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        userService.setFirstLoginPassword("joao@email.com", new FirstLoginPasswordDTO("novaSenha123"));
+
+        assertThat(user.getPassword()).isEqualTo("hashed-new");
+        assertThat(user.isMustChangePassword()).isFalse();
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void setFirstLoginPassword_shouldThrow_whenFlagIsAlreadyCleared() {
+        User user = new User();
+        user.setMustChangePassword(false);
+
+        when(userRepository.findByEmail("joao@email.com")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() ->
+                userService.setFirstLoginPassword("joao@email.com", new FirstLoginPasswordDTO("novaSenha123")))
+                .isInstanceOf(BusinessException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void setFirstLoginPassword_shouldThrow_whenUserNotFound() {
+        when(userRepository.findByEmail("nao@existe.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                userService.setFirstLoginPassword("nao@existe.com", new FirstLoginPasswordDTO("novaSenha123")))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

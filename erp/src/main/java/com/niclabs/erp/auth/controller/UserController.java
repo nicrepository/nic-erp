@@ -3,6 +3,7 @@ package com.niclabs.erp.auth.controller;
 import com.niclabs.erp.auth.dto.UpdateUserAdminDTO;
 import com.niclabs.erp.auth.dto.UserResponseDTO;
 import com.niclabs.erp.auth.dto.ChangePasswordDTO;
+import com.niclabs.erp.auth.dto.FirstLoginPasswordDTO;
 import com.niclabs.erp.auth.service.IUserService;
 import com.niclabs.erp.common.AppConstants;
 import com.niclabs.erp.storage.service.IStorageService;
@@ -109,6 +110,24 @@ public class UserController {
             Principal principal) {
         userService.changePassword(principal.getName(), dto);
         return ResponseEntity.ok("Senha alterada com sucesso!");
+    }
+
+    /**
+     * Sets a new password on first login without requiring the current password.
+     *
+     * <p>The caller's identity is proved by the JWT. The account must have the
+     * {@code mustChangePassword} flag set; the flag is cleared on success.</p>
+     *
+     * @param dto       payload containing only the new password
+     * @param principal the currently authenticated user
+     * @return 200 OK with a confirmation message
+     */
+    @PostMapping("/me/first-login-password")
+    public ResponseEntity<String> firstLoginPassword(
+            @Valid @RequestBody FirstLoginPasswordDTO dto,
+            Principal principal) {
+        userService.setFirstLoginPassword(principal.getName(), dto);
+        return ResponseEntity.ok("Senha definida com sucesso!");
     }
 
     /**

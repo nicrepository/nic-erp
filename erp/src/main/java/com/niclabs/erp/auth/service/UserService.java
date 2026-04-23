@@ -6,6 +6,7 @@ import com.niclabs.erp.auth.dto.RegisterDTO;
 import com.niclabs.erp.auth.dto.UpdateUserAdminDTO;
 import com.niclabs.erp.auth.dto.UserResponseDTO;
 import com.niclabs.erp.auth.dto.ChangePasswordDTO;
+import com.niclabs.erp.auth.dto.FirstLoginPasswordDTO;
 import com.niclabs.erp.auth.repository.RoleRepository;
 import com.niclabs.erp.auth.repository.UserRepository;
 import com.niclabs.erp.exception.BusinessException;
@@ -66,6 +67,7 @@ public class UserService implements IUserService {
         newUser.setEmail(data.email());
         newUser.setPassword(passwordEncoder.encode(data.password()));
         newUser.setActive(true);
+        newUser.setMustChangePassword(true);
 
         Role defaultRole = roleRepository.findByName("ROLE_USER")
                 .orElseThrow(() -> new ResourceNotFoundException("Cargo ROLE_USER não encontrado no banco."));
@@ -211,6 +213,30 @@ public class UserService implements IUserService {
         }
 
         user.setPassword(passwordEncoder.encode(dto.newPassword()));
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+    }
+
+    /**
+     * Sets a new password for a user on their first login without requiring
+     * the current password (identity is already proved by the JWT).
+     *
+     * @param email e-mail of the authenticated user
+     * @param dto   payload containing only the new plain-text password
+     * @throws BusinessException         if the account does not have the first-login flag set
+     * @throws ResourceNotFoundException if no user is found with the given e-mail
+     */
+    @Transactional
+    public void setFirstLoginPassword(String email, FirstLoginPasswordDTO dto) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
+
+        if (!user.isMustChangePassword()) {
+            throw new BusinessException("Esta operação só é permitida no primeiro acesso.");
+        }
+
+        user.setPassword(passwordEncoder.encode(dto.newPassword()));
+        user.setMustChangePassword(false);
         userRepository.save(user);
     }
 

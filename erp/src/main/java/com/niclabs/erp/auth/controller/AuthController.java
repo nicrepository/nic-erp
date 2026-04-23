@@ -54,7 +54,8 @@ public class AuthController {
         UsernamePasswordAuthenticationToken credentials =
                 new UsernamePasswordAuthenticationToken(data.email(), data.password());
         User user = (User) authenticationManager.authenticate(credentials).getPrincipal();
-        return ResponseEntity.ok(new TokenDTO(tokenService.generateToken(user)));
+        String token = tokenService.generateToken(user);
+        return ResponseEntity.ok(new TokenDTO(token, user.isMustChangePassword()));
     }
 
     /**

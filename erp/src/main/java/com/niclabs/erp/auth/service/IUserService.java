@@ -2,6 +2,7 @@ package com.niclabs.erp.auth.service;
 
 import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.auth.dto.ChangePasswordDTO;
+import com.niclabs.erp.auth.dto.FirstLoginPasswordDTO;
 import com.niclabs.erp.auth.dto.RegisterDTO;
 import com.niclabs.erp.auth.dto.UpdateUserAdminDTO;
 import com.niclabs.erp.auth.dto.UserResponseDTO;
@@ -104,6 +105,20 @@ public interface IUserService {
      * @throws com.niclabs.erp.exception.ResourceNotFoundException if no user matches the e-mail
      */
     UserResponseDTO getCurrentUser(String email);
+
+    /**
+     * Sets a new password for a user performing their first login.
+     *
+     * <p>Does <em>not</em> verify the current password because the caller's identity
+     * is already proved by the JWT attached to the request. Clears the
+     * {@code mustChangePassword} flag on success.</p>
+     *
+     * @param email       e-mail claim from the JWT (Principal name)
+     * @param dto         payload containing only the new plain-text password
+     * @throws com.niclabs.erp.exception.ResourceNotFoundException if no user matches the e-mail
+     * @throws com.niclabs.erp.exception.BusinessException         if the account does not require a first-login change
+     */
+    void setFirstLoginPassword(String email, FirstLoginPasswordDTO dto);
 
     /**
      * Soft-deactivates a user account. The record is preserved in the database

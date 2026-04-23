@@ -13,17 +13,17 @@ interface DecodedToken {
 interface AuthContextType {
   user: DecodedToken | null;
   isAuthenticated: boolean;
+  mustChangePassword: boolean;
   login: (token: string) => void;
   logout: () => void;
-  updateUser: (newData: Partial<DecodedToken>) => void; // <-- FUNÇÃO NOVA AQUI
+  updateUser: (newData: Partial<DecodedToken>) => void;
+  setMustChangePassword: (value: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   
-  // A MÁGICA 1: Lemos o token IMEDIATAMENTE quando o estado nasce. 
-  // Isso impede o PrivateRoute de te chutar pro login ao recarregar a página!
   const [user, setUser] = useState<DecodedToken | null>(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -32,14 +32,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (decoded.exp * 1000 > Date.now()) {
           return decoded;
         } else {
-          localStorage.removeItem("token"); // Token venceu
+          localStorage.removeItem("token");
         }
       } catch (error) {
-        localStorage.removeItem("token"); // Token inválido
+        localStorage.removeItem("token");
       }
     }
     return null;
   });
+
+  const [mustChangePassword, setMustChangePasswordState] = useState<boolean>(() => {
+    return localStorage.getItem("mustChangePassword") === "true";
+  });
+
+  const setMustChangePassword = (value: boolean) => {
+    if (value) {
+      localStorage.setItem("mustChangePassword", "true");
+    } else {
+      localStorage.removeItem("mustChangePassword");
+    }
+    setMustChangePasswordState(value);
+  };
 
   const login = (token: string) => {
     localStorage.setItem("token", token);
@@ -49,7 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("mustChangePassword");
     setUser(null);
+    setMustChangePasswordState(false);
   };
 
   // A MÁGICA 2: Função para atualizar apenas a foto na tela sem precisar fazer login de novo
@@ -60,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, mustChangePassword, login, logout, updateUser, setMustChangePassword }}>
       {children}
     </AuthContext.Provider>
   );

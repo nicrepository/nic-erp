@@ -2,12 +2,17 @@ import { useState, useEffect } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Sun, Moon, Menu, Ticket, Briefcase, ChevronRight } from "lucide-react"
+import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Sun, Moon, Menu, Ticket, Briefcase, ChevronRight, KeyRound, Eye, EyeOff } from "lucide-react"
 import { useTheme } from "../contexts/ThemeProvider"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useAuth } from "../contexts/AuthContext"
 
 // Navigation item type
@@ -41,16 +46,58 @@ const navGroups = [
 ]
 
 export function AppLayout() {
-  const { user } = useAuth()
+  const { user, mustChangePassword, setMustChangePassword } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { setTheme } = useTheme()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
 
+  // Force-change-password modal state
+  const [fcpPassword, setFcpPassword] = useState("")
+  const [fcpConfirm, setFcpConfirm] = useState("")
+  const [fcpShowPwd, setFcpShowPwd] = useState(false)
+  const [fcpLoading, setFcpLoading] = useState(false)
+  const [fcpError, setFcpError] = useState("")
+
   const handleLogout = () => {
     localStorage.removeItem("token")
+    localStorage.removeItem("mustChangePassword")
     navigate("/login")
+  }
+
+  const handleFirstLoginChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setFcpError("")
+    if (fcpPassword !== fcpConfirm) {
+      setFcpError("As senhas não coincidem.")
+      return
+    }
+    if (fcpPassword.length < 8) {
+      setFcpError("A senha deve ter pelo menos 8 caracteres.")
+      return
+    }
+    setFcpLoading(true)
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch("/users/me/first-login-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ newPassword: fcpPassword }),
+      })
+      if (res.ok) {
+        setMustChangePassword(false)
+        setFcpPassword("")
+        setFcpConfirm("")
+      } else {
+        const msg = await res.text()
+        setFcpError(msg || "Erro ao alterar a senha. Tente novamente.")
+      }
+    } catch {
+      setFcpError("Erro de conexão. Verifique sua rede.")
+    } finally {
+      setFcpLoading(false)
+    }
   }
 
   const isActive = (path: string) => location.pathname === path
@@ -153,6 +200,72 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
+
+      {/* ── Force first-login password change (non-dismissible) ── */}
+      <Dialog open={mustChangePassword} onOpenChange={() => {}}>
+        <DialogContent
+          className="sm:max-w-[420px] w-[95%]"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <KeyRound className="h-5 w-5 text-primary" />
+              <DialogTitle>Defina sua senha</DialogTitle>
+            </div>
+            <DialogDescription>
+              Por segurança, você precisa criar uma senha pessoal antes de continuar. A senha deve ter no mínimo 8 caracteres.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleFirstLoginChange} className="space-y-4 pt-2">
+            {fcpError && (
+              <p className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">{fcpError}</p>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="fcp-password">Nova senha</Label>
+              <div className="relative">
+                <Input
+                  id="fcp-password"
+                  type={fcpShowPwd ? "text" : "password"}
+                  value={fcpPassword}
+                  onChange={(e) => setFcpPassword(e.target.value)}
+                  placeholder="Mínimo 8 caracteres"
+                  required
+                  minLength={8}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setFcpShowPwd(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {fcpShowPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="fcp-confirm">Confirmar nova senha</Label>
+              <Input
+                id="fcp-confirm"
+                type={fcpShowPwd ? "text" : "password"}
+                value={fcpConfirm}
+                onChange={(e) => setFcpConfirm(e.target.value)}
+                placeholder="Repita a senha"
+                required
+                minLength={8}
+              />
+            </div>
+
+            <Button type="submit" className="w-full" disabled={fcpLoading}>
+              {fcpLoading ? "Salvando..." : "Salvar senha e continuar"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Sidebar (desktop) ── */}
       <aside className="w-56 flex-col bg-card border-r border-border hidden md:flex shrink-0">

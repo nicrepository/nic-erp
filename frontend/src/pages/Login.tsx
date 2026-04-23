@@ -20,7 +20,7 @@ export function Login() {
   const [loading, setLoading] = useState(false)
   
   const navigate = useNavigate()
-  const { login } = useAuth() 
+  const { login, setMustChangePassword } = useAuth() 
   const { setTheme } = useTheme() 
 
   // --- ESTADOS DO MODAL DE RECUPERAÇÃO DE SENHA ---
@@ -44,7 +44,8 @@ export function Login() {
 
       if (response.ok) {
         const data = await response.json()
-        login(data.token) 
+        login(data.token)
+        setMustChangePassword(!!data.mustChangePassword)
         navigate('/dashboard') 
       } else {
         setErro("Credenciais inválidas. Tente novamente.")
