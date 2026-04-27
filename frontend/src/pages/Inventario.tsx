@@ -21,7 +21,7 @@ import {
 
 const ITEMS_PER_PAGE = 10
 
-type AssetSortField = "brand" | "model" | "serialNumber"
+type AssetSortField = "brand" | "model" | "serialNumber" | "assetTag"
 type SortDir = "asc" | "desc"
 
 function SortIcon({ field, sortField, sortDir }: { field: string; sortField: string; sortDir: string }) {
@@ -594,7 +594,11 @@ export function Inventario() {
                 <Table className="w-full" aria-label="Ativos de TI">
                   <TableHeader>
                     <TableRow className="hover:bg-muted/50 border-border">
-                      <TableHead className="text-muted-foreground min-w-[120px]">Patrimônio</TableHead>
+                      <TableHead className="text-muted-foreground min-w-[120px]">
+                        <button onClick={() => toggleAssetSort("assetTag")} className="flex items-center hover:text-foreground transition-colors">
+                          Patrimônio <SortIcon field="assetTag" sortField={assetSortField} sortDir={assetSortDir} />
+                        </button>
+                      </TableHead>
                       <TableHead className="text-muted-foreground min-w-[180px]">
                         <button onClick={() => toggleAssetSort("brand")} className="flex items-center hover:text-foreground transition-colors">
                           Marca / Modelo <SortIcon field="brand" sortField={assetSortField} sortDir={assetSortDir} />
