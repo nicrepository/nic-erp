@@ -123,8 +123,11 @@ public class UserService implements IUserService {
                 ? user.getRoles().stream().map(Role::getName).collect(Collectors.toList())
                 : List.of();
 
-        // Passando o avatarUrl como o 4º parâmetro!
-        return new UserResponseDTO(user.getId(), user.getName(), user.getEmail(), user.getAvatarUrl(), roleNames);
+        List<String> authorities = user.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+
+        return new UserResponseDTO(user.getId(), user.getName(), user.getEmail(), user.getAvatarUrl(), roleNames, authorities);
     }
 
     /**

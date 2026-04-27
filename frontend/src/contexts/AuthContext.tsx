@@ -1,13 +1,22 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { jwtDecode } from "jwt-decode";
 
 interface DecodedToken {
   sub: string;
   roles?: string[];
+  authorities?: string[];
   exp: number;
   name?: string;
   email?: string;
   avatarUrl?: string;
+}
+
+interface CurrentUserResponse {
+  name?: string;
+  email?: string;
+  avatarUrl?: string;
+  roles?: string[];
+  authorities?: string[];
 }
 
 interface AuthContextType {
@@ -59,6 +68,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const decoded = jwtDecode<DecodedToken>(token);
     setUser(decoded);
   };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshCurrentUser = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const response = await fetch("/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) return;
+
+        const currentUser = await response.json() as CurrentUserResponse;
+        setUser(prev => prev ? {
+          ...prev,
+          name: currentUser.name ?? prev.name,
+          email: currentUser.email ?? prev.email,
+          avatarUrl: currentUser.avatarUrl ?? prev.avatarUrl,
+          roles: currentUser.authorities || currentUser.roles || prev.roles,
+          authorities: currentUser.authorities || prev.authorities,
+        } : prev);
+      } catch (error) {
+        console.error("Erro ao atualizar permissões do usuário:", error);
+      }
+    };
+
+    refreshCurrentUser();
+  }, [user?.sub]);
 
   const logout = () => {
     localStorage.removeItem("token");
