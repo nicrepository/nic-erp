@@ -26,8 +26,8 @@ import java.util.UUID;
 /**
  * REST controller for helpdesk ticket lifecycle management.
  *
- * <p>End-users can open tickets and add comments. IT staff with the
- * {@code ACCESS_HELPDESK} authority can assign tickets and update their status.</p>
+ * <p>End-users can open tickets and interact with their own tickets. IT staff with
+ * {@code ROLE_TI}, {@code ACCESS_HELPDESK}, or admin access can assign tickets and update status.</p>
  */
 @RestController
 @RequestMapping("/helpdesk/tickets")
@@ -58,6 +58,7 @@ public class TicketController {
      * @return 200 OK with a page of {@link TicketResponseDTO}
      */
     @GetMapping("/department/{department}")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
     public ResponseEntity<Page<TicketResponseDTO>> listTicketsByDepartment(
             @PathVariable String department,
             @PageableDefault(size = 10, page = 0) Pageable pageable) {
@@ -99,7 +100,7 @@ public class TicketController {
      * @param id target ticket identifier
      * @return 200 OK with the updated {@link TicketResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
     @PutMapping("/{id}/assign")
     public ResponseEntity<TicketResponseDTO> assignTicket(@PathVariable UUID id) {
         TicketResponseDTO updatedTicket = ticketService.assignTicket(id);
@@ -114,7 +115,7 @@ public class TicketController {
      * @param status the desired new {@link TicketStatus}
      * @return 200 OK with the updated {@link TicketResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
     @PutMapping("/{id}/status")
     public ResponseEntity<TicketResponseDTO> updateTicketStatus(
             @PathVariable UUID id,
@@ -143,7 +144,7 @@ public class TicketController {
      * @return 200 OK with a page of {@link TicketResponseDTO}
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
     public ResponseEntity<Page<TicketResponseDTO>> getAllTickets(
             @PageableDefault(size = 10, page = 0) Pageable pageable) {
         return ResponseEntity.ok(ticketService.getAllTickets(pageable));

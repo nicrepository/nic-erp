@@ -28,7 +28,7 @@ export function Helpdesk() {
   const { user } = useAuth()
   const toast = useToast()
   const authorities = user?.roles || []
-  const canManageHelpdesk = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_HELPDESK')
+  const canManageHelpdesk = authorities.includes('ROLE_ADMIN') || authorities.includes('ROLE_TI') || authorities.includes('ACCESS_HELPDESK')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tickets, setTickets] = useState<any[]>([])
@@ -50,15 +50,21 @@ export function Helpdesk() {
   const [titleError, setTitleError] = useState("")
   const [descError, setDescError] = useState("")
   
-  const [activeTab, setActiveTab] = useState("all")
+  const [activeTab, setActiveTab] = useState(canManageHelpdesk ? "queue" : "my-requests")
 
   // NOVO ESTADO: Lista de Usuários para traduzir os IDs em Nomes
   const [users, setUsers] = useState<any[]>([])
   // UUID do usuário logado (obtido via /users/me — acessível a todos)
   const [currentUserId, setCurrentUserId] = useState<string>("")
 
-  // NOVA FUNÇÃO: Busca os usuários (Igual ao que fizemos no Inventário)
+  useEffect(() => {
+    setActiveTab(canManageHelpdesk ? "queue" : "my-requests")
+    setCurrentPage(1)
+  }, [canManageHelpdesk])
+
   const fetchUsers = async () => {
+    if (!canManageHelpdesk) return
+
     try {
       const token = localStorage.getItem("token")
       const response = await fetch('/users', {
@@ -107,13 +113,7 @@ export function Helpdesk() {
       
       let endpoint = '/helpdesk/tickets/my'
 
-      if (canManageHelpdesk) {
-        endpoint = '/helpdesk/tickets'
-      } else if (user?.roles?.includes('ROLE_TI')) {
-        endpoint = '/helpdesk/tickets/department/IT'
-      } else if (user?.roles?.includes('ROLE_RH')) {
-        endpoint = '/helpdesk/tickets/department/HR'
-      }
+      if (canManageHelpdesk) endpoint = '/helpdesk/tickets'
 
       const response = await fetch(endpoint, {
         headers: {
@@ -241,7 +241,7 @@ export function Helpdesk() {
 
   useEffect(() => {
     // 1. Busca os dados imediatamente quando a tela é aberta
-    fetchUsers()
+    if (canManageHelpdesk) fetchUsers()
     fetchCurrentUser()
     fetchTickets()
     fetchCategories()
@@ -254,11 +254,12 @@ export function Helpdesk() {
     // 3. Limpeza (Muito Importante): Destrói o relógio se o usuário mudar de tela
     // Isso evita que o sistema fique buscando chamados se o cara for pra tela de Inventário, economizando internet e memória.
     return () => clearInterval(intervalId)
-  }, [])
+  }, [canManageHelpdesk])
 
   // NOVA FUNÇÃO: Traduz o ID do usuário para o Nome
   const getUserName = (userId: string) => {
     if (!userId) return "Usuário Desconhecido"
+    if (userId === currentUserId) return user?.name || "Você"
     const foundUser = users.find(u => u.id === userId)
     // Se achar, retorna o nome, se não, avisa que desconhece
     return foundUser ? foundUser.name : "Usuário Desconhecido"
@@ -375,14 +376,17 @@ export function Helpdesk() {
 
   // 2. SEGUNDO: Aplica o filtro das Abas (Segmentação)
   const displayTickets = searchFilteredTickets.filter(ticket => {
-    if (activeTab === "all") return true;
+    if (activeTab === "all") return canManageHelpdesk;
+    if (activeTab === "queue") return canManageHelpdesk && ticket.status === 'OPEN';
     if (activeTab === "open") return ticket.status === 'OPEN';
     
-    if (activeTab === "mine") {
+    if (activeTab === "assigned-to-me") {
       const responsavelId = ticket.assigneeId || ticket.assignee?.id || ticket.assignedTo || ticket.technicianId;
       const isActiveStatus = ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS';
-      return String(responsavelId) === currentUserId && isActiveStatus;
+      return canManageHelpdesk && String(responsavelId) === currentUserId && isActiveStatus;
     }
+
+    if (activeTab === "my-requests") return String(ticket.requesterId) === currentUserId;
     
     if (activeTab === "closed") return ticket.status === 'RESOLVED' || ticket.status === 'CLOSED';
     
@@ -577,7 +581,7 @@ export function Helpdesk() {
 
           <DialogFooter className="flex flex-col sm:flex-row justify-between w-full sm:justify-between items-stretch sm:items-center mt-6 gap-2">
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              {selectedTicket?.status === 'OPEN' && (
+              {canManageHelpdesk && selectedTicket?.status === 'OPEN' && (
                 <Button 
                   variant="secondary" 
                   className="w-full sm:w-auto"
@@ -587,7 +591,7 @@ export function Helpdesk() {
                 </Button>
               )}
               
-            {selectedTicket?.status === 'IN_PROGRESS' && (
+            {canManageHelpdesk && selectedTicket?.status === 'IN_PROGRESS' && (
               <Button 
                 className="bg-green-600 text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 w-full sm:w-auto" 
                 onClick={handleResolveTicket}
@@ -605,18 +609,30 @@ export function Helpdesk() {
       </Dialog>
 
       {/* --- SISTEMA DE ABAS (FILTROS) --- */}
-      <Tabs defaultValue="all" value={activeTab} onValueChange={(v) => { setActiveTab(v); setCurrentPage(1) }} className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setCurrentPage(1) }} className="w-full">
         
-        <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-4 lg:w-[600px] mb-4 h-auto gap-1 sm:gap-0">
-          <TabsTrigger value="all" className="gap-2 w-full">
-            <ListFilter className="h-4 w-4" /> Todos
-          </TabsTrigger>
-          <TabsTrigger value="open" className="gap-2 w-full">
-            <AlertCircle className="h-4 w-4" /> Em Aberto
-          </TabsTrigger>
-          <TabsTrigger value="mine" className="gap-2 w-full">
+        <TabsList className={`flex flex-col sm:grid w-full ${canManageHelpdesk ? "sm:grid-cols-5 lg:w-[760px]" : "sm:grid-cols-3 lg:w-[520px]"} mb-4 h-auto gap-1 sm:gap-0`}>
+          {canManageHelpdesk && (
+            <>
+              <TabsTrigger value="queue" className="gap-2 w-full">
+                <AlertCircle className="h-4 w-4" /> Fila
+              </TabsTrigger>
+              <TabsTrigger value="assigned-to-me" className="gap-2 w-full">
+                <UserSquare className="h-4 w-4" /> Meus Atendimentos
+              </TabsTrigger>
+              <TabsTrigger value="all" className="gap-2 w-full">
+                <ListFilter className="h-4 w-4" /> Todos
+              </TabsTrigger>
+            </>
+          )}
+          <TabsTrigger value="my-requests" className="gap-2 w-full">
             <UserSquare className="h-4 w-4" /> Meus Chamados
           </TabsTrigger>
+          {!canManageHelpdesk && (
+            <TabsTrigger value="open" className="gap-2 w-full">
+              <AlertCircle className="h-4 w-4" /> Em Aberto
+            </TabsTrigger>
+          )}
           <TabsTrigger value="closed" className="gap-2 w-full">
             <CheckCircle2 className="h-4 w-4" /> Finalizados
           </TabsTrigger>
@@ -680,7 +696,7 @@ export function Helpdesk() {
                             >
                               Ver detalhes
                             </DropdownMenuItem>
-                            {ticket.status === 'OPEN' && (
+                            {canManageHelpdesk && ticket.status === 'OPEN' && (
                               <DropdownMenuItem 
                                 className="cursor-pointer focus:bg-muted focus:text-accent-foreground"
                                 onClick={() => handleAssignTicket(ticket.id)}

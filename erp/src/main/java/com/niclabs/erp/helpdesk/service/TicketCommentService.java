@@ -1,6 +1,7 @@
 package com.niclabs.erp.helpdesk.service;
 
 import com.niclabs.erp.auth.domain.User;
+import com.niclabs.erp.common.AppConstants;
 import com.niclabs.erp.helpdesk.domain.Ticket;
 import com.niclabs.erp.helpdesk.domain.TicketComment;
 import com.niclabs.erp.common.SecurityUtils;
@@ -10,6 +11,7 @@ import com.niclabs.erp.helpdesk.repository.TicketCommentRepository;
 import com.niclabs.erp.helpdesk.repository.TicketRepository;
 import com.niclabs.erp.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +45,8 @@ public class TicketCommentService implements ITicketCommentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Chamado não encontrado."));
 
         User loggedInUser = SecurityUtils.getCurrentUser();
+        ensureCanAccessTicket(ticket, loggedInUser);
+
         TicketComment comment = new TicketComment();
         comment.setId(UUID.randomUUID());
         comment.setTicketId(ticket.getId());
@@ -60,9 +64,28 @@ public class TicketCommentService implements ITicketCommentService {
      */
     @Transactional(readOnly = true)
     public List<TicketCommentResponseDTO> getCommentsByTicket(UUID ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Chamado não encontrado."));
+        ensureCanAccessTicket(ticket, SecurityUtils.getCurrentUser());
+
         return commentRepository.findByTicketIdOrderByCreatedAtAsc(ticketId).stream()
                 .map(this::mapToDTO)
                 .toList();
+    }
+
+    private void ensureCanAccessTicket(Ticket ticket, User user) {
+        boolean isRequester = ticket.getRequesterId().equals(user.getId());
+        boolean isAssignee = ticket.getAssigneeId() != null && ticket.getAssigneeId().equals(user.getId());
+        boolean isHelpdeskAgent = user.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .anyMatch(authority ->
+                        authority.equals(AppConstants.ROLE_ADMIN) ||
+                        authority.equals(AppConstants.ROLE_TI) ||
+                        authority.equals(AppConstants.PERM_ACCESS_HELPDESK));
+
+        if (!isRequester && !isAssignee && !isHelpdeskAgent) {
+            throw new AccessDeniedException("Você não tem permissão para acessar este chamado.");
+        }
     }
 
     private TicketCommentResponseDTO mapToDTO(TicketComment comment) {

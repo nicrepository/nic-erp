@@ -77,7 +77,7 @@ export function Configuracoes() {
     const dict: Record<string, string> = {
       'ACCESS_INVENTORY_ADMIN': 'Estoque (RH/Admin)',
       'ACCESS_INVENTORY_IT': 'Ativos de TI',
-      'ACCESS_HELPDESK': 'Helpdesk',
+      'ACCESS_HELPDESK': 'Atendimento Helpdesk',
       'ACCESS_USERS': 'Gestão de Usuários',
       'ACCESS_DASHBOARD': 'Visualizar Dashboard',
       'ACCESS_ANNOUNCEMENTS_MANAGE': 'Gerenciar Comunicados',

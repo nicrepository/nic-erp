@@ -20,7 +20,7 @@ export function Dashboard() {
   const canAccessDashboard = isAdmin || authorities.includes('ACCESS_DASHBOARD')
   const canAccessITInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_IT') || authorities.includes('ROLE_TI')
   const canAccessAdministrativeInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_ADMIN') || authorities.includes('ROLE_RH')
-  const canManageHelpdesk = isAdmin || authorities.includes('ACCESS_HELPDESK')
+  const canManageHelpdesk = isAdmin || authorities.includes('ROLE_TI') || authorities.includes('ACCESS_HELPDESK')
 
   useEffect(() => {
     if (!canAccessDashboard) {

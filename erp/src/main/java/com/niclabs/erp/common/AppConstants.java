@@ -31,6 +31,9 @@ public final class AppConstants {
     /** Default role assigned to every newly registered user. */
     public static final String ROLE_USER = "ROLE_USER";
 
+    /** Built-in role for IT/helpdesk attendants. */
+    public static final String ROLE_TI = "ROLE_TI";
+
     // ── Storage ──────────────────────────────────────────────────────────────
 
     /** URL prefix prepended to stored filenames to build a publicly accessible URL. */

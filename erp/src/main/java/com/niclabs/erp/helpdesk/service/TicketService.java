@@ -176,7 +176,7 @@ public class TicketService implements ITicketService {
         boolean isOwner = ticket.getRequesterId().equals(currentUser.getId());
         boolean hasHelpdeskAccess = currentUser.getAuthorities().stream()
                 .map(org.springframework.security.core.GrantedAuthority::getAuthority)
-                .anyMatch(a -> a.equals(AppConstants.PERM_ACCESS_HELPDESK) || a.equals(AppConstants.ROLE_ADMIN));
+                .anyMatch(a -> a.equals(AppConstants.PERM_ACCESS_HELPDESK) || a.equals(AppConstants.ROLE_ADMIN) || a.equals(AppConstants.ROLE_TI));
         if (!isOwner && !hasHelpdeskAccess) {
             throw new AccessDeniedException("Você não tem permissão para anexar arquivos a este chamado.");
         }
