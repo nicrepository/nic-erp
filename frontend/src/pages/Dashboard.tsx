@@ -15,20 +15,28 @@ export function Dashboard() {
   const [isLoadingAssets, setIsLoadingAssets] = useState(true)
   const [isLoadingStock, setIsLoadingStock] = useState(true)
 
-  const isAdmin = user?.roles?.includes('ROLE_ADMIN')
-  const isTI = user?.roles?.includes('ROLE_TI')
-  const isRH = user?.roles?.includes('ROLE_RH')
+  const authorities = user?.roles || []
+  const isAdmin = authorities.includes('ROLE_ADMIN')
+  const canAccessDashboard = isAdmin || authorities.includes('ACCESS_DASHBOARD')
+  const canAccessITInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_IT') || authorities.includes('ROLE_TI')
+  const canAccessAdministrativeInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_ADMIN') || authorities.includes('ROLE_RH')
+  const canManageHelpdesk = isAdmin || authorities.includes('ACCESS_HELPDESK')
 
   useEffect(() => {
+    if (!canAccessDashboard) {
+      setIsLoadingTickets(false)
+      setIsLoadingAssets(false)
+      setIsLoadingStock(false)
+      return
+    }
+
     const fetchTickets = async () => {
       setIsLoadingTickets(true)
       try {
         const token = localStorage.getItem("token")
         let endpoint = '/helpdesk/tickets/my'
         
-        if (isAdmin) endpoint = '/helpdesk/tickets'
-        else if (isTI) endpoint = '/helpdesk/tickets/department/IT'
-        else if (isRH) endpoint = '/helpdesk/tickets/department/HR'
+        if (canManageHelpdesk) endpoint = '/helpdesk/tickets'
 
         const response = await fetch(endpoint, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -45,7 +53,7 @@ export function Dashboard() {
     }
 
     const fetchITAssets = async () => {
-      if (!isAdmin && !isTI) { setIsLoadingAssets(false); return }
+      if (!canAccessITInventory) { setIsLoadingAssets(false); return }
       try {
         const token = localStorage.getItem("token")
         const response = await fetch('/inventory/it/assets', {
@@ -63,7 +71,7 @@ export function Dashboard() {
     }
 
     const fetchStockItems = async () => {
-      if (!isAdmin && !isRH) { setIsLoadingStock(false); return }
+      if (!canAccessAdministrativeInventory) { setIsLoadingStock(false); return }
       try {
         const token = localStorage.getItem("token")
         const response = await fetch('/inventory/administrative/items', {
@@ -83,7 +91,7 @@ export function Dashboard() {
     fetchTickets()
     fetchITAssets()
     fetchStockItems()
-  }, [isAdmin, isTI, isRH])
+  }, [canAccessDashboard, canManageHelpdesk, canAccessITInventory, canAccessAdministrativeInventory])
 
   // --- MATEMÁTICA E PREPARAÇÃO DOS DADOS ---
 
@@ -117,6 +125,16 @@ export function Dashboard() {
     const items = stockItems.filter(item => (item.quantity || 0) <= item.minimumStock)
     return { lowStockItems: items, lowStockCount: items.length }
   }, [stockItems])
+
+  if (!canAccessDashboard) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
+        <AlertTriangle className="h-16 w-16 text-yellow-500" />
+        <h2 className="text-2xl font-bold text-foreground">Acesso Negado</h2>
+        <p className="text-muted-foreground">Você não tem permissão para acessar o Dashboard.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col min-h-full">
@@ -154,7 +172,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        {(isAdmin || isTI) && (
+        {canAccessITInventory && (
           <Card className="bg-card border-border shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Parque de Equipamentos</CardTitle>
@@ -178,7 +196,7 @@ export function Dashboard() {
           </Card>
         )}
 
-        {(isAdmin || isRH) && (
+        {canAccessAdministrativeInventory && (
           <Card className={`bg-card shadow-sm ${lowStockCount > 0 ? "border-red-500/50" : "border-border"}`}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Status do Estoque</CardTitle>
@@ -269,7 +287,7 @@ export function Dashboard() {
         <div className="space-y-6 flex flex-col">
           
           {/* GRÁFICO 2: DONUT DE EQUIPAMENTOS */}
-          {(isAdmin || isTI) && (
+          {canAccessITInventory && (
             <Card className="bg-card border-border shadow-sm flex-1">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base text-foreground">Disponibilidade de Hardware</CardTitle>
@@ -324,7 +342,7 @@ export function Dashboard() {
           )}
 
           {/* LISTA DE AÇÃO: ITENS ACABANDO */}
-          {(isAdmin || isRH) && (
+          {canAccessAdministrativeInventory && (
             <Card className={`bg-card shadow-sm flex-1 ${lowStockCount > 0 ? "border-red-500/30" : "border-border"}`}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base text-foreground flex items-center gap-2">

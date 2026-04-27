@@ -18,7 +18,8 @@ import java.util.UUID;
  * REST controller for role and permission management (admin-only).
  *
  * <p>Roles group permissions and are assigned to users to control access to ERP features.
- * All endpoints require the {@code ROLE_ADMIN} authority.</p>
+ * Mutating endpoints require {@code ROLE_ADMIN}; users with {@code ACCESS_USERS}
+ * may list roles so they can assign existing cargos to users.</p>
  */
 @RestController
 @RequestMapping("/roles")
@@ -33,7 +34,7 @@ public class RoleController {
      *
      * @return 200 OK with a list of {@link RoleResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN')")
     @GetMapping
     public ResponseEntity<List<RoleResponseDTO>> getAllRoles() {
         return ResponseEntity.ok(roleService.getAllRoles());
@@ -65,6 +66,21 @@ public class RoleController {
     }
 
     /**
+     * Updates a role name and its permission set.
+     *
+     * @param id  target role identifier
+     * @param dto updated role payload
+     * @return 200 OK with the updated {@link RoleResponseDTO}
+     */
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<RoleResponseDTO> updateRole(
+            @PathVariable UUID id,
+            @Valid @RequestBody RoleRequestDTO dto) {
+        return ResponseEntity.ok(roleService.updateRole(id, dto));
+    }
+
+    /**
      * Replaces the permission set of an existing role entirely.
      *
      * @param id          target role identifier
@@ -77,5 +93,18 @@ public class RoleController {
             @PathVariable UUID id,
             @RequestBody List<String> permissions) {
         return ResponseEntity.ok(roleService.updateRolePermissions(id, permissions));
+    }
+
+    /**
+     * Deletes a custom role.
+     *
+     * @param id target role identifier
+     * @return 204 No Content on success
+     */
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
+        roleService.deleteRole(id);
+        return ResponseEntity.noContent().build();
     }
 }

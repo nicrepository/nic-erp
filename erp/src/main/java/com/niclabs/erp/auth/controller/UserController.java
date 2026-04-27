@@ -58,7 +58,7 @@ public class UserController {
      * @return 200 OK with a page of {@link UserResponseDTO}
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI') or hasAuthority('ROLE_RH')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI') or hasAuthority('ROLE_RH')")
     public ResponseEntity<Page<UserResponseDTO>> getAllUsers(@PageableDefault(size = 20, sort = "name") Pageable pageable) {
         return ResponseEntity.ok(userService.listAllUsers(pageable));
     }

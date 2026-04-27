@@ -35,9 +35,11 @@ export function Inventario() {
   const { user } = useAuth()
   const toast = useToast()
 
-  const isAdmin = user?.roles?.includes('ROLE_ADMIN')
-  const isTI = user?.roles?.includes('ROLE_TI')
-  const isRH = user?.roles?.includes('ROLE_RH')
+  const authorities = user?.roles || []
+  const isAdmin = authorities.includes('ROLE_ADMIN')
+  const canAccessITInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_IT') || authorities.includes('ROLE_TI')
+  const canAccessAdministrativeInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_ADMIN') || authorities.includes('ROLE_RH')
+  const canAccessInventory = canAccessITInventory || canAccessAdministrativeInventory
 
   // --- ESTADOS: ATIVOS DE TI ---
   const [itAssets, setItAssets] = useState<any[]>([])
@@ -155,11 +157,6 @@ export function Inventario() {
       console.error("Erro ao buscar usuários:", error)
     }
   }
-
-  useEffect(() => {
-    fetchITAssets()
-    fetchUsers()
-  }, [])
 
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -336,11 +333,15 @@ export function Inventario() {
   }
 
   useEffect(() => {
-    fetchITAssets()
-    fetchUsers()
-    fetchStockItems()
-    fetchMovements()
-  }, [])
+    if (canAccessITInventory) {
+      fetchITAssets()
+      fetchUsers()
+    }
+    if (canAccessAdministrativeInventory) {
+      fetchStockItems()
+      fetchMovements()
+    }
+  }, [canAccessITInventory, canAccessAdministrativeInventory])
 
   const handleCreateStockItem = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -468,7 +469,7 @@ export function Inventario() {
   const { totalPages: stockTotalPages, paginate: paginateStock } = usePagination(filteredStockItems, ITEMS_PER_PAGE)
   const paginatedStockItems = paginateStock(stockPage)
 
-  if (!isAdmin && !isTI && !isRH) {
+  if (!canAccessInventory) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
         <AlertTriangle className="h-16 w-16 text-yellow-500" />
@@ -489,23 +490,23 @@ export function Inventario() {
       </div>
 
       <div className="p-4 md:p-6 space-y-4">
-      <Tabs defaultValue={(isAdmin || isTI) ? "it-assets" : "stock"} className="w-full">
+      <Tabs defaultValue={canAccessITInventory ? "it-assets" : "stock"} className="w-full">
         {/* Abas responsivas: empilham em telas pequenas */}
         <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-3 max-w-[700px] mb-4 h-auto gap-1 sm:gap-0">
           
-          {(isAdmin || isTI) && (
+          {canAccessITInventory && (
             <TabsTrigger value="it-assets" className="gap-2 w-full">
               <Laptop className="h-4 w-4" /> Ativos de TI
             </TabsTrigger>
           )}
 
-          {(isAdmin || isRH) && (
+          {canAccessAdministrativeInventory && (
             <TabsTrigger value="stock" className="gap-2 w-full">
               <Package className="h-4 w-4" /> Estoque Administrativo
             </TabsTrigger>
           )}
 
-          {(isAdmin || isRH) && (
+          {canAccessAdministrativeInventory && (
             <TabsTrigger value="audit" className="gap-2 w-full">
               <History className="h-4 w-4" /> Histórico
             </TabsTrigger>
@@ -516,7 +517,7 @@ export function Inventario() {
         {/* ========================================================= */}
         {/* ABA: ATIVOS DE TI */}
         {/* ========================================================= */}
-        {(isAdmin || isTI) && (
+        {canAccessITInventory && (
           <TabsContent value="it-assets" className="mt-4 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <h3 className="text-lg font-medium text-foreground">Equipamentos e Hardware</h3>
@@ -971,7 +972,7 @@ export function Inventario() {
         {/* ========================================================= */}
         {/* ABA: ESTOQUE ADMINISTRATIVO */}
         {/* ========================================================= */}
-        {(isAdmin || isRH) && (
+        {canAccessAdministrativeInventory && (
           <TabsContent value="stock" className="mt-4 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <h3 className="text-lg font-medium text-foreground">Materiais de Consumo</h3>
@@ -1177,7 +1178,7 @@ export function Inventario() {
         {/* ========================================================= */}
         {/* ABA: AUDITORIA DE MOVIMENTAÇÕES */}
         {/* ========================================================= */}
-        {(isAdmin || isRH) && (
+        {canAccessAdministrativeInventory && (
           <TabsContent value="audit" className="mt-4 space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <h3 className="text-lg font-medium text-foreground">Trilha de Auditoria</h3>

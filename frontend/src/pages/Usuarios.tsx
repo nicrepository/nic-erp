@@ -32,16 +32,17 @@ function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: 
 export function Usuarios() {
   const { user } = useAuth()
   const toast = useToast()
-  const isAdmin = user?.roles?.includes('ROLE_ADMIN')
+  const authorities = user?.roles || []
+  const canManageUsers = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_USERS')
 
   // --- BARREIRA DE ACESSO NEGADO ---
-  if (!isAdmin) {
+  if (!canManageUsers) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] text-center space-y-4 animate-in fade-in duration-500">
         <AlertTriangle className="h-16 w-16 text-yellow-500" />
         <h2 className="text-2xl font-bold text-foreground">Acesso Negado</h2>
         <p className="text-muted-foreground max-w-md">
-          Apenas administradores podem acessar o painel de Gestão de Usuários.
+          Você não tem permissão para acessar o painel de Gestão de Usuários.
         </p>
       </div>
     )
@@ -113,10 +114,8 @@ export function Usuarios() {
 
   useEffect(() => {
     fetchUsers()
-    if (isAdmin) {
-      fetchRoles() // Só busca os cargos se o cara for Admin e puder ver o menu
-    }
-  }, [isAdmin])
+    fetchRoles()
+  }, [canManageUsers])
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -303,7 +302,7 @@ export function Usuarios() {
             />
           </div>
 
-          {isAdmin && (
+          {canManageUsers && (
             <Dialog open={isModalOpen} onOpenChange={(open) => {
               setIsModalOpen(open)
               if (!open) { setNewUserName(""); setNewUserEmail(""); setNewUserPassword(""); setNameError(""); setEmailError(""); setPasswordError("") }
@@ -412,13 +411,13 @@ export function Usuarios() {
                   </button>
                 </TableHead>
                 <TableHead className="text-muted-foreground min-w-[200px]">Cargos</TableHead>
-                {isAdmin && <TableHead className="text-right text-muted-foreground w-[80px]">Ações</TableHead>}
+                {canManageUsers && <TableHead className="text-right text-muted-foreground w-[80px]">Ações</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 4 : 3} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={canManageUsers ? 4 : 3} className="text-center py-12 text-muted-foreground">
                     {searchUser ? "Nenhum colaborador encontrado para esta busca." : "Nenhum colaborador cadastrado."}
                   </TableCell>
                 </TableRow>
@@ -444,7 +443,7 @@ export function Usuarios() {
                         </div>
                       </TableCell>
 
-                      {isAdmin && (
+                      {canManageUsers && (
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -497,8 +496,8 @@ export function Usuarios() {
           </Table>
         </div>
       </div>
-      {/* MODAL DE EDIÇÃO DE USUÁRIO (SÓ ADMIN VÊ) */}
-      {isAdmin && (
+      {/* MODAL DE EDIÇÃO DE USUÁRIO */}
+      {canManageUsers && (
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
           <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
             <DialogHeader>

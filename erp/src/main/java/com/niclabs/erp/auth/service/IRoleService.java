@@ -41,6 +41,15 @@ public interface IRoleService {
     RoleResponseDTO createRole(RoleRequestDTO dto);
 
     /**
+     * Updates the role name and permission set of an existing role.
+     *
+     * @param roleId target role identifier
+     * @param dto updated role name and permissions
+     * @return updated role summary
+     */
+    RoleResponseDTO updateRole(UUID roleId, RoleRequestDTO dto);
+
+    /**
      * Replaces the permission set of an existing role.
      *
      * <p>Unknown permission names are silently ignored, allowing partial updates
@@ -52,4 +61,11 @@ public interface IRoleService {
      * @throws com.niclabs.erp.exception.ResourceNotFoundException if the role does not exist
      */
     RoleResponseDTO updateRolePermissions(UUID roleId, List<String> permissions);
+
+    /**
+     * Deletes a custom role.
+     *
+     * @param roleId target role identifier
+     */
+    void deleteRole(UUID roleId);
 }

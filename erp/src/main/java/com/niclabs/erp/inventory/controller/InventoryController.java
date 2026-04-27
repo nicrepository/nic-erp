@@ -203,7 +203,7 @@ public class InventoryController {
      * @return 200 OK when the asset has been written off
      */
     @PutMapping("/it/assets/{id}/write-off")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> writeOffITAsset(@PathVariable UUID id, @RequestBody java.util.Map<String, String> payload) {
         String reason = payload.get("reason");
         itAssetService.writeOffAsset(id, reason);
@@ -245,7 +245,7 @@ public class InventoryController {
      * @param pageable pagination and sort parameters (default: page 0, size 20, sorted by createdAt DESC)
      * @return 200 OK with a page of {@link InventoryMovement}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/movements")
     public ResponseEntity<Page<InventoryMovement>> getStockMovements(@PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(stockItemService.findAllMovements(pageable));

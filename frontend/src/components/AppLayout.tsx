@@ -20,27 +20,28 @@ interface NavItem {
   label: string
   path: string
   icon: React.ReactNode
+  access?: string[]
 }
 
 const navGroups = [
   {
     label: "Principal",
     items: [
-      { label: "Visão Geral", path: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+      { label: "Visão Geral", path: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_DASHBOARD"] },
     ],
   },
   {
     label: "Operacional",
     items: [
-      { label: "Helpdesk", path: "/helpdesk", icon: <Ticket className="h-4 w-4" /> },
-      { label: "Inventário", path: "/inventario", icon: <Package className="h-4 w-4" /> },
-      { label: "Recursos Humanos", path: "/recursoshumanos", icon: <Briefcase className="h-4 w-4" /> },
+      { label: "Helpdesk", path: "/helpdesk", icon: <Ticket className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HELPDESK", "ROLE_TI", "ROLE_RH", "ROLE_USER"] },
+      { label: "Inventário", path: "/inventario", icon: <Package className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_INVENTORY_IT", "ACCESS_INVENTORY_ADMIN", "ROLE_TI", "ROLE_RH"] },
+      { label: "Recursos Humanos", path: "/recursoshumanos", icon: <Briefcase className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HR"] },
     ],
   },
   {
     label: "Administração",
     items: [
-      { label: "Usuários", path: "/usuarios", icon: <Users className="h-4 w-4" /> },
+      { label: "Usuários", path: "/usuarios", icon: <Users className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_USERS"] },
     ],
   },
 ]
@@ -101,6 +102,8 @@ export function AppLayout() {
   }
 
   const isActive = (path: string) => location.pathname === path
+  const authorities = user?.roles || []
+  const canAccessItem = (item: NavItem) => !item.access || item.access.some(access => authorities.includes(access))
 
   // Page title from current route
   const currentTitle = (() => {
@@ -170,18 +173,23 @@ export function AppLayout() {
 
       {/* Nav groups */}
       <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-5">
-        {navGroups.map(group => (
+        {navGroups.map(group => {
+          const visibleItems = group.items.filter(canAccessItem)
+          if (visibleItems.length === 0) return null
+
+          return (
           <div key={group.label}>
             <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
               {group.label}
             </p>
             <div className="space-y-0.5">
-              {group.items.map(item => (
+              {visibleItems.map(item => (
                 <NavItem key={item.path} item={item} onClick={onNavigate} />
               ))}
             </div>
           </div>
-        ))}
+          )
+        })}
       </nav>
 
       {/* Footer */}

@@ -27,6 +27,8 @@ const ITEMS_PER_PAGE = 10
 export function Helpdesk() {
   const { user } = useAuth()
   const toast = useToast()
+  const authorities = user?.roles || []
+  const canManageHelpdesk = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_HELPDESK')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tickets, setTickets] = useState<any[]>([])
@@ -105,7 +107,7 @@ export function Helpdesk() {
       
       let endpoint = '/helpdesk/tickets/my'
 
-      if (user?.roles?.includes('ROLE_ADMIN')) {
+      if (canManageHelpdesk) {
         endpoint = '/helpdesk/tickets'
       } else if (user?.roles?.includes('ROLE_TI')) {
         endpoint = '/helpdesk/tickets/department/IT'

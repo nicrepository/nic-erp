@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,7 +40,10 @@ export function Configuracoes() {
   // Estados para o Modal de EDITAR Cargo
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<any>(null)
+  const [editingRoleName, setEditingRoleName] = useState("")
   const [editingPermissions, setEditingPermissions] = useState<string[]>([])
+  const [roleToDelete, setRoleToDelete] = useState<any>(null)
+  const [isDeletingRole, setIsDeletingRole] = useState(false)
 
   // ESTADOS PARA O PERFIL
   const [isUploading, setIsUploading] = useState(false)
@@ -51,6 +55,7 @@ export function Configuracoes() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [isCreatingRole, setIsCreatingRole] = useState(false)
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false)
 
   // Category management
   const [categories, setCategories] = useState<any[]>([])
@@ -231,13 +236,17 @@ export function Configuracoes() {
     return map[p] || ''
   }
 
+  const formatRoleName = (name: string) => {
+    const normalizedName = name.trim().toUpperCase()
+    return normalizedName.startsWith("ROLE_") ? normalizedName : `ROLE_${normalizedName}`
+  }
+
   // Função para criar um novo Cargo
   const handleCreateRole = async (e: React.FormEvent) => {e.preventDefault()
     setIsCreatingRole(true)
     try {
       const token = localStorage.getItem("token")
-      // Garante que o nome comece com ROLE_ para seguir o padrão do Spring
-      const finalRoleName = newRoleName.startsWith("ROLE_") ? newRoleName.toUpperCase() : `ROLE_${newRoleName.toUpperCase()}`
+      const finalRoleName = formatRoleName(newRoleName)
 
       const response = await fetch('/roles', {
         method: 'POST',
@@ -264,32 +273,71 @@ export function Configuracoes() {
     }
   }
 
-  // Função para atualizar as permissões de um cargo existente
+  const openEditRole = (role: any) => {
+    setEditingRole(role)
+    setEditingRoleName(role.name || "")
+    setEditingPermissions(role.permissions || [])
+    setIsEditModalOpen(true)
+  }
+
+  // Função para atualizar nome e permissões de um cargo existente
   const handleUpdateRole = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingRole) return
 
+    setIsUpdatingRole(true)
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch(`/roles/${editingRole.id}/permissions`, {
+      const response = await fetch(`/roles/${editingRole.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify(editingPermissions)
+        body: JSON.stringify({
+          name: formatRoleName(editingRoleName),
+          permissions: editingPermissions
+        })
       })
 
       if (response.ok) {
         setIsEditModalOpen(false)
         setEditingRole(null)
+        setEditingRoleName("")
         fetchData()
-        toast.success("Permissões atualizadas!", "As permissões do cargo foram salvas.")
+        toast.success("Cargo atualizado!", "O nome e os acessos do cargo foram salvos.")
       } else {
-        toast.error("Erro ao atualizar permissões", "Tente novamente.")
+        toast.error("Erro ao atualizar cargo", "Verifique se já existe um cargo com esse nome.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
+    } finally {
+      setIsUpdatingRole(false)
+    }
+  }
+
+  const handleDeleteRole = async () => {
+    if (!roleToDelete) return
+
+    setIsDeletingRole(true)
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/roles/${roleToDelete.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        setRoleToDelete(null)
+        fetchData()
+        toast.success("Cargo excluído!", "O cargo foi removido do sistema.")
+      } else {
+        toast.error("Erro ao excluir cargo", "Este cargo pode estar protegido pelo sistema.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    } finally {
+      setIsDeletingRole(false)
     }
   }
 
@@ -632,18 +680,24 @@ export function Configuracoes() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            {role.name !== 'ROLE_ADMIN' && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => {
-                                  setEditingRole(role)
-                                  setEditingPermissions(role.permissions || [])
-                                  setIsEditModalOpen(true)
-                                }}
-                              >
-                                Editar Acessos
-                              </Button>
+                            {!['ROLE_ADMIN', 'ROLE_USER'].includes(role.name) && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Abrir ações do cargo</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => openEditRole(role)}>
+                                    Editar cargo
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-destructive" onClick={() => setRoleToDelete(role)}>
+                                    Excluir cargo
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             )}
                           </TableCell>
                         </TableRow>
@@ -654,17 +708,30 @@ export function Configuracoes() {
               </div>
             </div>
 
-            {/* MODAL DE EDITAR PERMISSÕES */}
+            {/* MODAL DE EDITAR CARGO */}
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
               <DialogContent className="sm:max-w-[500px] w-[95%] bg-background border-border text-foreground">
                 <DialogHeader>
-                  <DialogTitle>Editar Acessos: {editingRole?.name}</DialogTitle>
+                  <DialogTitle>Editar Cargo</DialogTitle>
                   <DialogDescription className="text-muted-foreground">
-                    Marque os módulos que os usuários com este cargo poderão acessar.
+                    Atualize o nome do cargo e os módulos que ele poderá acessar.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleUpdateRole}>
                   <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-role-name">Nome do Cargo</Label>
+                      <Input
+                        id="edit-role-name"
+                        value={editingRoleName.replace("ROLE_", "")}
+                        onChange={(e) => setEditingRoleName(e.target.value)}
+                        placeholder="Ex: FINANCEIRO"
+                        required
+                        className="bg-background"
+                      />
+                    </div>
+                    <div className="space-y-3 pt-2 border-t border-border">
+                      <Label>Permissões de Acesso</Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto p-1">
                       {availablePermissions.map(perm => (
                         <div key={perm.id} className="flex items-start space-x-2 bg-muted/30 p-2 rounded-md border border-border">
@@ -679,14 +746,29 @@ export function Configuracoes() {
                         </div>
                       ))}
                     </div>
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
-                    <Button type="submit">Atualizar Permissões</Button>
+                    <Button type="submit" disabled={isUpdatingRole || !editingRoleName.trim()} className="gap-2">
+                      {isUpdatingRole && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {isUpdatingRole ? "Salvando..." : "Salvar Alterações"}
+                    </Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
+
+            <ConfirmDialog
+              isOpen={!!roleToDelete}
+              onClose={() => setRoleToDelete(null)}
+              onConfirm={handleDeleteRole}
+              title="Excluir cargo"
+              description={`Tem certeza que deseja excluir ${roleToDelete?.name}? Usuários vinculados perderão este cargo.`}
+              confirmLabel="Excluir"
+              isDestructive
+              isLoading={isDeletingRole}
+            />
 
           </TabsContent>
         )}
