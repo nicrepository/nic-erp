@@ -280,6 +280,9 @@ export function Configuracoes() {
     setIsEditModalOpen(true)
   }
 
+  const canRenameRole = (role: any) => role?.name !== 'ROLE_USER'
+  const canDeleteRole = (role: any) => !['ROLE_ADMIN', 'ROLE_USER'].includes(role?.name)
+
   // Função para atualizar nome e permissões de um cargo existente
   const handleUpdateRole = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -288,13 +291,14 @@ export function Configuracoes() {
     setIsUpdatingRole(true)
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch(`/roles/${editingRole.id}`, {
+      const isProtectedDefaultRole = !canRenameRole(editingRole)
+      const response = await fetch(isProtectedDefaultRole ? `/roles/${editingRole.id}/permissions` : `/roles/${editingRole.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify({
+        body: JSON.stringify(isProtectedDefaultRole ? editingPermissions : {
           name: formatRoleName(editingRoleName),
           permissions: editingPermissions
         })
@@ -680,7 +684,7 @@ export function Configuracoes() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            {!['ROLE_ADMIN', 'ROLE_USER'].includes(role.name) && (
+                            {role.name !== 'ROLE_ADMIN' && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -691,11 +695,13 @@ export function Configuracoes() {
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                   <DropdownMenuItem onClick={() => openEditRole(role)}>
-                                    Editar cargo
+                                    {role.name === 'ROLE_USER' ? 'Editar acessos' : 'Editar cargo'}
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive" onClick={() => setRoleToDelete(role)}>
-                                    Excluir cargo
-                                  </DropdownMenuItem>
+                                  {canDeleteRole(role) && (
+                                    <DropdownMenuItem className="text-destructive" onClick={() => setRoleToDelete(role)}>
+                                      Excluir cargo
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             )}
@@ -712,24 +718,28 @@ export function Configuracoes() {
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
               <DialogContent className="sm:max-w-[500px] w-[95%] bg-background border-border text-foreground">
                 <DialogHeader>
-                  <DialogTitle>Editar Cargo</DialogTitle>
+                  <DialogTitle>{canRenameRole(editingRole) ? 'Editar Cargo' : 'Editar Acessos'}</DialogTitle>
                   <DialogDescription className="text-muted-foreground">
-                    Atualize o nome do cargo e os módulos que ele poderá acessar.
+                    {canRenameRole(editingRole)
+                      ? 'Atualize o nome do cargo e os módulos que ele poderá acessar.'
+                      : 'Atualize os módulos liberados para usuários padrão.'}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleUpdateRole}>
                   <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-role-name">Nome do Cargo</Label>
-                      <Input
-                        id="edit-role-name"
-                        value={editingRoleName.replace("ROLE_", "")}
-                        onChange={(e) => setEditingRoleName(e.target.value)}
-                        placeholder="Ex: FINANCEIRO"
-                        required
-                        className="bg-background"
-                      />
-                    </div>
+                    {canRenameRole(editingRole) && (
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-role-name">Nome do Cargo</Label>
+                        <Input
+                          id="edit-role-name"
+                          value={editingRoleName.replace("ROLE_", "")}
+                          onChange={(e) => setEditingRoleName(e.target.value)}
+                          placeholder="Ex: FINANCEIRO"
+                          required
+                          className="bg-background"
+                        />
+                      </div>
+                    )}
                     <div className="space-y-3 pt-2 border-t border-border">
                       <Label>Permissões de Acesso</Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto p-1">
