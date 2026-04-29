@@ -3,6 +3,8 @@ package com.niclabs.erp.inventory.service;
 import com.niclabs.erp.inventory.dto.ITAssetDTO;
 import com.niclabs.erp.inventory.dto.ITAssetHistoryResponseDTO;
 import com.niclabs.erp.inventory.dto.ITAssetResponseDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,11 +35,13 @@ public interface IITAssetService {
     ITAssetResponseDTO registerAsset(ITAssetDTO dto);
 
     /**
-     * Returns all registered IT assets regardless of their current status.
+     * Returns a paginated list of registered IT assets regardless of their current status.
      *
-     * @return list of all assets
+     * @param search optional search term matched against asset data and assigned user
+     * @param pageable pagination and sorting parameters
+     * @return page of assets
      */
-    List<ITAssetResponseDTO> findAllAssets();
+    Page<ITAssetResponseDTO> findAllAssets(String search, Pageable pageable);
 
     /**
      * Assigns an available asset to a user and records the operation in the audit history.

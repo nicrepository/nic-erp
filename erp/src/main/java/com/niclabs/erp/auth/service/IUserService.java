@@ -33,10 +33,11 @@ public interface IUserService {
     /**
      * Returns a paginated list of all users in the system.
      *
+     * @param search optional search term matched against name, e-mail, and role name
      * @param pageable pagination and sorting parameters
      * @return page of user summaries
      */
-    Page<UserResponseDTO> listAllUsers(Pageable pageable);
+    Page<UserResponseDTO> listAllUsers(String search, Pageable pageable);
 
     /**
      * Replaces the role set of a user entirely.

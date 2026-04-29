@@ -134,8 +134,13 @@ public class StockItemService implements IStockItemService {
      * @return page of {@link StockItemResponseDTO}
      */
     @Transactional(readOnly = true)
-    public Page<StockItemResponseDTO> findAllItems(Pageable pageable) {
-        return itemRepository.findAll(pageable)
+    public Page<StockItemResponseDTO> findAllItems(String search, Pageable pageable) {
+        String normalizedSearch = search == null ? "" : search.trim();
+        Page<StockItem> items = normalizedSearch.isBlank()
+                ? itemRepository.findAll(pageable)
+                : itemRepository.searchItems(normalizedSearch, pageable);
+
+        return items
                 .map(this::mapToDTO);
     }
 
@@ -178,8 +183,11 @@ public class StockItemService implements IStockItemService {
      * @return page of {@link InventoryMovement}
      */
     @Transactional(readOnly = true)
-    public Page<InventoryMovement> findAllMovements(Pageable pageable) {
-        return movementRepository.findAll(pageable);
+    public Page<InventoryMovement> findAllMovements(String search, Pageable pageable) {
+        String normalizedSearch = search == null ? "" : search.trim();
+        return normalizedSearch.isBlank()
+                ? movementRepository.findAll(pageable)
+                : movementRepository.searchMovements(normalizedSearch, pageable);
     }
 
     private StockItemResponseDTO mapToDTO(StockItem item) {

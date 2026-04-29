@@ -62,10 +62,11 @@ public interface IStockItemService {
     /**
      * Returns a paginated list of all active (non-deleted) stock items.
      *
+     * @param search optional search term matched against name and category
      * @param pageable pagination and sorting parameters
      * @return page of item summaries
      */
-    Page<StockItemResponseDTO> findAllItems(Pageable pageable);
+    Page<StockItemResponseDTO> findAllItems(String search, Pageable pageable);
 
     /**
      * Updates the metadata of an existing item. Quantity changes must go through
@@ -90,8 +91,9 @@ public interface IStockItemService {
     /**
      * Returns a paginated list of all inventory movements across all items.
      *
+     * @param search optional search term matched against material and user data
      * @param pageable pagination and sorting parameters
      * @return page of all movements
      */
-    Page<InventoryMovement> findAllMovements(Pageable pageable);
+    Page<InventoryMovement> findAllMovements(String search, Pageable pageable);
 }

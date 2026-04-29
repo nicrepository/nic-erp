@@ -17,11 +17,15 @@ import jakarta.validation.Valid;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 
 import java.security.Principal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -35,6 +39,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Usuários", description = "Gestão de usuários, perfis e senhas")
 public class UserController {
+
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("name", "email");
 
     private final IUserService userService;
     private final IStorageService storageService;
@@ -59,8 +66,34 @@ public class UserController {
      */
     @GetMapping
     @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI') or hasAuthority('ROLE_RH')")
-    public ResponseEntity<Page<UserResponseDTO>> getAllUsers(@PageableDefault(size = 20, sort = "name") Pageable pageable) {
-        return ResponseEntity.ok(userService.listAllUsers(pageable));
+    public ResponseEntity<Page<UserResponseDTO>> getAllUsers(
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 10, sort = "name") Pageable pageable) {
+        return ResponseEntity.ok(userService.listAllUsers(normalizeSearch(search), sanitizePageable(pageable)));
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null) return "";
+        String normalized = search.trim();
+        return normalized.length() > 100 ? normalized.substring(0, 100) : normalized;
+    }
+
+    private Pageable sanitizePageable(Pageable pageable) {
+        int page = Math.max(0, pageable.getPageNumber());
+        int size = Math.min(Math.max(1, pageable.getPageSize()), MAX_PAGE_SIZE);
+
+        Set<String> usedProperties = new HashSet<>();
+        List<Sort.Order> safeOrders = pageable.getSort().stream()
+                .filter(order -> ALLOWED_SORT_FIELDS.contains(order.getProperty()))
+                .filter(order -> usedProperties.add(order.getProperty()))
+                .map(order -> new Sort.Order(order.getDirection(), order.getProperty()).ignoreCase())
+                .toList();
+
+        Sort sort = safeOrders.isEmpty()
+                ? Sort.by(Sort.Order.asc("name").ignoreCase())
+                : Sort.by(safeOrders);
+
+        return PageRequest.of(page, size, sort);
     }
 
     /**

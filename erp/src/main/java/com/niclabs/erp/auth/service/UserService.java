@@ -85,8 +85,13 @@ public class UserService implements IUserService {
      * @return page of {@link UserResponseDTO}
      */
     @Transactional(readOnly = true)
-    public Page<UserResponseDTO> listAllUsers(Pageable pageable) {
-        return userRepository.findAll(pageable)
+    public Page<UserResponseDTO> listAllUsers(String search, Pageable pageable) {
+        String normalizedSearch = search == null ? "" : search.trim();
+        Page<User> users = normalizedSearch.isBlank()
+                ? userRepository.findAll(pageable)
+                : userRepository.searchUsers(normalizedSearch, pageable);
+
+        return users
                 .map(this::mapToDTO);
     }
 

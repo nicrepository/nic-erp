@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
-import { Pagination, usePagination } from "@/components/ui/pagination"
+import { Pagination } from "@/components/ui/pagination"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search, History, ArrowDownRight, ArrowUpRight, Loader2, InboxIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
@@ -68,6 +68,7 @@ export function Inventario() {
 
   // --- ESTADOS: ESTOQUE ADMINISTRATIVO ---
   const [stockItems, setStockItems] = useState<any[]>([])
+  const [stockItemLookup, setStockItemLookup] = useState<any[]>([])
   const [isStockModalOpen, setIsStockModalOpen] = useState(false)
   const [isManageStockModalOpen, setIsManageStockModalOpen] = useState(false)
   const [selectedStockItem, setSelectedStockItem] = useState<any>(null)
@@ -81,10 +82,13 @@ export function Inventario() {
   // ESTADOS: FILTROS DE BUSCA ---
   const [searchItAsset, setSearchItAsset] = useState("")
   const [searchStockItem, setSearchStockItem] = useState("")
+  const [debouncedItAssetSearch, setDebouncedItAssetSearch] = useState("")
+  const [debouncedStockItemSearch, setDebouncedStockItemSearch] = useState("")
 
   // ESTADO: AUDITORIA ---
   const [movements, setMovements] = useState<any[]>([])
   const [searchMovement, setSearchMovement] = useState("")
+  const [debouncedMovementSearch, setDebouncedMovementSearch] = useState("")
   
   // ESTADO DO HISTÓRICO DO EQUIPAMENTO ---
   const [assetHistory, setAssetHistory] = useState<any[]>([])
@@ -92,7 +96,14 @@ export function Inventario() {
 
   // ESTADOS: PAGINAÇÃO ---
   const [itAssetPage, setItAssetPage] = useState(1)
+  const [itAssetTotalPages, setItAssetTotalPages] = useState(1)
+  const [itAssetTotalItems, setItAssetTotalItems] = useState(0)
   const [stockPage, setStockPage] = useState(1)
+  const [stockTotalPages, setStockTotalPages] = useState(1)
+  const [stockTotalItems, setStockTotalItems] = useState(0)
+  const [movementPage, setMovementPage] = useState(1)
+  const [movementTotalPages, setMovementTotalPages] = useState(1)
+  const [movementTotalItems, setMovementTotalItems] = useState(0)
 
   // ESTADOS: ORDENAÇÃO ---
   const [assetSortField, setAssetSortField] = useState<AssetSortField>("brand")
@@ -100,6 +111,9 @@ export function Inventario() {
 
   // ESTADOS: LOADING ---
   const [isCreatingAsset, setIsCreatingAsset] = useState(false)
+  const [isLoadingAssets, setIsLoadingAssets] = useState(false)
+  const [isLoadingStock, setIsLoadingStock] = useState(false)
+  const [isLoadingMovements, setIsLoadingMovements] = useState(false)
 
   // BUSCA O HISTÓRICO QUANDO O MODAL ABRE ---
   useEffect(() => {
@@ -128,30 +142,64 @@ export function Inventario() {
     }
   }, [isDetailModalOpen, selectedAsset])
 
-  const fetchITAssets = async () => {
+  const fetchITAssets = useCallback(async (signal?: AbortSignal) => {
+    if (!canAccessITInventory) return
+
     try {
+      setIsLoadingAssets(true)
       const token = localStorage.getItem("token")
-      const response = await fetch('/inventory/it/assets', {
+      const params = new URLSearchParams({
+        page: String(Math.max(0, itAssetPage - 1)),
+        size: String(ITEMS_PER_PAGE),
+        sort: `${assetSortField},${assetSortDir}`,
+      })
+      const normalizedSearch = debouncedItAssetSearch.trim()
+      if (normalizedSearch) params.set("search", normalizedSearch.slice(0, 100))
+
+      const response = await fetch(`/inventory/it/assets?${params.toString()}`, {
+        signal,
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
-        setItAssets(data)
+        setItAssets(data.content || [])
+        setItAssetTotalPages(Math.max(1, data.totalPages || 1))
+        setItAssetTotalItems(data.totalElements || 0)
+
+        if (data.totalPages > 0 && itAssetPage > data.totalPages) {
+          setItAssetPage(data.totalPages)
+        }
       }
     } catch (error) {
+      if ((error as Error).name === "AbortError") return
       console.error("Erro ao buscar ativos de TI:", error)
+    } finally {
+      setIsLoadingAssets(false)
     }
-  }
+  }, [assetSortDir, assetSortField, canAccessITInventory, debouncedItAssetSearch, itAssetPage])
 
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("token")
-      const response = await fetch('/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
+      const loadedUsers: any[] = []
+      let page = 0
+      let totalPages = 1
+
+      do {
+        const response = await fetch(`/users?page=${page}&size=100&sort=name,asc`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (!response.ok) break
+
         const data = await response.json()
-        setUsers(data.content || [])
+        loadedUsers.push(...(data.content || []))
+        totalPages = data.totalPages || 1
+        page += 1
+      } while (page < totalPages && page < 10)
+
+      setUsers(loadedUsers)
+      if (page === 10 && page < totalPages) {
+        toast.warning("Lista de usuários limitada", "Refine a busca de usuários antes de atribuir equipamentos.")
       }
     } catch (error) {
       console.error("Erro ao buscar usuários:", error)
@@ -300,48 +348,163 @@ export function Inventario() {
     }
   }
 
-  const fetchStockItems = async () => {
+  const fetchStockItems = useCallback(async (signal?: AbortSignal) => {
+    if (!canAccessAdministrativeInventory) return
+
     try {
+      setIsLoadingStock(true)
       const token = localStorage.getItem("token")
-      const response = await fetch('/inventory/administrative/items', {
+      const params = new URLSearchParams({
+        page: String(Math.max(0, stockPage - 1)),
+        size: String(ITEMS_PER_PAGE),
+        sort: "name,asc",
+      })
+      const normalizedSearch = debouncedStockItemSearch.trim()
+      if (normalizedSearch) params.set("search", normalizedSearch.slice(0, 100))
+
+      const response = await fetch(`/inventory/administrative/items?${params.toString()}`, {
+        signal,
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
         setStockItems(data.content || [])
+        setStockTotalPages(Math.max(1, data.totalPages || 1))
+        setStockTotalItems(data.totalElements || 0)
+
+        if (data.totalPages > 0 && stockPage > data.totalPages) {
+          setStockPage(data.totalPages)
+        }
       }
     } catch (error) {
+      if ((error as Error).name === "AbortError") return
       console.error("Erro ao buscar estoque:", error)
+    } finally {
+      setIsLoadingStock(false)
+    }
+  }, [canAccessAdministrativeInventory, debouncedStockItemSearch, stockPage])
+
+  const fetchStockItemLookup = async () => {
+    if (!canAccessAdministrativeInventory) return
+
+    try {
+      const token = localStorage.getItem("token")
+      const loadedItems: any[] = []
+      let page = 0
+      let totalPages = 1
+
+      do {
+        const response = await fetch(`/inventory/administrative/items?page=${page}&size=100&sort=name,asc`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (!response.ok) break
+
+        const data = await response.json()
+        loadedItems.push(...(data.content || []))
+        totalPages = data.totalPages || 1
+        page += 1
+      } while (page < totalPages && page < 10)
+
+      setStockItemLookup(loadedItems)
+    } catch (error) {
+      console.error("Erro ao buscar materiais para auditoria:", error)
     }
   }
 
-  const fetchMovements = async () => {
+  const fetchMovements = useCallback(async (signal?: AbortSignal) => {
+    if (!canAccessAdministrativeInventory) return
+
     try {
+      setIsLoadingMovements(true)
       const token = localStorage.getItem("token")
-      const response = await fetch('/inventory/administrative/movements', {
+      const params = new URLSearchParams({
+        page: String(Math.max(0, movementPage - 1)),
+        size: String(ITEMS_PER_PAGE),
+        sort: "createdAt,desc",
+      })
+      const normalizedSearch = debouncedMovementSearch.trim()
+      if (normalizedSearch) params.set("search", normalizedSearch.slice(0, 100))
+
+      const response = await fetch(`/inventory/administrative/movements?${params.toString()}`, {
+        signal,
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
-        const items = data.content || data
-        const sortedData = items.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        setMovements(sortedData)
+        setMovements(data.content || [])
+        setMovementTotalPages(Math.max(1, data.totalPages || 1))
+        setMovementTotalItems(data.totalElements || 0)
+
+        if (data.totalPages > 0 && movementPage > data.totalPages) {
+          setMovementPage(data.totalPages)
+        }
       }
     } catch (error) {
+      if ((error as Error).name === "AbortError") return
       console.error("Erro ao buscar movimentações:", error)
+    } finally {
+      setIsLoadingMovements(false)
     }
-  }
+  }, [canAccessAdministrativeInventory, debouncedMovementSearch, movementPage])
 
   useEffect(() => {
-    if (canAccessITInventory) {
-      fetchITAssets()
-      fetchUsers()
-    }
-    if (canAccessAdministrativeInventory) {
-      fetchStockItems()
-      fetchMovements()
-    }
-  }, [canAccessITInventory, canAccessAdministrativeInventory])
+    const timeout = window.setTimeout(() => {
+      setDebouncedItAssetSearch(searchItAsset.trim())
+    }, 300)
+
+    return () => window.clearTimeout(timeout)
+  }, [searchItAsset])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedStockItemSearch(searchStockItem.trim())
+    }, 300)
+
+    return () => window.clearTimeout(timeout)
+  }, [searchStockItem])
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedMovementSearch(searchMovement.trim())
+    }, 300)
+
+    return () => window.clearTimeout(timeout)
+  }, [searchMovement])
+
+  useEffect(() => {
+    if (!canAccessITInventory) return
+
+    const controller = new AbortController()
+    fetchITAssets(controller.signal)
+
+    return () => controller.abort()
+  }, [canAccessITInventory, fetchITAssets])
+
+  useEffect(() => {
+    if (canAccessITInventory) fetchUsers()
+  }, [canAccessITInventory])
+
+  useEffect(() => {
+    if (!canAccessAdministrativeInventory) return
+
+    const controller = new AbortController()
+    fetchStockItems(controller.signal)
+
+    return () => controller.abort()
+  }, [canAccessAdministrativeInventory, fetchStockItems])
+
+  useEffect(() => {
+    if (canAccessAdministrativeInventory) fetchStockItemLookup()
+  }, [canAccessAdministrativeInventory])
+
+  useEffect(() => {
+    if (!canAccessAdministrativeInventory) return
+
+    const controller = new AbortController()
+    fetchMovements(controller.signal)
+
+    return () => controller.abort()
+  }, [canAccessAdministrativeInventory, fetchMovements])
 
   const handleCreateStockItem = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -366,6 +529,7 @@ export function Inventario() {
         setItemMinStock("")
         setIsStockModalOpen(false)
         fetchStockItems()
+        fetchStockItemLookup()
         toast.success("Item cadastrado!", "O material foi adicionado ao estoque.")
       } else {
         toast.error("Erro ao cadastrar item", "Tente novamente.")
@@ -393,6 +557,7 @@ export function Inventario() {
 
       if (response.ok) {
         fetchStockItems()
+        fetchStockItemLookup()
         setIsManageStockModalOpen(false)
         toast.success("Material atualizado!")
       } else {
@@ -430,44 +595,11 @@ export function Inventario() {
     }
   }
 
-  const filteredItAssets = itAssets.filter(asset => {
-    const searchTerm = searchItAsset.toLowerCase()
-    const assignedUser = asset.assignedTo ? getAssignedUserName(asset.assignedTo).toLowerCase() : ""
-    
-    return (
-      (asset.assetTag || "").toLowerCase().includes(searchTerm) ||
-      (asset.serialNumber || "").toLowerCase().includes(searchTerm) ||
-      (asset.brand || "").toLowerCase().includes(searchTerm) ||
-      (asset.model || "").toLowerCase().includes(searchTerm) ||
-      assignedUser.includes(searchTerm)
-    )
-  })
-
-  const filteredStockItems = stockItems.filter(item => {
-    const searchTerm = searchStockItem.toLowerCase()
-    return (
-      (item.name || "").toLowerCase().includes(searchTerm) ||
-      (item.category || "").toLowerCase().includes(searchTerm)
-    )
-  })
-
   const toggleAssetSort = (field: AssetSortField) => {
     if (assetSortField === field) setAssetSortDir(d => d === "asc" ? "desc" : "asc")
     else { setAssetSortField(field); setAssetSortDir("asc") }
     setItAssetPage(1)
   }
-
-  const sortedItAssets = [...filteredItAssets].sort((a, b) => {
-    const av = (a[assetSortField] || "").toLowerCase()
-    const bv = (b[assetSortField] || "").toLowerCase()
-    return assetSortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av)
-  })
-
-  const { totalPages: itTotalPages, paginate: paginateIt } = usePagination(sortedItAssets, ITEMS_PER_PAGE)
-  const paginatedItAssets = paginateIt(itAssetPage)
-
-  const { totalPages: stockTotalPages, paginate: paginateStock } = usePagination(filteredStockItems, ITEMS_PER_PAGE)
-  const paginatedStockItems = paginateStock(stockPage)
 
   if (!canAccessInventory) {
     return (
@@ -530,7 +662,7 @@ export function Inventario() {
                     placeholder="Buscar patrimônio, usuário..."
                     className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground"
                     value={searchItAsset}
-                    onChange={(e) => { setSearchItAsset(e.target.value); setItAssetPage(1) }}
+                    onChange={(e) => { setSearchItAsset(e.target.value.slice(0, 100)); setItAssetPage(1) }}
                   />
                 </div>
 
@@ -616,7 +748,14 @@ export function Inventario() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedItAssets.length === 0 ? (
+                    {isLoadingAssets ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-16 text-center text-muted-foreground">
+                          <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                          Carregando equipamentos...
+                        </TableCell>
+                      </TableRow>
+                    ) : itAssets.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="py-16 text-center">
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -626,7 +765,7 @@ export function Inventario() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedItAssets.map((asset) => (
+                      itAssets.map((asset) => (
                         <TableRow key={asset.id} className="hover:bg-muted/50 border-border">
                           <TableCell className="font-medium text-foreground whitespace-nowrap">{asset.assetTag}</TableCell>
                           <TableCell className="text-muted-foreground whitespace-nowrap">{asset.brand} - {asset.model}</TableCell>
@@ -670,7 +809,7 @@ export function Inventario() {
                 </Table>
               </div>
             </div>
-            <Pagination currentPage={itAssetPage} totalPages={itTotalPages} totalItems={filteredItAssets.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setItAssetPage} />
+            <Pagination currentPage={itAssetPage} totalPages={itAssetTotalPages} totalItems={itAssetTotalItems} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setItAssetPage} />
 
             <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
               <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
@@ -985,7 +1124,7 @@ export function Inventario() {
                     placeholder="Buscar material..."
                     className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground"
                     value={searchStockItem}
-                    onChange={(e) => { setSearchStockItem(e.target.value); setStockPage(1) }}
+                    onChange={(e) => { setSearchStockItem(e.target.value.slice(0, 100)); setStockPage(1) }}
                   />
                 </div>
 
@@ -1042,7 +1181,14 @@ export function Inventario() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedStockItems.length === 0 ? (
+                    {isLoadingStock ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-16 text-center text-muted-foreground">
+                          <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                          Carregando materiais...
+                        </TableCell>
+                      </TableRow>
+                    ) : stockItems.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="py-16 text-center">
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -1052,7 +1198,7 @@ export function Inventario() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      paginatedStockItems.map((item) => {
+                      stockItems.map((item) => {
                         const isLowStock = (item.quantity || 0) <= item.minimumStock;
                         
                         return (
@@ -1095,7 +1241,7 @@ export function Inventario() {
                 </Table>
               </div>
             </div>
-            <Pagination currentPage={stockPage} totalPages={stockTotalPages} totalItems={filteredStockItems.length} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setStockPage} />
+            <Pagination currentPage={stockPage} totalPages={stockTotalPages} totalItems={stockTotalItems} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setStockPage} />
             
             <Dialog open={isManageStockModalOpen} onOpenChange={setIsManageStockModalOpen}>
               <DialogContent className="sm:max-w-[500px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
@@ -1189,7 +1335,7 @@ export function Inventario() {
                   placeholder="Buscar material ou usuário..."
                   className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground"
                   value={searchMovement}
-                  onChange={(e) => setSearchMovement(e.target.value)}
+                  onChange={(e) => { setSearchMovement(e.target.value.slice(0, 100)); setMovementPage(1) }}
                 />
               </div>
             </div>
@@ -1207,22 +1353,24 @@ export function Inventario() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {movements.length === 0 ? (
+                    {isLoadingMovements ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                          Carregando movimentações...
+                        </TableCell>
+                      </TableRow>
+                    ) : movements.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                           Nenhuma movimentação registrada no sistema ainda.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      movements.filter(mov => {
-                        const itemName = stockItems.find(i => i.id === mov.itemId)?.name || ""
-                        const userName = getAssignedUserName(mov.performedBy) || ""
-                        const search = searchMovement.toLowerCase()
-                        return itemName.toLowerCase().includes(search) || userName.toLowerCase().includes(search)
-                      }).map((mov) => {
+                      movements.map((mov) => {
                         
                         const isEntry = mov.type === 'IN'
-                        const itemName = stockItems.find(i => i.id === mov.itemId)?.name || "Item Excluído"
+                        const itemName = stockItemLookup.find(i => i.id === mov.itemId)?.name || "Item Excluído"
                         const userName = getAssignedUserName(mov.performedBy)
                         
                         const formattedDate = mov.createdAt 
@@ -1258,6 +1406,7 @@ export function Inventario() {
                 </Table>
               </div>
             </div>
+            <Pagination currentPage={movementPage} totalPages={movementTotalPages} totalItems={movementTotalItems} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setMovementPage} />
           </TabsContent>
         )}
       </Tabs>

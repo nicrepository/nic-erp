@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { useToast } from "../contexts/ToastContext"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import {
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Pagination, usePagination } from "@/components/ui/pagination"
+import { Pagination } from "@/components/ui/pagination"
 
 const ITEMS_PER_PAGE = 10
 
@@ -31,27 +31,18 @@ function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: 
 
 export function Usuarios() {
   const { user } = useAuth()
-  const toast = useToast()
+  const { success: showSuccess, error: showError } = useToast()
   const authorities = user?.roles || []
   const canManageUsers = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_USERS')
-
-  // --- BARREIRA DE ACESSO NEGADO ---
-  if (!canManageUsers) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[80vh] text-center space-y-4 animate-in fade-in duration-500">
-        <AlertTriangle className="h-16 w-16 text-yellow-500" />
-        <h2 className="text-2xl font-bold text-foreground">Acesso Negado</h2>
-        <p className="text-muted-foreground max-w-md">
-          Você não tem permissão para acessar o painel de Gestão de Usuários.
-        </p>
-      </div>
-    )
-  }
 
   const [usersList, setUsersList] = useState<any[]>([])
   const [availableRoles, setAvailableRoles] = useState<any[]>([])
   const [searchUser, setSearchUser] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalItems, setTotalItems] = useState(0)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newUserName, setNewUserName] = useState("")
@@ -78,23 +69,45 @@ export function Usuarios() {
   const [editUserEmail, setEditUserEmail] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async (signal?: AbortSignal) => {
+    if (!canManageUsers) return
+
     try {
+      setIsLoadingUsers(true)
       const token = localStorage.getItem("token")
-      const response = await fetch('/users', {
+
+      const params = new URLSearchParams({
+        page: String(Math.max(0, currentPage - 1)),
+        size: String(ITEMS_PER_PAGE),
+        sort: `${sortField},${sortDir}`,
+      })
+      const normalizedSearch = debouncedSearch.trim()
+      if (normalizedSearch) params.set("search", normalizedSearch.slice(0, 100))
+
+      const response = await fetch(`/users?${params.toString()}`, {
+        signal,
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
         setUsersList(data.content || [])
+        setTotalPages(Math.max(1, data.totalPages || 1))
+        setTotalItems(data.totalElements || 0)
+
+        if (data.totalPages > 0 && currentPage > data.totalPages) {
+          setCurrentPage(data.totalPages)
+        }
       } else {
-        toast.error("Erro ao carregar usuários", `Servidor retornou ${response.status}. Verifique suas permissões.`)
+        showError("Erro ao carregar usuários", `Servidor retornou ${response.status}. Verifique suas permissões.`)
       }
     } catch (error) {
+      if ((error as Error).name === "AbortError") return
       console.error("Erro ao buscar usuários:", error)
-      toast.error("Erro de conexão", "Não foi possível carregar a lista de usuários.")
+      showError("Erro de conexão", "Não foi possível carregar a lista de usuários.")
+    } finally {
+      setIsLoadingUsers(false)
     }
-  }
+  }, [canManageUsers, currentPage, debouncedSearch, showError, sortDir, sortField])
 
   // <-- NOVA FUNÇÃO PARA BUSCAR OS CARGOS REAIS DO BANCO
   const fetchRoles = async () => {
@@ -113,8 +126,24 @@ export function Usuarios() {
   }
 
   useEffect(() => {
-    fetchUsers()
-    fetchRoles()
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(searchUser.trim())
+    }, 300)
+
+    return () => window.clearTimeout(timeout)
+  }, [searchUser])
+
+  useEffect(() => {
+    if (!canManageUsers) return
+
+    const controller = new AbortController()
+    fetchUsers(controller.signal)
+
+    return () => controller.abort()
+  }, [canManageUsers, fetchUsers])
+
+  useEffect(() => {
+    if (canManageUsers) fetchRoles()
   }, [canManageUsers])
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -136,15 +165,18 @@ export function Usuarios() {
         setNewUserName("")
         setNewUserEmail("")
         setNewUserPassword("")
+        setSearchUser("")
+        setDebouncedSearch("")
+        setCurrentPage(1)
         fetchUsers()
-        toast.success("Colaborador criado!", "A conta foi criada com sucesso.")
+        showSuccess("Colaborador criado!", "A conta foi criada com sucesso.")
       } else {
         const errorMsg = await response.text()
-        toast.error("Erro ao criar usuário", errorMsg)
+        showError("Erro ao criar usuário", errorMsg)
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
-      toast.error("Erro de conexão", "Verifique sua rede e tente novamente.")
+      showError("Erro de conexão", "Verifique sua rede e tente novamente.")
     } finally {
       setIsCreating(false)
     }
@@ -174,7 +206,7 @@ export function Usuarios() {
       })
 
       if (response.ok) fetchUsers()
-      else toast.error("Erro ao alterar permissões", "Tente novamente.")
+      else showError("Erro ao alterar permissões", "Tente novamente.")
     } catch (error) {
       console.error("Erro de conexão:", error)
     } finally {
@@ -224,25 +256,6 @@ export function Usuarios() {
     setCurrentPage(1)
   }
 
-  const filteredUsers = useMemo(() => usersList.filter(u => {
-    const search = searchUser.toLowerCase()
-    const userRolesList = u.roles || (u.role ? [u.role] : ["ROLE_USER"])
-    const translatedRolesText = userRolesList.map((r: string) => translateRole(r).label.toLowerCase()).join(" ")
-    return (
-      (u.name || "").toLowerCase().includes(search) ||
-      (u.email || "").toLowerCase().includes(search) ||
-      translatedRolesText.includes(search)
-    )
-  }), [usersList, searchUser])
-
-  const sortedUsers = useMemo(() => [...filteredUsers].sort((a, b) => {
-    const av = (a[sortField] || "").toLowerCase()
-    const bv = (b[sortField] || "").toLowerCase()
-    return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av)
-  }), [filteredUsers, sortField, sortDir])
-  const { totalPages, paginate } = usePagination(sortedUsers, ITEMS_PER_PAGE)
-  const paginatedUsers = paginate(currentPage)
-
   const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
@@ -261,14 +274,14 @@ export function Usuarios() {
       if (response.ok) {
         setIsEditModalOpen(false)
         fetchUsers()
-        toast.success("Dados atualizados!", "As informações do colaborador foram salvas.")
+        showSuccess("Dados atualizados!", "As informações do colaborador foram salvas.")
       } else {
         const errorMsg = await response.text()
-        toast.error("Erro ao editar", errorMsg)
+        showError("Erro ao editar", errorMsg)
       }
     } catch (error) {
       console.error("Erro na edição:", error)
-      toast.error("Erro de conexão", "Verifique sua rede e tente novamente.")
+      showError("Erro de conexão", "Verifique sua rede e tente novamente.")
     } finally {
       setIsSaving(false)
     }
@@ -280,6 +293,19 @@ export function Usuarios() {
     setEditUserName(u.name)
     setEditUserEmail(u.email)
     setIsEditModalOpen(true)
+  }
+
+  // --- BARREIRA DE ACESSO NEGADO ---
+  if (!canManageUsers) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] text-center space-y-4 animate-in fade-in duration-500">
+        <AlertTriangle className="h-16 w-16 text-yellow-500" />
+        <h2 className="text-2xl font-bold text-foreground">Acesso Negado</h2>
+        <p className="text-muted-foreground max-w-md">
+          Você não tem permissão para acessar o painel de Gestão de Usuários.
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -298,7 +324,7 @@ export function Usuarios() {
               placeholder="Buscar usuário..."
               className="pl-8 w-full md:w-[280px] bg-background border-input text-foreground h-9"
               value={searchUser}
-              onChange={(e) => { setSearchUser(e.target.value); setCurrentPage(1) }}
+              onChange={(e) => { setSearchUser(e.target.value.slice(0, 100)); setCurrentPage(1) }}
             />
           </div>
 
@@ -415,14 +441,21 @@ export function Usuarios() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedUsers.length === 0 ? (
+              {isLoadingUsers ? (
+                <TableRow>
+                  <TableCell colSpan={canManageUsers ? 4 : 3} className="text-center py-12 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                    Carregando colaboradores...
+                  </TableCell>
+                </TableRow>
+              ) : usersList.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={canManageUsers ? 4 : 3} className="text-center py-12 text-muted-foreground">
                     {searchUser ? "Nenhum colaborador encontrado para esta busca." : "Nenhum colaborador cadastrado."}
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedUsers.map((u) => {
+                usersList.map((u) => {
                   const userRolesList = u.roles || (u.role ? [u.role] : ["ROLE_USER"])
                   
                   return (
@@ -538,7 +571,7 @@ export function Usuarios() {
       <Pagination
         currentPage={currentPage}
         totalPages={totalPages}
-        totalItems={filteredUsers.length}
+        totalItems={totalItems}
         itemsPerPage={ITEMS_PER_PAGE}
         onPageChange={setCurrentPage}
       />

@@ -12,13 +12,17 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -33,6 +37,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "Inventário", description = "Gestão de estoque administrativo e ativos de TI")
 public class InventoryController {
+
+    private static final int MAX_PAGE_SIZE = 100;
+    private static final Set<String> STOCK_SORT_FIELDS = Set.of("name", "category", "quantity", "minimumStock");
+    private static final Set<String> ASSET_SORT_FIELDS = Set.of("brand", "model", "serialNumber", "assetTag", "status");
+    private static final Set<String> MOVEMENT_SORT_FIELDS = Set.of("createdAt", "type", "quantity");
 
     private final IStockItemService stockItemService;
     private final IITAssetService itAssetService;
@@ -86,8 +95,10 @@ public class InventoryController {
      */
     @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/items")
-    public ResponseEntity<Page<StockItemResponseDTO>> getAllStockItems(@PageableDefault(size = 20, sort = "name") Pageable pageable) {
-        return ResponseEntity.ok(stockItemService.findAllItems(pageable));
+    public ResponseEntity<Page<StockItemResponseDTO>> getAllStockItems(
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 10, sort = "name") Pageable pageable) {
+        return ResponseEntity.ok(stockItemService.findAllItems(normalizeSearch(search), sanitizePageable(pageable, STOCK_SORT_FIELDS, "name")));
     }
 
     /**
@@ -127,14 +138,16 @@ public class InventoryController {
     }
 
     /**
-     * Retrieves all IT assets regardless of their current status.
+     * Retrieves a paginated list of IT assets regardless of their current status.
      *
-     * @return 200 OK with the complete list of {@link ITAssetResponseDTO}
+     * @return 200 OK with a page of {@link ITAssetResponseDTO}
      */
     @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/it/assets")
-    public ResponseEntity<List<ITAssetResponseDTO>> getAllITAssets(){
-        return ResponseEntity.ok(itAssetService.findAllAssets());
+    public ResponseEntity<Page<ITAssetResponseDTO>> getAllITAssets(
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 10, sort = "brand") Pageable pageable){
+        return ResponseEntity.ok(itAssetService.findAllAssets(normalizeSearch(search), sanitizePageable(pageable, ASSET_SORT_FIELDS, "brand")));
     }
 
     /**
@@ -236,7 +249,7 @@ public class InventoryController {
     @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/items/low-stock")
     public ResponseEntity<Page<StockItemResponseDTO>> getLowStockItems(@PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(stockItemService.findLowStockItems(pageable));
+        return ResponseEntity.ok(stockItemService.findLowStockItems(sanitizePageable(pageable, STOCK_SORT_FIELDS, "quantity")));
     }
 
     /**
@@ -247,8 +260,10 @@ public class InventoryController {
      */
     @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/movements")
-    public ResponseEntity<Page<InventoryMovement>> getStockMovements(@PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(stockItemService.findAllMovements(pageable));
+    public ResponseEntity<Page<InventoryMovement>> getStockMovements(
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(stockItemService.findAllMovements(normalizeSearch(search), sanitizePageable(pageable, MOVEMENT_SORT_FIELDS, "createdAt")));
     }
 
     /**
@@ -263,6 +278,30 @@ public class InventoryController {
     public ResponseEntity<Page<InventoryMovement>> getMovementsByItem(
             @PathVariable UUID id,
             @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(stockItemService.findMovementsByItem(id, pageable));
+        return ResponseEntity.ok(stockItemService.findMovementsByItem(id, sanitizePageable(pageable, MOVEMENT_SORT_FIELDS, "createdAt")));
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null) return "";
+        String normalized = search.trim();
+        return normalized.length() > 100 ? normalized.substring(0, 100) : normalized;
+    }
+
+    private Pageable sanitizePageable(Pageable pageable, Set<String> allowedSortFields, String defaultSortField) {
+        int page = Math.max(0, pageable.getPageNumber());
+        int size = Math.min(Math.max(1, pageable.getPageSize()), MAX_PAGE_SIZE);
+
+        Set<String> usedProperties = new HashSet<>();
+        List<Sort.Order> safeOrders = pageable.getSort().stream()
+                .filter(order -> allowedSortFields.contains(order.getProperty()))
+                .filter(order -> usedProperties.add(order.getProperty()))
+                .map(order -> new Sort.Order(order.getDirection(), order.getProperty()))
+                .toList();
+
+        Sort sort = safeOrders.isEmpty()
+                ? Sort.by(Sort.Order.asc(defaultSortField))
+                : Sort.by(safeOrders);
+
+        return PageRequest.of(page, size, sort);
     }
 }

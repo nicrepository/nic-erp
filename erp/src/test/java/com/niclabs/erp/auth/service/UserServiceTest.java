@@ -17,9 +17,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -69,6 +75,42 @@ class UserServiceTest {
         verify(userRepository).save(any());
         assertThat(result.getEmail()).isEqualTo("joao@email.com");
         assertThat(result.isMustChangePassword()).isTrue();
+    }
+
+    @Test
+    void listAllUsers_shouldUseFindAll_whenSearchIsBlank() {
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setName("Álvaro Neto");
+        user.setEmail("alvaro@email.com");
+        user.setRoles(Set.of());
+
+        PageRequest pageable = PageRequest.of(0, 10);
+        when(userRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(user), pageable, 1));
+
+        Page<?> result = userService.listAllUsers("   ", pageable);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(userRepository).findAll(pageable);
+        verify(userRepository, never()).searchUsers(any(), any());
+    }
+
+    @Test
+    void listAllUsers_shouldUseSearchQuery_whenSearchIsProvided() {
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setName("Álvaro Neto");
+        user.setEmail("alvaro@email.com");
+        user.setRoles(Set.of());
+
+        PageRequest pageable = PageRequest.of(0, 10);
+        when(userRepository.searchUsers("Álvaro", pageable)).thenReturn(new PageImpl<>(List.of(user), pageable, 1));
+
+        Page<?> result = userService.listAllUsers(" Álvaro ", pageable);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(userRepository).searchUsers("Álvaro", pageable);
+        verify(userRepository, never()).findAll(pageable);
     }
 
     // ── setFirstLoginPassword ──────────────────────────────────────────────────

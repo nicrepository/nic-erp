@@ -17,6 +17,8 @@ import com.niclabs.erp.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -93,10 +95,15 @@ public class ITAssetService implements IITAssetService {
      * @return list of {@link ITAssetResponseDTO}
      */
     @Transactional(readOnly = true)
-    public List<ITAssetResponseDTO> findAllAssets() {
-        return assetRepository.findAll().stream()
+    public Page<ITAssetResponseDTO> findAllAssets(String search, Pageable pageable) {
+        String normalizedSearch = search == null ? "" : search.trim();
+        Page<ITAsset> assets = normalizedSearch.isBlank()
+                ? assetRepository.findAll(pageable)
+                : assetRepository.searchAssets(normalizedSearch, pageable);
+
+        return assets
                 .map(this::mapAssetToDTO)
-                .toList();
+                ;
     }
 
     /**
