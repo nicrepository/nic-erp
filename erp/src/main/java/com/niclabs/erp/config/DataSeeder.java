@@ -62,7 +62,9 @@ public class DataSeeder implements CommandLineRunner {
                 "ACCESS_HELPDESK",
                 "ACCESS_USERS",
                 "ACCESS_DASHBOARD",
-                "ACCESS_ANNOUNCEMENTS_MANAGE"
+                "ACCESS_ANNOUNCEMENTS_MANAGE",
+                "ACCESS_FISCAL",
+                "ACCESS_PURCHASES"
         );
 
         for (String permName : systemPermissions) {

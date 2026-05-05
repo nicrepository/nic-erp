@@ -5,6 +5,7 @@ import com.niclabs.erp.exception.ResourceNotFoundException;
 import com.niclabs.erp.inventory.domain.StockItem;
 import com.niclabs.erp.inventory.dto.StockItemDTO;
 import com.niclabs.erp.inventory.repository.InventoryMovementRepository;
+import com.niclabs.erp.inventory.repository.StockCategoryRepository;
 import com.niclabs.erp.inventory.repository.StockItemRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +29,7 @@ class StockItemServiceTest {
 
     @Mock StockItemRepository itemRepository;
     @Mock InventoryMovementRepository movementRepository;
+    @Mock StockCategoryRepository categoryRepository;
 
     @InjectMocks StockItemService stockItemService;
 

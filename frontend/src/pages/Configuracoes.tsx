@@ -83,7 +83,9 @@ export function Configuracoes() {
       'ACCESS_USERS': 'Gestão de Usuários',
       'ACCESS_DASHBOARD': 'Visualizar Dashboard',
       'ACCESS_ANNOUNCEMENTS_MANAGE': 'Gerenciar Comunicados',
-      'ACCESS_HR': 'Recursos Humanos'
+      'ACCESS_HR': 'Recursos Humanos',
+      'ACCESS_FISCAL': 'Fiscal',
+      'ACCESS_PURCHASES': 'Compras'
     }
     return dict[perm] || perm
   }

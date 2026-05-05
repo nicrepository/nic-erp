@@ -40,6 +40,15 @@ public class InventoryMovement {
     @Column(name = "performed_by", nullable = false)
     private UUID performedBy;
 
+    @Column(name = "origin_type")
+    private String originType;
+
+    @Column(name = "origin_id")
+    private UUID originId;
+
+    @Column(name = "origin_description")
+    private String originDescription;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

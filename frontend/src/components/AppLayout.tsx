@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Sun, Moon, Menu, Ticket, Briefcase, ChevronRight, KeyRound, Eye, EyeOff } from "lucide-react"
+import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Sun, Moon, Menu, Ticket, Briefcase, ChevronRight, KeyRound, Eye, EyeOff, ReceiptText, ShoppingCart } from "lucide-react"
 import { useTheme } from "../contexts/ThemeProvider"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -36,6 +36,8 @@ const navGroups = [
     items: [
       { label: "Helpdesk", path: "/helpdesk", icon: <Ticket className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HELPDESK", "ROLE_TI", "ROLE_RH", "ROLE_USER"] },
       { label: "Inventário", path: "/inventario", icon: <Package className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_INVENTORY_IT", "ACCESS_INVENTORY_ADMIN", "ROLE_TI", "ROLE_RH"] },
+      { label: "Fiscal", path: "/fiscal", icon: <ReceiptText className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_FISCAL"] },
+      { label: "Compras", path: "/compras", icon: <ShoppingCart className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_PURCHASES"] },
       { label: "Recursos Humanos", path: "/recursoshumanos", icon: <Briefcase className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HR"] },
     ],
   },

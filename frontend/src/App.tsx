@@ -12,6 +12,8 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword").then(m => ({ de
 const Dashboard    = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })))
 const Helpdesk     = lazy(() => import("./pages/Helpdesk").then(m => ({ default: m.Helpdesk })))
 const Inventario   = lazy(() => import("./pages/Inventario").then(m => ({ default: m.Inventario })))
+const Fiscal       = lazy(() => import("./pages/Fiscal").then(m => ({ default: m.Fiscal })))
+const Compras      = lazy(() => import("./pages/Compras").then(m => ({ default: m.Compras })))
 const Usuarios     = lazy(() => import("./pages/Usuarios").then(m => ({ default: m.Usuarios })))
 const Configuracoes = lazy(() => import("./pages/Configuracoes").then(m => ({ default: m.Configuracoes })))
 const RecursosHumanos = lazy(() => import("./pages/RecursosHumanos").then(m => ({ default: m.RecursosHumanos })))
@@ -51,6 +53,8 @@ function App() {
                 <Route path="/usuarios"         element={<ErrorBoundary><Usuarios /></ErrorBoundary>} />
                 <Route path="/helpdesk"         element={<ErrorBoundary><Helpdesk /></ErrorBoundary>} />
                 <Route path="/inventario"       element={<ErrorBoundary><Inventario /></ErrorBoundary>} />
+                <Route path="/fiscal"           element={<ErrorBoundary><Fiscal /></ErrorBoundary>} />
+                <Route path="/compras"          element={<ErrorBoundary><Compras /></ErrorBoundary>} />
                 <Route path="/configuracoes"    element={<ErrorBoundary><Configuracoes /></ErrorBoundary>} />
                 <Route path="/recursoshumanos"  element={<ErrorBoundary><RecursosHumanos /></ErrorBoundary>} />
               </Route>

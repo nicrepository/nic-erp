@@ -48,6 +48,8 @@ public final class AppConstants {
     public static final String PERM_ACCESS_INVENTORY_ADMIN = "ACCESS_INVENTORY_ADMIN";
     public static final String PERM_ACCESS_INVENTORY_IT = "ACCESS_INVENTORY_IT";
     public static final String PERM_ACCESS_ANNOUNCEMENTS_MANAGE = "ACCESS_ANNOUNCEMENTS_MANAGE";
+    public static final String PERM_ACCESS_FISCAL = "ACCESS_FISCAL";
+    public static final String PERM_ACCESS_PURCHASES = "ACCESS_PURCHASES";
 
     private AppConstants() {
         // Utility class — do not instantiate

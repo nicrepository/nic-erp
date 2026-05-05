@@ -72,7 +72,18 @@ public class StockItemService implements IStockItemService {
 
         item.setQuantity(item.getQuantity() + quantity);
         itemRepository.save(item);
-        recordMovement(item, quantity, MovementType.IN);
+        recordMovement(item, quantity, MovementType.IN, null, null, null);
+    }
+
+    @Transactional
+    public void addStockFromFiscal(UUID itemId, Integer quantity, BigDecimal unitValue, UUID invoiceId, String originDescription) {
+        StockItem item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Item não encontrado no estoque"));
+
+        item.setUnitValue(normalizeMoney(unitValue));
+        item.setQuantity(item.getQuantity() + quantity);
+        itemRepository.save(item);
+        recordMovement(item, quantity, MovementType.IN, "FISCAL_INVOICE", invoiceId, originDescription);
     }
 
     /**
@@ -94,11 +105,11 @@ public class StockItemService implements IStockItemService {
 
         item.setQuantity(item.getQuantity() - quantity);
         itemRepository.save(item);
-        recordMovement(item, quantity, MovementType.OUT);
+        recordMovement(item, quantity, MovementType.OUT, null, null, null);
     }
 
     // Método privado para automatizar o registro da auditoria
-    private void recordMovement(StockItem item, Integer quantity, MovementType type) {
+    private void recordMovement(StockItem item, Integer quantity, MovementType type, String originType, UUID originId, String originDescription) {
         User loggedInUser = SecurityUtils.getCurrentUser();
         BigDecimal unitValue = normalizeMoney(item.getUnitValue());
         InventoryMovement movement = new InventoryMovement();
@@ -109,6 +120,9 @@ public class StockItemService implements IStockItemService {
         movement.setUnitValue(unitValue);
         movement.setTotalValue(unitValue.multiply(BigDecimal.valueOf(quantity)));
         movement.setPerformedBy(loggedInUser.getId());
+        movement.setOriginType(originType);
+        movement.setOriginId(originId);
+        movement.setOriginDescription(originDescription);
 
         movementRepository.save(movement);
     }

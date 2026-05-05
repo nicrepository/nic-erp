@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class StorageService implements IStorageService {
@@ -31,7 +32,8 @@ public class StorageService implements IStorageService {
 
     // A08: Allowed MIME types for uploaded files
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"
+            "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf",
+            "application/xml", "text/xml"
     );
 
     // A08: Magic byte signatures for file type verification (prevents content-type spoofing)
@@ -78,6 +80,8 @@ public class StorageService implements IStorageService {
                         throw new BusinessException("O conteúdo do arquivo não corresponde ao tipo declarado.");
                     }
                 }
+            } else if ("application/xml".equals(contentType) || "text/xml".equals(contentType)) {
+                validateXmlFile(file);
             }
 
             String fileExtension = "";
@@ -93,6 +97,17 @@ public class StorageService implements IStorageService {
 
         } catch (IOException ex) {
             throw new RuntimeException("Não foi possível armazenar o arquivo " + originalFileName, ex);
+        }
+    }
+
+    private void validateXmlFile(MultipartFile file) throws IOException {
+        byte[] header = file.getInputStream().readNBytes(512);
+        String start = new String(header, StandardCharsets.UTF_8).trim().toLowerCase();
+        if (!(start.startsWith("<?xml") || start.startsWith("<"))) {
+            throw new BusinessException("O conteúdo do arquivo XML é inválido.");
+        }
+        if (start.contains("<!doctype") || start.contains("<!entity")) {
+            throw new BusinessException("XML com DOCTYPE ou ENTITY não é permitido.");
         }
     }
 

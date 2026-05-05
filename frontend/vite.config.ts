@@ -52,6 +52,14 @@ export default defineConfig({
       '/announcements': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      '/fiscal': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/purchasing': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
       }
     }
   }

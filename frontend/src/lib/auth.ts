@@ -24,6 +24,8 @@ export function getInitialRouteFromAuthorities(authorities: string[]) {
   const hasAny = (...access: string[]) => access.some(item => authorities.includes(item))
 
   if (hasAny("ROLE_ADMIN", "ACCESS_DASHBOARD")) return "/dashboard"
+  if (hasAny("ACCESS_FISCAL")) return "/fiscal"
+  if (hasAny("ACCESS_PURCHASES")) return "/compras"
   if (hasAny("ACCESS_INVENTORY_IT", "ACCESS_INVENTORY_ADMIN", "ROLE_TI", "ROLE_RH")) return "/inventario"
   if (hasAny("ACCESS_HELPDESK", "ROLE_USER")) return "/helpdesk"
   if (hasAny("ACCESS_HR")) return "/recursoshumanos"

@@ -8,6 +8,7 @@ import com.niclabs.erp.inventory.dto.StockItemResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,6 +36,8 @@ public interface IStockItemService {
      * @throws com.niclabs.erp.exception.ResourceNotFoundException if the item does not exist
      */
     void addStock(UUID itemId, Integer quantity);
+
+    void addStockFromFiscal(UUID itemId, Integer quantity, BigDecimal unitValue, UUID invoiceId, String originDescription);
 
     /**
      * Removes stock from an existing item and records the outbound movement.
