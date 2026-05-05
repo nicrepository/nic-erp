@@ -1,8 +1,8 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { jwtDecode } from "jwt-decode"
 import { useAuth } from "../contexts/AuthContext"
 import { useTheme } from "../contexts/ThemeProvider"
+import { getInitialRouteFromAuthorities, getTokenAuthorities } from "../lib/auth"
 import { AlertCircle, Mail, Lock, ArrowRight, Shield, MailCheck, Sun, Moon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,21 +14,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 
-interface DecodedToken {
-  roles?: string[]
-}
-
 const getInitialRoute = (token: string) => {
-  const authorities = jwtDecode<DecodedToken>(token).roles || []
-  const hasAny = (...access: string[]) => access.some(item => authorities.includes(item))
-
-  if (hasAny("ROLE_ADMIN", "ACCESS_DASHBOARD")) return "/dashboard"
-  if (hasAny("ACCESS_HELPDESK", "ROLE_TI", "ROLE_RH", "ROLE_USER")) return "/helpdesk"
-  if (hasAny("ACCESS_INVENTORY_IT", "ACCESS_INVENTORY_ADMIN")) return "/inventario"
-  if (hasAny("ACCESS_HR")) return "/recursoshumanos"
-  if (hasAny("ACCESS_USERS")) return "/usuarios"
-
-  return "/helpdesk"
+  return getInitialRouteFromAuthorities(getTokenAuthorities(token))
 }
 
 export function Login() {

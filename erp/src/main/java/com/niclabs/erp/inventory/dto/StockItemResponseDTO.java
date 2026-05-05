@@ -1,5 +1,6 @@
 package com.niclabs.erp.inventory.dto;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public record StockItemResponseDTO(
@@ -7,5 +8,7 @@ public record StockItemResponseDTO(
         String name,
         String category,
         Integer quantity,
-        Integer minimumStock
+        Integer minimumStock,
+        BigDecimal unitValue,
+        BigDecimal totalValue
 ) {}

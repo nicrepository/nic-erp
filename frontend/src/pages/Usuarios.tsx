@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import { getAuthorities } from "../lib/auth"
 import { useToast } from "../contexts/ToastContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,7 +33,7 @@ function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: 
 export function Usuarios() {
   const { user } = useAuth()
   const { success: showSuccess, error: showError } = useToast()
-  const authorities = user?.roles || []
+  const authorities = getAuthorities(user)
   const canManageUsers = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_USERS')
 
   const [usersList, setUsersList] = useState<any[]>([])

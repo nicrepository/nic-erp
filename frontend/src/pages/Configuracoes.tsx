@@ -22,11 +22,13 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { getAuthorities } from "../lib/auth"
 
 export function Configuracoes() {
   const { user, updateUser } = useAuth()
   const toast = useToast()
-  const isAdmin = user?.roles?.includes('ROLE_ADMIN')
+  const authorities = getAuthorities(user)
+  const isAdmin = authorities.includes('ROLE_ADMIN')
 
   // Estados para os dados da API
   const [roles, setRoles] = useState<any[]>([])
@@ -499,7 +501,7 @@ export function Configuracoes() {
                   <Mail className="h-4 w-4" /> {user?.email}
                 </p>
                 <div className="pt-2 flex flex-wrap justify-center sm:justify-start gap-1">
-                  {user?.roles?.map((r: string) => (
+                  {authorities.map((r: string) => (
                     <Badge key={r} variant="secondary" className="text-[10px]">
                       {r.replace('ROLE_', '')}
                     </Badge>

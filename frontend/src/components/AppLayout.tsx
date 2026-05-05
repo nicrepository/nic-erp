@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "../contexts/AuthContext"
+import { getAuthorities } from "../lib/auth"
 
 // Navigation item type
 interface NavItem {
@@ -102,7 +103,7 @@ export function AppLayout() {
   }
 
   const isActive = (path: string) => location.pathname === path
-  const authorities = user?.roles || []
+  const authorities = getAuthorities(user)
   const canAccessItem = (item: NavItem) => !item.access || item.access.some(access => authorities.includes(access))
 
   // Page title from current route

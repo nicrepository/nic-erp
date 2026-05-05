@@ -4,6 +4,8 @@ import com.niclabs.erp.inventory.domain.InventoryMovement;
 import com.niclabs.erp.inventory.dto.ITAssetDTO;
 import com.niclabs.erp.inventory.dto.ITAssetResponseDTO;
 import com.niclabs.erp.inventory.dto.ITAssetHistoryResponseDTO;
+import com.niclabs.erp.inventory.dto.StockCategoryDTO;
+import com.niclabs.erp.inventory.dto.StockCategoryResponseDTO;
 import com.niclabs.erp.inventory.dto.StockItemDTO;
 import com.niclabs.erp.inventory.dto.StockItemResponseDTO;
 import com.niclabs.erp.inventory.service.IITAssetService;
@@ -39,12 +41,42 @@ import java.util.UUID;
 public class InventoryController {
 
     private static final int MAX_PAGE_SIZE = 100;
-    private static final Set<String> STOCK_SORT_FIELDS = Set.of("name", "category", "quantity", "minimumStock");
+    private static final Set<String> STOCK_SORT_FIELDS = Set.of("name", "category", "quantity", "minimumStock", "unitValue");
     private static final Set<String> ASSET_SORT_FIELDS = Set.of("brand", "model", "serialNumber", "assetTag", "status");
     private static final Set<String> MOVEMENT_SORT_FIELDS = Set.of("createdAt", "type", "quantity");
 
     private final IStockItemService stockItemService;
     private final IITAssetService itAssetService;
+
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @GetMapping("/administrative/categories")
+    public ResponseEntity<List<StockCategoryResponseDTO>> getStockCategories(
+            @RequestParam(defaultValue = "false") boolean activeOnly) {
+        return ResponseEntity.ok(activeOnly
+                ? stockItemService.findActiveCategories()
+                : stockItemService.findAllCategories());
+    }
+
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PostMapping("/administrative/categories")
+    public ResponseEntity<StockCategoryResponseDTO> createStockCategory(@Valid @RequestBody StockCategoryDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(stockItemService.createCategory(dto));
+    }
+
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PutMapping("/administrative/categories/{id}")
+    public ResponseEntity<StockCategoryResponseDTO> updateStockCategory(
+            @PathVariable UUID id,
+            @Valid @RequestBody StockCategoryDTO dto) {
+        return ResponseEntity.ok(stockItemService.updateCategory(id, dto));
+    }
+
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @DeleteMapping("/administrative/categories/{id}")
+    public ResponseEntity<Void> deleteStockCategory(@PathVariable UUID id) {
+        stockItemService.deleteCategory(id);
+        return ResponseEntity.noContent().build();
+    }
 
     /**
      * Registers a new administrative stock item with zero initial quantity.

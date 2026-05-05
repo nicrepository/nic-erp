@@ -4,10 +4,14 @@ import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.common.SecurityUtils;
 import com.niclabs.erp.inventory.domain.InventoryMovement;
 import com.niclabs.erp.inventory.domain.MovementType;
+import com.niclabs.erp.inventory.domain.StockCategory;
 import com.niclabs.erp.inventory.domain.StockItem;
+import com.niclabs.erp.inventory.dto.StockCategoryDTO;
+import com.niclabs.erp.inventory.dto.StockCategoryResponseDTO;
 import com.niclabs.erp.inventory.dto.StockItemDTO;
 import com.niclabs.erp.inventory.dto.StockItemResponseDTO;
 import com.niclabs.erp.inventory.repository.InventoryMovementRepository;
+import com.niclabs.erp.inventory.repository.StockCategoryRepository;
 import com.niclabs.erp.inventory.repository.StockItemRepository;
 import com.niclabs.erp.exception.BusinessException;
 import com.niclabs.erp.exception.ResourceNotFoundException;
@@ -15,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +37,7 @@ public class StockItemService implements IStockItemService {
 
     private final StockItemRepository itemRepository;
     private final InventoryMovementRepository movementRepository;
+    private final StockCategoryRepository categoryRepository;
 
     /**
      * Registers a new stock item with an initial quantity of zero.
@@ -43,9 +50,10 @@ public class StockItemService implements IStockItemService {
         StockItem item = new StockItem();
         item.setId(UUID.randomUUID());
         item.setName(dto.name());
-        item.setCategory(dto.category());
+        item.setCategory(resolveActiveCategoryName(dto.category()));
         item.setQuantity(0);
         item.setMinimumStock(dto.minimumStock());
+        item.setUnitValue(normalizeMoney(dto.unitValue()));
 
         return mapToDTO(itemRepository.save(item));
     }
@@ -64,7 +72,7 @@ public class StockItemService implements IStockItemService {
 
         item.setQuantity(item.getQuantity() + quantity);
         itemRepository.save(item);
-        recordMovement(itemId, quantity, MovementType.IN);
+        recordMovement(item, quantity, MovementType.IN);
     }
 
     /**
@@ -86,17 +94,20 @@ public class StockItemService implements IStockItemService {
 
         item.setQuantity(item.getQuantity() - quantity);
         itemRepository.save(item);
-        recordMovement(itemId, quantity, MovementType.OUT);
+        recordMovement(item, quantity, MovementType.OUT);
     }
 
     // Método privado para automatizar o registro da auditoria
-    private void recordMovement(UUID itemId, Integer quantity, MovementType type) {
+    private void recordMovement(StockItem item, Integer quantity, MovementType type) {
         User loggedInUser = SecurityUtils.getCurrentUser();
+        BigDecimal unitValue = normalizeMoney(item.getUnitValue());
         InventoryMovement movement = new InventoryMovement();
         movement.setId(UUID.randomUUID());
-        movement.setItemId(itemId);
+        movement.setItemId(item.getId());
         movement.setType(type);
         movement.setQuantity(quantity);
+        movement.setUnitValue(unitValue);
+        movement.setTotalValue(unitValue.multiply(BigDecimal.valueOf(quantity)));
         movement.setPerformedBy(loggedInUser.getId());
 
         movementRepository.save(movement);
@@ -158,8 +169,9 @@ public class StockItemService implements IStockItemService {
                 .orElseThrow(() -> new ResourceNotFoundException("Item não encontrado no estoque"));
 
         item.setName(dto.name());
-        item.setCategory(dto.category());
+        item.setCategory(resolveActiveCategoryName(dto.category()));
         item.setMinimumStock(dto.minimumStock());
+        item.setUnitValue(normalizeMoney(dto.unitValue()));
 
         return mapToDTO(itemRepository.save(item));
     }
@@ -190,13 +202,91 @@ public class StockItemService implements IStockItemService {
                 : movementRepository.searchMovements(normalizedSearch, pageable);
     }
 
+    @Transactional(readOnly = true)
+    public List<StockCategoryResponseDTO> findAllCategories() {
+        return categoryRepository.findAllByOrderByNameAsc().stream()
+                .map(StockCategoryResponseDTO::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockCategoryResponseDTO> findActiveCategories() {
+        return categoryRepository.findByActiveOrderByNameAsc(true).stream()
+                .map(StockCategoryResponseDTO::fromEntity)
+                .toList();
+    }
+
+    @Transactional
+    public StockCategoryResponseDTO createCategory(StockCategoryDTO dto) {
+        String name = normalizeCategoryName(dto.name());
+        if (categoryRepository.existsByNameIgnoreCase(name)) {
+            throw new BusinessException("Já existe uma categoria com este nome.");
+        }
+
+        StockCategory category = new StockCategory();
+        category.setId(UUID.randomUUID());
+        category.setName(name);
+        category.setActive(dto.active() == null || dto.active());
+
+        return StockCategoryResponseDTO.fromEntity(categoryRepository.save(category));
+    }
+
+    @Transactional
+    public StockCategoryResponseDTO updateCategory(UUID categoryId, StockCategoryDTO dto) {
+        StockCategory category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada"));
+
+        String name = normalizeCategoryName(dto.name());
+        categoryRepository.findByNameIgnoreCase(name)
+                .filter(existing -> !existing.getId().equals(categoryId))
+                .ifPresent(existing -> {
+                    throw new BusinessException("Já existe uma categoria com este nome.");
+                });
+
+        category.setName(name);
+        if (dto.active() != null) {
+            category.setActive(dto.active());
+        }
+
+        return StockCategoryResponseDTO.fromEntity(categoryRepository.save(category));
+    }
+
+    @Transactional
+    public void deleteCategory(UUID categoryId) {
+        StockCategory category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada"));
+
+        category.setActive(false);
+        categoryRepository.save(category);
+    }
+
     private StockItemResponseDTO mapToDTO(StockItem item) {
+        BigDecimal unitValue = normalizeMoney(item.getUnitValue());
         return new StockItemResponseDTO(
                 item.getId(),
                 item.getName(),
                 item.getCategory(),
                 item.getQuantity(),
-                item.getMinimumStock()
+                item.getMinimumStock(),
+                unitValue,
+                unitValue.multiply(BigDecimal.valueOf(item.getQuantity()))
         );
+    }
+
+    private String resolveActiveCategoryName(String categoryName) {
+        String normalized = normalizeCategoryName(categoryName);
+        StockCategory category = categoryRepository.findByNameIgnoreCase(normalized)
+                .filter(StockCategory::isActive)
+                .orElseThrow(() -> new BusinessException("Selecione uma categoria ativa cadastrada."));
+
+        return category.getName();
+    }
+
+    private String normalizeCategoryName(String categoryName) {
+        return categoryName == null ? "" : categoryName.trim();
+    }
+
+    private BigDecimal normalizeMoney(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

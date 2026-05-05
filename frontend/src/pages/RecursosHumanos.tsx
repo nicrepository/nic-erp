@@ -18,6 +18,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { getAuthorities } from "../lib/auth"
 
 const ITEMS_PER_PAGE = 10
 
@@ -34,7 +35,8 @@ function SortIcon({ field, sortField, sortDir }: { field: string; sortField: str
 export function RecursosHumanos() {
   const { user } = useAuth()
   const toast = useToast()
-  const isRHOrAdmin = user?.roles?.includes('ROLE_ADMIN') || user?.roles?.includes('ACCESS_HR')
+  const authorities = getAuthorities(user)
+  const isRHOrAdmin = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_HR')
 
   // --- ESTADOS: DIRETÓRIO ---
   const [employees, setEmployees] = useState<any[]>([])

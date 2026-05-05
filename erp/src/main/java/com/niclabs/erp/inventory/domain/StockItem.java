@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -35,6 +36,9 @@ public class StockItem {
 
     @Column(name = "minimum_stock", nullable = false)
     private Integer minimumStock;
+
+    @Column(name = "unit_value", nullable = false, precision = 12, scale = 2)
+    private BigDecimal unitValue = BigDecimal.ZERO;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
