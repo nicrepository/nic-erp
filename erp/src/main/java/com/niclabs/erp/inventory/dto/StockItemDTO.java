@@ -19,6 +19,10 @@ public record StockItemDTO(
 
         @NotNull(message = "O valor do item é obrigatório.")
         @Min(value = 0, message = "O valor do item não pode ser negativo.")
-        BigDecimal unitValue
+        BigDecimal unitValue,
+
+        String unitOfMeasure,
+
+        String notes
 ) {
 }

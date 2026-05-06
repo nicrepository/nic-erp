@@ -4,7 +4,7 @@ import { getAuthorities } from "../lib/auth"
 import { useToast } from "../contexts/ToastContext"
 import { Pagination } from "@/components/ui/pagination"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search, History, ArrowDownRight, ArrowUpRight, Loader2, InboxIcon, ArrowUpDown, ArrowUp, ArrowDown, Tag, Trash2 } from "lucide-react"
+import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search, History, ArrowDownRight, ArrowUpRight, Loader2, InboxIcon, ArrowUpDown, ArrowUp, ArrowDown, Tag, Trash2, Ruler } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -85,9 +85,18 @@ export function Inventario() {
   const [itemCategory, setItemCategory] = useState("")
   const [itemMinStock, setItemMinStock] = useState<number | "">("")
   const [itemUnitValue, setItemUnitValue] = useState<number | "">("")
+  const [itemUnitOfMeasure, setItemUnitOfMeasure] = useState("")
+  const [itemNotes, setItemNotes] = useState("")
   const [newCategoryName, setNewCategoryName] = useState("")
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [editingCategoryName, setEditingCategoryName] = useState("")
+
+  // --- ESTADOS: UNIDADES DE MEDIDA ---
+  const [stockUnits, setStockUnits] = useState<any[]>([])
+  const [isUnitModalOpen, setIsUnitModalOpen] = useState(false)
+  const [newUnitName, setNewUnitName] = useState("")
+  const [editingUnitId, setEditingUnitId] = useState<string | null>(null)
+  const [editingUnitName, setEditingUnitName] = useState("")
 
   // ESTADOS: FILTROS DE BUSCA ---
   const [searchItAsset, setSearchItAsset] = useState("")
@@ -126,6 +135,7 @@ export function Inventario() {
   const [isLoadingMovements, setIsLoadingMovements] = useState(false)
 
   const activeStockCategories = stockCategories.filter(category => category.active)
+  const activeStockUnits = stockUnits.filter(unit => unit.active)
   const stockPatrimonialTotal = useMemo(
     () => stockItems.reduce((total, item) => total + Number(item.totalValue ?? (item.quantity || 0) * (item.unitValue || 0)), 0),
     [stockItems]
@@ -446,6 +456,20 @@ export function Inventario() {
     }
   }
 
+  const fetchStockUnits = async () => {
+    if (!canAccessAdministrativeInventory) return
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/inventory/administrative/units', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) setStockUnits(await response.json())
+    } catch (error) {
+      console.error("Erro ao buscar unidades de medida:", error)
+    }
+  }
+
   const fetchMovements = useCallback(async (signal?: AbortSignal) => {
     if (!canAccessAdministrativeInventory) return
 
@@ -537,6 +561,10 @@ export function Inventario() {
   }, [canAccessAdministrativeInventory])
 
   useEffect(() => {
+    if (canAccessAdministrativeInventory) fetchStockUnits()
+  }, [canAccessAdministrativeInventory])
+
+  useEffect(() => {
     if (!canAccessAdministrativeInventory) return
 
     const controller = new AbortController()
@@ -564,7 +592,9 @@ export function Inventario() {
           name: itemName, 
           category: itemCategory, 
           minimumStock: Number(itemMinStock),
-          unitValue: Number(itemUnitValue || 0)
+          unitValue: Number(itemUnitValue || 0),
+          unitOfMeasure: itemUnitOfMeasure || null,
+          notes: itemNotes || null
         })
       })
 
@@ -573,6 +603,8 @@ export function Inventario() {
         setItemCategory("")
         setItemMinStock("")
         setItemUnitValue("")
+        setItemUnitOfMeasure("")
+        setItemNotes("")
         setIsStockModalOpen(false)
         fetchStockItems()
         fetchStockItemLookup()
@@ -599,7 +631,9 @@ export function Inventario() {
           name: editStockData.name,
           category: editStockData.category,
           minimumStock: Number(editStockData.minimumStock),
-          unitValue: Number(editStockData.unitValue || 0)
+          unitValue: Number(editStockData.unitValue || 0),
+          unitOfMeasure: editStockData.unitOfMeasure || null,
+          notes: editStockData.notes || null
         })
       })
 
@@ -689,6 +723,79 @@ export function Inventario() {
         toast.success("Categoria desativada!")
       } else {
         toast.error("Erro ao desativar categoria", "Tente novamente.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  const handleCreateStockUnit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canManageAdministrativeInventory) return
+    if (!newUnitName.trim()) return
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/inventory/administrative/units', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: newUnitName.trim(), active: true })
+      })
+
+      if (response.ok) {
+        setNewUnitName("")
+        fetchStockUnits()
+        toast.success("Unidade cadastrada!")
+      } else {
+        const errorMsg = await response.text()
+        toast.error("Erro ao cadastrar unidade", errorMsg || "Verifique os dados e tente novamente.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  const handleUpdateStockUnit = async (unit: any, changes: Partial<any>) => {
+    if (!canManageAdministrativeInventory) return
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/inventory/administrative/units/${unit.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          name: changes.name ?? unit.name,
+          active: changes.active ?? unit.active
+        })
+      })
+
+      if (response.ok) {
+        setEditingUnitId(null)
+        setEditingUnitName("")
+        fetchStockUnits()
+        toast.success("Unidade atualizada!")
+      } else {
+        const errorMsg = await response.text()
+        toast.error("Erro ao atualizar unidade", errorMsg || "Verifique os dados e tente novamente.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  const handleDisableStockUnit = async (unit: any) => {
+    if (!canManageAdministrativeInventory) return
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/inventory/administrative/units/${unit.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        fetchStockUnits()
+        toast.success("Unidade desativada!")
+      } else {
+        toast.error("Erro ao desativar unidade", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -1262,6 +1369,10 @@ export function Inventario() {
                   <Tag className="h-4 w-4" /> Categorias
                 </Button>}
 
+                {canManageAdministrativeInventory && <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={() => setIsUnitModalOpen(true)}>
+                  <Ruler className="h-4 w-4" /> Unidades
+                </Button>}
+
                 {canManageAdministrativeInventory && <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2 w-full sm:w-auto">
@@ -1302,6 +1413,23 @@ export function Inventario() {
                         <div className="grid gap-2">
                           <Label htmlFor="itemUnitValue">Valor Unitário</Label>
                           <Input id="itemUnitValue" type="number" min="0" step="0.01" placeholder="Ex: 12.90" value={itemUnitValue} onChange={(e) => setItemUnitValue(e.target.value === "" ? "" : Number(e.target.value))} required />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="itemUnitOfMeasure">Unidade de Medida</Label>
+                          <Select value={itemUnitOfMeasure} onValueChange={setItemUnitOfMeasure}>
+                            <SelectTrigger id="itemUnitOfMeasure">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {activeStockUnits.map(unit => (
+                                <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="itemNotes">Observações</Label>
+                          <Textarea id="itemNotes" placeholder="Informações adicionais sobre o item..." className="min-h-[70px]" value={itemNotes} onChange={(e) => setItemNotes(e.target.value)} />
                         </div>
                       </div>
                       <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -1383,6 +1511,78 @@ export function Inventario() {
                     </div>
                   </DialogContent>
                 </Dialog>}
+
+                {canManageAdministrativeInventory && <Dialog open={isUnitModalOpen} onOpenChange={setIsUnitModalOpen}>
+                  <DialogContent className="sm:max-w-[520px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
+                    <DialogHeader>
+                      <DialogTitle>Unidades de Medida</DialogTitle>
+                      <DialogDescription>Cadastre as unidades de medida disponíveis para os materiais administrativos.</DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleCreateStockUnit} className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        placeholder="Ex: Unidade, Caixa, Litro..."
+                        value={newUnitName}
+                        onChange={(e) => setNewUnitName(e.target.value)}
+                        maxLength={100}
+                      />
+                      <Button type="submit" className="gap-2">
+                        <PlusCircle className="h-4 w-4" /> Adicionar
+                      </Button>
+                    </form>
+
+                    <div className="space-y-2 pt-2">
+                      {stockUnits.length === 0 ? (
+                        <div className="text-sm text-muted-foreground text-center py-8">Nenhuma unidade cadastrada.</div>
+                      ) : (
+                        stockUnits.map(unit => (
+                          <div key={unit.id} className="flex items-center gap-2 rounded-md border border-border p-2">
+                            {editingUnitId === unit.id ? (
+                              <Input
+                                value={editingUnitName}
+                                onChange={(e) => setEditingUnitName(e.target.value)}
+                                className="h-9"
+                                autoFocus
+                              />
+                            ) : (
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate">{unit.name}</p>
+                                <p className="text-xs text-muted-foreground">{unit.active ? "Ativa" : "Inativa"}</p>
+                              </div>
+                            )}
+
+                            {editingUnitId === unit.id ? (
+                              <Button size="sm" onClick={() => handleUpdateStockUnit(unit, { name: editingUnitName.trim() })}>
+                                Salvar
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingUnitId(unit.id)
+                                  setEditingUnitName(unit.name)
+                                }}
+                              >
+                                Editar
+                              </Button>
+                            )}
+
+                            {unit.active ? (
+                              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-600" onClick={() => handleDisableStockUnit(unit)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => handleUpdateStockUnit(unit, { active: true })}>
+                                Reativar
+                              </Button>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>}
               </div>
             </div>
 
@@ -1408,6 +1608,7 @@ export function Inventario() {
                     <TableRow className="hover:bg-muted/50 border-border">
                       <TableHead className="text-muted-foreground min-w-[200px]">Item</TableHead>
                       <TableHead className="text-muted-foreground min-w-[150px]">Categoria</TableHead>
+                      <TableHead className="text-muted-foreground min-w-[110px]">Unidade</TableHead>
                       <TableHead className="text-center text-muted-foreground min-w-[100px]">Qtd. Atual</TableHead>
                       <TableHead className="text-center text-muted-foreground min-w-[120px]">Estoque Mínimo</TableHead>
                       <TableHead className="text-right text-muted-foreground min-w-[120px]">Valor Unit.</TableHead>
@@ -1419,14 +1620,14 @@ export function Inventario() {
                   <TableBody>
                     {isLoadingStock ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="py-16 text-center text-muted-foreground">
+                        <TableCell colSpan={9} className="py-16 text-center text-muted-foreground">
                           <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
                           Carregando materiais...
                         </TableCell>
                       </TableRow>
                     ) : stockItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="py-16 text-center">
+                        <TableCell colSpan={9} className="py-16 text-center">
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <InboxIcon className="h-10 w-10 opacity-30" />
                             <p className="text-sm font-medium">Nenhum material encontrado</p>
@@ -1441,6 +1642,7 @@ export function Inventario() {
                           <TableRow key={item.id} className="hover:bg-muted/50 border-border">
                             <TableCell className="font-medium text-foreground whitespace-nowrap">{item.name}</TableCell>
                             <TableCell className="text-muted-foreground whitespace-nowrap">{item.category}</TableCell>
+                            <TableCell className="text-muted-foreground whitespace-nowrap">{item.unitOfMeasure || <span className="text-muted-foreground/50 italic">—</span>}</TableCell>
                             <TableCell className="text-center font-semibold text-foreground whitespace-nowrap">{item.quantity || 0}</TableCell>
                             <TableCell className="text-center text-muted-foreground whitespace-nowrap">{item.minimumStock}</TableCell>
                             <TableCell className="text-right text-muted-foreground whitespace-nowrap">{currencyFormatter.format(Number(item.unitValue || 0))}</TableCell>
@@ -1524,6 +1726,29 @@ export function Inventario() {
                         <div className="grid gap-2">
                           <Label>Valor Unitário</Label>
                           <Input type="number" min="0" step="0.01" value={editStockData.unitValue ?? 0} disabled={!canManageAdministrativeInventory} onChange={(e) => setEditStockData({...editStockData, unitValue: Number(e.target.value)})} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Unidade de Medida</Label>
+                          <Select value={editStockData.unitOfMeasure || ""} disabled={!canManageAdministrativeInventory} onValueChange={(value) => setEditStockData({...editStockData, unitOfMeasure: value})}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {activeStockUnits.map(unit => (
+                                <SelectItem key={unit.id} value={unit.name}>{unit.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Observações</Label>
+                          <Textarea
+                            placeholder="Informações adicionais sobre o item..."
+                            className="min-h-[70px]"
+                            value={editStockData.notes || ""}
+                            disabled={!canManageAdministrativeInventory}
+                            onChange={(e) => setEditStockData({...editStockData, notes: e.target.value})}
+                          />
                         </div>
                         {canManageAdministrativeInventory && <Button variant="secondary" className="w-full mt-2" onClick={handleUpdateStockItem}>
                           Salvar Alterações

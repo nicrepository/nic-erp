@@ -8,6 +8,8 @@ import com.niclabs.erp.inventory.dto.StockCategoryDTO;
 import com.niclabs.erp.inventory.dto.StockCategoryResponseDTO;
 import com.niclabs.erp.inventory.dto.StockItemDTO;
 import com.niclabs.erp.inventory.dto.StockItemResponseDTO;
+import com.niclabs.erp.inventory.dto.StockUnitOfMeasureDTO;
+import com.niclabs.erp.inventory.dto.StockUnitOfMeasureResponseDTO;
 import com.niclabs.erp.inventory.service.IITAssetService;
 import com.niclabs.erp.inventory.service.IStockItemService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -75,6 +77,38 @@ public class InventoryController {
     @DeleteMapping("/administrative/categories/{id}")
     public ResponseEntity<Void> deleteStockCategory(@PathVariable UUID id) {
         stockItemService.deleteCategory(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ---- Units of Measure endpoints ----
+
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_VIEW') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
+    @GetMapping("/administrative/units")
+    public ResponseEntity<List<StockUnitOfMeasureResponseDTO>> getStockUnits(
+            @RequestParam(defaultValue = "false") boolean activeOnly) {
+        return ResponseEntity.ok(activeOnly
+                ? stockItemService.findActiveUnits()
+                : stockItemService.findAllUnits());
+    }
+
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
+    @PostMapping("/administrative/units")
+    public ResponseEntity<StockUnitOfMeasureResponseDTO> createStockUnit(@Valid @RequestBody StockUnitOfMeasureDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(stockItemService.createUnit(dto));
+    }
+
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
+    @PutMapping("/administrative/units/{id}")
+    public ResponseEntity<StockUnitOfMeasureResponseDTO> updateStockUnit(
+            @PathVariable UUID id,
+            @Valid @RequestBody StockUnitOfMeasureDTO dto) {
+        return ResponseEntity.ok(stockItemService.updateUnit(id, dto));
+    }
+
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
+    @DeleteMapping("/administrative/units/{id}")
+    public ResponseEntity<Void> deleteStockUnit(@PathVariable UUID id) {
+        stockItemService.deleteUnit(id);
         return ResponseEntity.noContent().build();
     }
 

@@ -7,13 +7,17 @@ import com.niclabs.erp.inventory.domain.InventoryMovement;
 import com.niclabs.erp.inventory.domain.MovementType;
 import com.niclabs.erp.inventory.domain.StockCategory;
 import com.niclabs.erp.inventory.domain.StockItem;
+import com.niclabs.erp.inventory.domain.StockUnitOfMeasure;
 import com.niclabs.erp.inventory.dto.StockCategoryDTO;
 import com.niclabs.erp.inventory.dto.StockCategoryResponseDTO;
 import com.niclabs.erp.inventory.dto.StockItemDTO;
 import com.niclabs.erp.inventory.dto.StockItemResponseDTO;
+import com.niclabs.erp.inventory.dto.StockUnitOfMeasureDTO;
+import com.niclabs.erp.inventory.dto.StockUnitOfMeasureResponseDTO;
 import com.niclabs.erp.inventory.repository.InventoryMovementRepository;
 import com.niclabs.erp.inventory.repository.StockCategoryRepository;
 import com.niclabs.erp.inventory.repository.StockItemRepository;
+import com.niclabs.erp.inventory.repository.StockUnitOfMeasureRepository;
 import com.niclabs.erp.exception.BusinessException;
 import com.niclabs.erp.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +43,7 @@ public class StockItemService implements IStockItemService {
     private final StockItemRepository itemRepository;
     private final InventoryMovementRepository movementRepository;
     private final StockCategoryRepository categoryRepository;
+    private final StockUnitOfMeasureRepository unitRepository;
     private final IAuditService auditService;
 
     /**
@@ -56,6 +61,8 @@ public class StockItemService implements IStockItemService {
         item.setQuantity(0);
         item.setMinimumStock(dto.minimumStock());
         item.setUnitValue(normalizeMoney(dto.unitValue()));
+        item.setUnitOfMeasure(resolveActiveUnitName(dto.unitOfMeasure()));
+        item.setNotes(dto.notes());
 
         StockItem saved = itemRepository.save(item);
         auditService.record("CREATE_STOCK_ITEM", "INVENTORY", "StockItem", saved.getId(), "Item de estoque criado", "name=" + saved.getName() + "; category=" + saved.getCategory());
@@ -194,6 +201,8 @@ public class StockItemService implements IStockItemService {
         item.setCategory(resolveActiveCategoryName(dto.category()));
         item.setMinimumStock(dto.minimumStock());
         item.setUnitValue(normalizeMoney(dto.unitValue()));
+        item.setUnitOfMeasure(resolveActiveUnitName(dto.unitOfMeasure()));
+        item.setNotes(dto.notes());
 
         StockItem saved = itemRepository.save(item);
         auditService.record("UPDATE_STOCK_ITEM", "INVENTORY", "StockItem", saved.getId(), "Item de estoque atualizado", "name=" + saved.getName() + "; category=" + saved.getCategory());
@@ -298,8 +307,19 @@ public class StockItemService implements IStockItemService {
                 item.getQuantity(),
                 item.getMinimumStock(),
                 unitValue,
-                unitValue.multiply(BigDecimal.valueOf(item.getQuantity()))
+                unitValue.multiply(BigDecimal.valueOf(item.getQuantity())),
+                item.getUnitOfMeasure(),
+                item.getNotes()
         );
+    }
+
+    private String resolveActiveUnitName(String unitName) {
+        if (unitName == null || unitName.isBlank()) return null;
+        String normalized = unitName.trim();
+        StockUnitOfMeasure unit = unitRepository.findByNameIgnoreCase(normalized)
+                .filter(StockUnitOfMeasure::isActive)
+                .orElseThrow(() -> new BusinessException("Selecione uma unidade de medida ativa cadastrada."));
+        return unit.getName();
     }
 
     private String resolveActiveCategoryName(String categoryName) {
@@ -317,5 +337,51 @@ public class StockItemService implements IStockItemService {
 
     private BigDecimal normalizeMoney(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    // ---- Units of Measure CRUD ----
+
+    @Transactional(readOnly = true)
+    public List<StockUnitOfMeasureResponseDTO> findAllUnits() {
+        return unitRepository.findAllByOrderByNameAsc().stream()
+                .map(StockUnitOfMeasureResponseDTO::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockUnitOfMeasureResponseDTO> findActiveUnits() {
+        return unitRepository.findByActiveOrderByNameAsc(true).stream()
+                .map(StockUnitOfMeasureResponseDTO::fromEntity)
+                .toList();
+    }
+
+    @Transactional
+    public StockUnitOfMeasureResponseDTO createUnit(StockUnitOfMeasureDTO dto) {
+        String name = dto.name().trim();
+        if (unitRepository.existsByNameIgnoreCase(name)) {
+            throw new BusinessException("Já existe uma unidade de medida com este nome.");
+        }
+        StockUnitOfMeasure unit = new StockUnitOfMeasure();
+        unit.setId(UUID.randomUUID());
+        unit.setName(name);
+        unit.setActive(true);
+        return StockUnitOfMeasureResponseDTO.fromEntity(unitRepository.save(unit));
+    }
+
+    @Transactional
+    public StockUnitOfMeasureResponseDTO updateUnit(UUID unitId, StockUnitOfMeasureDTO dto) {
+        StockUnitOfMeasure unit = unitRepository.findById(unitId)
+                .orElseThrow(() -> new ResourceNotFoundException("Unidade de medida não encontrada"));
+        if (dto.name() != null) unit.setName(dto.name().trim());
+        if (dto.active() != null) unit.setActive(dto.active());
+        return StockUnitOfMeasureResponseDTO.fromEntity(unitRepository.save(unit));
+    }
+
+    @Transactional
+    public void deleteUnit(UUID unitId) {
+        StockUnitOfMeasure unit = unitRepository.findById(unitId)
+                .orElseThrow(() -> new ResourceNotFoundException("Unidade de medida não encontrada"));
+        unit.setActive(false);
+        unitRepository.save(unit);
     }
 }

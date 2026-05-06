@@ -5,6 +5,8 @@ import com.niclabs.erp.inventory.dto.StockCategoryDTO;
 import com.niclabs.erp.inventory.dto.StockCategoryResponseDTO;
 import com.niclabs.erp.inventory.dto.StockItemDTO;
 import com.niclabs.erp.inventory.dto.StockItemResponseDTO;
+import com.niclabs.erp.inventory.dto.StockUnitOfMeasureDTO;
+import com.niclabs.erp.inventory.dto.StockUnitOfMeasureResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -112,4 +114,14 @@ public interface IStockItemService {
     StockCategoryResponseDTO updateCategory(UUID categoryId, StockCategoryDTO dto);
 
     void deleteCategory(UUID categoryId);
+
+    List<StockUnitOfMeasureResponseDTO> findAllUnits();
+
+    List<StockUnitOfMeasureResponseDTO> findActiveUnits();
+
+    StockUnitOfMeasureResponseDTO createUnit(StockUnitOfMeasureDTO dto);
+
+    StockUnitOfMeasureResponseDTO updateUnit(UUID unitId, StockUnitOfMeasureDTO dto);
+
+    void deleteUnit(UUID unitId);
 }

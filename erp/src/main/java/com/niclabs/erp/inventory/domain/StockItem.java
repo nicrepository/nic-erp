@@ -40,6 +40,12 @@ public class StockItem {
     @Column(name = "unit_value", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitValue = BigDecimal.ZERO;
 
+    @Column(name = "unit_of_measure", length = 100)
+    private String unitOfMeasure;
+
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 }

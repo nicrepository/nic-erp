@@ -10,5 +10,7 @@ public record StockItemResponseDTO(
         Integer quantity,
         Integer minimumStock,
         BigDecimal unitValue,
-        BigDecimal totalValue
+        BigDecimal totalValue,
+        String unitOfMeasure,
+        String notes
 ) {}
