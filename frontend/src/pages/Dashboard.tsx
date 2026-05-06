@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { getAuthorities } from "../lib/auth"
+import { apiFetch } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Ticket, Laptop, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react"
@@ -19,9 +20,9 @@ export function Dashboard() {
   const authorities = getAuthorities(user)
   const isAdmin = authorities.includes('ROLE_ADMIN')
   const canAccessDashboard = isAdmin || authorities.includes('ACCESS_DASHBOARD')
-  const canAccessITInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_IT') || authorities.includes('ROLE_TI')
-  const canAccessAdministrativeInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_ADMIN') || authorities.includes('ROLE_RH')
-  const canManageHelpdesk = isAdmin || authorities.includes('ROLE_TI') || authorities.includes('ACCESS_HELPDESK')
+  const canAccessITInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_IT') || authorities.includes('ACCESS_INVENTORY_IT_VIEW') || authorities.includes('ACCESS_INVENTORY_IT_MANAGE') || authorities.includes('ROLE_TI')
+  const canAccessAdministrativeInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_ADMIN') || authorities.includes('ACCESS_INVENTORY_ADMIN_VIEW') || authorities.includes('ACCESS_INVENTORY_ADMIN_MANAGE') || authorities.includes('ROLE_RH')
+  const canManageHelpdesk = isAdmin || authorities.includes('ROLE_TI') || authorities.includes('ACCESS_HELPDESK') || authorities.includes('ACCESS_HELPDESK_VIEW') || authorities.includes('ACCESS_HELPDESK_MANAGE')
 
   useEffect(() => {
     if (!canAccessDashboard) {
@@ -34,18 +35,12 @@ export function Dashboard() {
     const fetchTickets = async () => {
       setIsLoadingTickets(true)
       try {
-        const token = localStorage.getItem("token")
         let endpoint = '/helpdesk/tickets/my'
         
         if (canManageHelpdesk) endpoint = '/helpdesk/tickets'
 
-        const response = await fetch(endpoint, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setTickets(toArray(data))
-        }
+        const data = await apiFetch(endpoint)
+        setTickets(toArray(data))
       } catch (error) {
         console.error("Erro ao buscar chamados no dashboard:", error)
       } finally {
@@ -56,14 +51,8 @@ export function Dashboard() {
     const fetchITAssets = async () => {
       if (!canAccessITInventory) { setIsLoadingAssets(false); return }
       try {
-        const token = localStorage.getItem("token")
-        const response = await fetch('/inventory/it/assets', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setItAssets(toArray(data))
-        }
+        const data = await apiFetch('/inventory/it/assets')
+        setItAssets(toArray(data))
       } catch (error) {
         console.error("Erro ao buscar ativos:", error)
       } finally {
@@ -74,14 +63,8 @@ export function Dashboard() {
     const fetchStockItems = async () => {
       if (!canAccessAdministrativeInventory) { setIsLoadingStock(false); return }
       try {
-        const token = localStorage.getItem("token")
-        const response = await fetch('/inventory/administrative/items', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setStockItems(toArray(data))
-        }
+        const data = await apiFetch('/inventory/administrative/items')
+        setStockItems(toArray(data))
       } catch (error) {
         console.error("Erro ao buscar estoque:", error)
       } finally {

@@ -18,7 +18,7 @@ import java.util.UUID;
  * REST controller for role and permission management (admin-only).
  *
  * <p>Roles group permissions and are assigned to users to control access to ERP features.
- * Mutating endpoints require {@code ROLE_ADMIN}; users with {@code ACCESS_USERS}
+ * Mutating endpoints require {@code ROLE_ADMIN} or {@code ACCESS_ROLES_MANAGE}; users with {@code ACCESS_USERS}
  * may list roles so they can assign existing cargos to users.</p>
  */
 @RestController
@@ -34,7 +34,7 @@ public class RoleController {
      *
      * @return 200 OK with a list of {@link RoleResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ACCESS_USERS_VIEW') or hasAuthority('ACCESS_USERS_MANAGE') or hasAuthority('ACCESS_ROLES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @GetMapping
     public ResponseEntity<List<RoleResponseDTO>> getAllRoles() {
         return ResponseEntity.ok(roleService.getAllRoles());
@@ -47,7 +47,7 @@ public class RoleController {
      *
      * @return 200 OK with a flat list of {@link Permission}
      */
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_ROLES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/permissions")
     public ResponseEntity<List<Permission>> getAllPermissions() {
         return ResponseEntity.ok(roleService.getAllPermissions());
@@ -59,7 +59,7 @@ public class RoleController {
      * @param dto role creation payload containing name and optional permission list
      * @return 201 Created with the persisted {@link RoleResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_ROLES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PostMapping
     public ResponseEntity<RoleResponseDTO> createRole(@Valid @RequestBody RoleRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(roleService.createRole(dto));
@@ -72,7 +72,7 @@ public class RoleController {
      * @param dto updated role payload
      * @return 200 OK with the updated {@link RoleResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_ROLES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<RoleResponseDTO> updateRole(
             @PathVariable UUID id,
@@ -87,7 +87,7 @@ public class RoleController {
      * @param permissions list of permission names to assign
      * @return 200 OK with the updated {@link RoleResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_ROLES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/{id}/permissions")
     public ResponseEntity<RoleResponseDTO> updateRolePermissions(
             @PathVariable UUID id,
@@ -101,7 +101,7 @@ public class RoleController {
      * @param id target role identifier
      * @return 204 No Content on success
      */
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_ROLES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRole(@PathVariable UUID id) {
         roleService.deleteRole(id);

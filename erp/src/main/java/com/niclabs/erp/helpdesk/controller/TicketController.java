@@ -58,7 +58,7 @@ public class TicketController {
      * @return 200 OK with a page of {@link TicketResponseDTO}
      */
     @GetMapping("/department/{department}")
-    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ACCESS_HELPDESK_VIEW') or hasAuthority('ACCESS_HELPDESK_MANAGE') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
     public ResponseEntity<Page<TicketResponseDTO>> listTicketsByDepartment(
             @PathVariable String department,
             @PageableDefault(size = 10, page = 0) Pageable pageable) {
@@ -100,7 +100,7 @@ public class TicketController {
      * @param id target ticket identifier
      * @return 200 OK with the updated {@link TicketResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ACCESS_HELPDESK_MANAGE') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
     @PutMapping("/{id}/assign")
     public ResponseEntity<TicketResponseDTO> assignTicket(@PathVariable UUID id) {
         TicketResponseDTO updatedTicket = ticketService.assignTicket(id);
@@ -115,7 +115,7 @@ public class TicketController {
      * @param status the desired new {@link TicketStatus}
      * @return 200 OK with the updated {@link TicketResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ACCESS_HELPDESK_MANAGE') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
     @PutMapping("/{id}/status")
     public ResponseEntity<TicketResponseDTO> updateTicketStatus(
             @PathVariable UUID id,
@@ -144,7 +144,7 @@ public class TicketController {
      * @return 200 OK with a page of {@link TicketResponseDTO}
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK') or hasAuthority('ACCESS_HELPDESK_VIEW') or hasAuthority('ACCESS_HELPDESK_MANAGE') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI')")
     public ResponseEntity<Page<TicketResponseDTO>> getAllTickets(
             @PageableDefault(size = 10, page = 0) Pageable pageable) {
         return ResponseEntity.ok(ticketService.getAllTickets(pageable));

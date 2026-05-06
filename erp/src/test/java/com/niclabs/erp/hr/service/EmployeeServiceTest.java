@@ -1,5 +1,6 @@
 package com.niclabs.erp.hr.service;
 
+import com.niclabs.erp.audit.service.IAuditService;
 import com.niclabs.erp.auth.repository.UserRepository;
 import com.niclabs.erp.exception.DuplicateResourceException;
 import com.niclabs.erp.exception.ResourceNotFoundException;
@@ -26,6 +27,7 @@ class EmployeeServiceTest {
 
     @Mock EmployeeRepository employeeRepository;
     @Mock UserRepository userRepository;
+    @Mock IAuditService auditService;
 
     @InjectMocks EmployeeService employeeService;
 

@@ -52,7 +52,7 @@ public class SecurityConfig {
                                 .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                 )
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.POST, "/auth/register").hasAnyAuthority("ROLE_ADMIN", "ACCESS_USERS")
+                        .requestMatchers(HttpMethod.POST, "/auth/register").hasAnyAuthority("ROLE_ADMIN", "ACCESS_USERS", "ACCESS_USERS_MANAGE")
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/forgot-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/reset-password").permitAll()

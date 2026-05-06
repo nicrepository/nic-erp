@@ -6,6 +6,7 @@ import { ThemeProvider } from "./contexts/ThemeProvider"
 import { ToastProvider } from "./contexts/ToastContext"
 import { ErrorBoundary } from "./components/ErrorBoundary"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ApiSessionEvents } from "./components/ApiSessionEvents"
 
 const Login        = lazy(() => import("./pages/Login").then(m => ({ default: m.Login })))
 const ResetPassword = lazy(() => import("./pages/ResetPassword").then(m => ({ default: m.ResetPassword })))
@@ -38,6 +39,7 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="nic-erp-theme">
     <ToastProvider>
       <BrowserRouter>
+        <ApiSessionEvents />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />

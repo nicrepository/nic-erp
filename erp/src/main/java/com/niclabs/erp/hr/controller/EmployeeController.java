@@ -40,7 +40,7 @@ public class EmployeeController {
      * @return 201 Created with the persisted {@link EmployeeResponseDTO}
      */
     @PostMapping
-    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<EmployeeResponseDTO> createEmployee(@Valid @RequestBody EmployeeRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.createEmployee(dto));
     }
@@ -52,7 +52,7 @@ public class EmployeeController {
      * @return 200 OK with a page of {@link EmployeeResponseDTO}
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_VIEW') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Page<EmployeeResponseDTO>> listAllEmployees(@PageableDefault(size = 20, sort = "fullName") Pageable pageable) {
         return ResponseEntity.ok(employeeService.listAllEmployees(pageable));
     }
@@ -65,7 +65,7 @@ public class EmployeeController {
      * @return 200 OK with the updated {@link EmployeeResponseDTO}
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<EmployeeResponseDTO> updateEmployee(
             @PathVariable UUID id,
             @Valid @RequestBody EmployeeRequestDTO dto) {
@@ -79,7 +79,7 @@ public class EmployeeController {
      * @return 204 No Content on success
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteEmployee(@PathVariable UUID id) {
         employeeService.deleteEmployee(id);
         return ResponseEntity.noContent().build();

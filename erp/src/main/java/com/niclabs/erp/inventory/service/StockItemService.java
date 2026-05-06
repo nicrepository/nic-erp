@@ -1,6 +1,7 @@
 package com.niclabs.erp.inventory.service;
 
 import com.niclabs.erp.auth.domain.User;
+import com.niclabs.erp.audit.service.IAuditService;
 import com.niclabs.erp.common.SecurityUtils;
 import com.niclabs.erp.inventory.domain.InventoryMovement;
 import com.niclabs.erp.inventory.domain.MovementType;
@@ -38,6 +39,7 @@ public class StockItemService implements IStockItemService {
     private final StockItemRepository itemRepository;
     private final InventoryMovementRepository movementRepository;
     private final StockCategoryRepository categoryRepository;
+    private final IAuditService auditService;
 
     /**
      * Registers a new stock item with an initial quantity of zero.
@@ -55,7 +57,9 @@ public class StockItemService implements IStockItemService {
         item.setMinimumStock(dto.minimumStock());
         item.setUnitValue(normalizeMoney(dto.unitValue()));
 
-        return mapToDTO(itemRepository.save(item));
+        StockItem saved = itemRepository.save(item);
+        auditService.record("CREATE_STOCK_ITEM", "INVENTORY", "StockItem", saved.getId(), "Item de estoque criado", "name=" + saved.getName() + "; category=" + saved.getCategory());
+        return mapToDTO(saved);
     }
 
     /**
@@ -73,6 +77,7 @@ public class StockItemService implements IStockItemService {
         item.setQuantity(item.getQuantity() + quantity);
         itemRepository.save(item);
         recordMovement(item, quantity, MovementType.IN, null, null, null);
+        auditService.record("ADD_STOCK", "INVENTORY", "StockItem", item.getId(), "Entrada de estoque registrada", "quantity=" + quantity + "; item=" + item.getName());
     }
 
     @Transactional
@@ -84,6 +89,7 @@ public class StockItemService implements IStockItemService {
         item.setQuantity(item.getQuantity() + quantity);
         itemRepository.save(item);
         recordMovement(item, quantity, MovementType.IN, "FISCAL_INVOICE", invoiceId, originDescription);
+        auditService.record("ADD_STOCK_FROM_FISCAL", "INVENTORY", "StockItem", item.getId(), "Entrada fiscal registrada no estoque", "quantity=" + quantity + "; origin=" + originDescription);
     }
 
     /**
@@ -106,6 +112,7 @@ public class StockItemService implements IStockItemService {
         item.setQuantity(item.getQuantity() - quantity);
         itemRepository.save(item);
         recordMovement(item, quantity, MovementType.OUT, null, null, null);
+        auditService.record("REMOVE_STOCK", "INVENTORY", "StockItem", item.getId(), "Saída de estoque registrada", "quantity=" + quantity + "; item=" + item.getName());
     }
 
     // Método privado para automatizar o registro da auditoria
@@ -138,6 +145,7 @@ public class StockItemService implements IStockItemService {
         StockItem item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Item não encontrado no estoque"));
         itemRepository.delete(item);
+        auditService.record("DELETE_STOCK_ITEM", "INVENTORY", "StockItem", item.getId(), "Item de estoque removido", "name=" + item.getName());
     }
 
     /**
@@ -187,7 +195,9 @@ public class StockItemService implements IStockItemService {
         item.setMinimumStock(dto.minimumStock());
         item.setUnitValue(normalizeMoney(dto.unitValue()));
 
-        return mapToDTO(itemRepository.save(item));
+        StockItem saved = itemRepository.save(item);
+        auditService.record("UPDATE_STOCK_ITEM", "INVENTORY", "StockItem", saved.getId(), "Item de estoque atualizado", "name=" + saved.getName() + "; category=" + saved.getCategory());
+        return mapToDTO(saved);
     }
 
     /**
@@ -242,7 +252,9 @@ public class StockItemService implements IStockItemService {
         category.setName(name);
         category.setActive(dto.active() == null || dto.active());
 
-        return StockCategoryResponseDTO.fromEntity(categoryRepository.save(category));
+        StockCategory saved = categoryRepository.save(category);
+        auditService.record("CREATE_STOCK_CATEGORY", "INVENTORY", "StockCategory", saved.getId(), "Categoria de estoque criada", "name=" + saved.getName());
+        return StockCategoryResponseDTO.fromEntity(saved);
     }
 
     @Transactional
@@ -262,7 +274,9 @@ public class StockItemService implements IStockItemService {
             category.setActive(dto.active());
         }
 
-        return StockCategoryResponseDTO.fromEntity(categoryRepository.save(category));
+        StockCategory saved = categoryRepository.save(category);
+        auditService.record("UPDATE_STOCK_CATEGORY", "INVENTORY", "StockCategory", saved.getId(), "Categoria de estoque atualizada", "name=" + saved.getName() + "; active=" + saved.isActive());
+        return StockCategoryResponseDTO.fromEntity(saved);
     }
 
     @Transactional
@@ -272,6 +286,7 @@ public class StockItemService implements IStockItemService {
 
         category.setActive(false);
         categoryRepository.save(category);
+        auditService.record("DEACTIVATE_STOCK_CATEGORY", "INVENTORY", "StockCategory", category.getId(), "Categoria de estoque desativada", "name=" + category.getName());
     }
 
     private StockItemResponseDTO mapToDTO(StockItem item) {

@@ -26,10 +26,10 @@ export function getInitialRouteFromAuthorities(authorities: string[]) {
   if (hasAny("ROLE_ADMIN", "ACCESS_DASHBOARD")) return "/dashboard"
   if (hasAny("ACCESS_FISCAL")) return "/fiscal"
   if (hasAny("ACCESS_PURCHASES")) return "/compras"
-  if (hasAny("ACCESS_INVENTORY_IT", "ACCESS_INVENTORY_ADMIN", "ROLE_TI", "ROLE_RH")) return "/inventario"
-  if (hasAny("ACCESS_HELPDESK", "ROLE_USER")) return "/helpdesk"
-  if (hasAny("ACCESS_HR")) return "/recursoshumanos"
-  if (hasAny("ACCESS_USERS")) return "/usuarios"
+  if (hasAny("ACCESS_INVENTORY_IT", "ACCESS_INVENTORY_IT_VIEW", "ACCESS_INVENTORY_IT_MANAGE", "ACCESS_INVENTORY_ADMIN", "ACCESS_INVENTORY_ADMIN_VIEW", "ACCESS_INVENTORY_ADMIN_MANAGE", "ROLE_TI", "ROLE_RH")) return "/inventario"
+  if (hasAny("ACCESS_HELPDESK", "ACCESS_HELPDESK_VIEW", "ACCESS_HELPDESK_MANAGE", "ROLE_USER")) return "/helpdesk"
+  if (hasAny("ACCESS_HR", "ACCESS_HR_VIEW", "ACCESS_HR_MANAGE")) return "/recursoshumanos"
+  if (hasAny("ACCESS_USERS", "ACCESS_USERS_VIEW", "ACCESS_USERS_MANAGE")) return "/usuarios"
 
   return "/helpdesk"
 }

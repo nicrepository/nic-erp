@@ -29,7 +29,8 @@ export function Helpdesk() {
   const { user } = useAuth()
   const toast = useToast()
   const authorities = getAuthorities(user)
-  const canManageHelpdesk = authorities.includes('ROLE_ADMIN') || authorities.includes('ROLE_TI') || authorities.includes('ACCESS_HELPDESK')
+  const canManageHelpdesk = authorities.includes('ROLE_ADMIN') || authorities.includes('ROLE_TI') || authorities.includes('ACCESS_HELPDESK') || authorities.includes('ACCESS_HELPDESK_MANAGE')
+  const canViewHelpdeskQueue = canManageHelpdesk || authorities.includes('ACCESS_HELPDESK_VIEW')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [tickets, setTickets] = useState<any[]>([])
@@ -51,7 +52,7 @@ export function Helpdesk() {
   const [titleError, setTitleError] = useState("")
   const [descError, setDescError] = useState("")
   
-  const [activeTab, setActiveTab] = useState(canManageHelpdesk ? "queue" : "my-requests")
+  const [activeTab, setActiveTab] = useState(canViewHelpdeskQueue ? "queue" : "my-requests")
 
   // NOVO ESTADO: Lista de Usuários para traduzir os IDs em Nomes
   const [users, setUsers] = useState<any[]>([])
@@ -59,9 +60,9 @@ export function Helpdesk() {
   const [currentUserId, setCurrentUserId] = useState<string>("")
 
   useEffect(() => {
-    setActiveTab(canManageHelpdesk ? "queue" : "my-requests")
+    setActiveTab(canViewHelpdeskQueue ? "queue" : "my-requests")
     setCurrentPage(1)
-  }, [canManageHelpdesk])
+  }, [canViewHelpdeskQueue])
 
   const fetchUsers = async () => {
     if (!canManageHelpdesk) return
@@ -114,7 +115,7 @@ export function Helpdesk() {
       
       let endpoint = '/helpdesk/tickets/my'
 
-      if (canManageHelpdesk) endpoint = '/helpdesk/tickets'
+      if (canViewHelpdeskQueue) endpoint = '/helpdesk/tickets'
 
       const response = await fetch(endpoint, {
         headers: {
@@ -255,7 +256,7 @@ export function Helpdesk() {
     // 3. Limpeza (Muito Importante): Destrói o relógio se o usuário mudar de tela
     // Isso evita que o sistema fique buscando chamados se o cara for pra tela de Inventário, economizando internet e memória.
     return () => clearInterval(intervalId)
-  }, [canManageHelpdesk])
+  }, [canManageHelpdesk, canViewHelpdeskQueue])
 
   // NOVA FUNÇÃO: Traduz o ID do usuário para o Nome
   const getUserName = (userId: string) => {
@@ -377,8 +378,8 @@ export function Helpdesk() {
 
   // 2. SEGUNDO: Aplica o filtro das Abas (Segmentação)
   const displayTickets = searchFilteredTickets.filter(ticket => {
-    if (activeTab === "all") return canManageHelpdesk;
-    if (activeTab === "queue") return canManageHelpdesk && ticket.status === 'OPEN';
+    if (activeTab === "all") return canViewHelpdeskQueue;
+    if (activeTab === "queue") return canViewHelpdeskQueue && ticket.status === 'OPEN';
     if (activeTab === "open") return ticket.status === 'OPEN';
     
     if (activeTab === "assigned-to-me") {
@@ -612,15 +613,17 @@ export function Helpdesk() {
       {/* --- SISTEMA DE ABAS (FILTROS) --- */}
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setCurrentPage(1) }} className="w-full">
         
-        <TabsList className={`flex flex-col sm:grid w-full ${canManageHelpdesk ? "sm:grid-cols-5 lg:w-[760px]" : "sm:grid-cols-3 lg:w-[520px]"} mb-4 h-auto gap-1 sm:gap-0`}>
-          {canManageHelpdesk && (
+        <TabsList className={`flex flex-col sm:grid w-full ${canViewHelpdeskQueue ? "sm:grid-cols-5 lg:w-[760px]" : "sm:grid-cols-3 lg:w-[520px]"} mb-4 h-auto gap-1 sm:gap-0`}>
+          {canViewHelpdeskQueue && (
             <>
               <TabsTrigger value="queue" className="gap-2 w-full">
                 <AlertCircle className="h-4 w-4" /> Fila
               </TabsTrigger>
-              <TabsTrigger value="assigned-to-me" className="gap-2 w-full">
-                <UserSquare className="h-4 w-4" /> Meus Atendimentos
-              </TabsTrigger>
+              {canManageHelpdesk && (
+                <TabsTrigger value="assigned-to-me" className="gap-2 w-full">
+                  <UserSquare className="h-4 w-4" /> Meus Atendimentos
+                </TabsTrigger>
+              )}
               <TabsTrigger value="all" className="gap-2 w-full">
                 <ListFilter className="h-4 w-4" /> Todos
               </TabsTrigger>
@@ -629,7 +632,7 @@ export function Helpdesk() {
           <TabsTrigger value="my-requests" className="gap-2 w-full">
             <UserSquare className="h-4 w-4" /> Meus Chamados
           </TabsTrigger>
-          {!canManageHelpdesk && (
+          {!canViewHelpdeskQueue && (
             <TabsTrigger value="open" className="gap-2 w-full">
               <AlertCircle className="h-4 w-4" /> Em Aberto
             </TabsTrigger>

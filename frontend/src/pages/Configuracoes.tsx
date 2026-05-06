@@ -9,9 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
+import { Pagination } from "@/components/ui/pagination"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Shield, PlusCircle, UserCog, Settings, Key, Mail, Loader2, Tag, MoreHorizontal } from "lucide-react"
+import { Shield, PlusCircle, UserCog, Settings, Key, Mail, Loader2, Tag, MoreHorizontal, History, Search } from "lucide-react"
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
@@ -23,12 +24,15 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { getAuthorities } from "../lib/auth"
+import { apiFetch, ApiError } from "@/lib/api"
 
 export function Configuracoes() {
   const { user, updateUser } = useAuth()
   const toast = useToast()
   const authorities = getAuthorities(user)
   const isAdmin = authorities.includes('ROLE_ADMIN')
+  const canManageSystemAccess = isAdmin || authorities.includes('ACCESS_ROLES_MANAGE')
+  const canManageHelpdeskCategories = isAdmin || authorities.includes('ACCESS_HELPDESK_CATEGORIES_MANAGE')
 
   // Estados para os dados da API
   const [roles, setRoles] = useState<any[]>([])
@@ -73,17 +77,36 @@ export function Configuracoes() {
   const [catPriority, setCatPriority] = useState("")
   const [catDepartment, setCatDepartment] = useState("")
   const [catActive, setCatActive] = useState(true)
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [auditPage, setAuditPage] = useState(1)
+  const [auditTotalPages, setAuditTotalPages] = useState(1)
+  const [auditTotalItems, setAuditTotalItems] = useState(0)
+  const [auditSearch, setAuditSearch] = useState("")
+  const [auditModule, setAuditModule] = useState("ALL")
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false)
 
   // Dicionário amigável para traduzir o nome das permissões do back-end para o usuário
   const translatePermission = (perm: string) => {
     const dict: Record<string, string> = {
       'ACCESS_INVENTORY_ADMIN': 'Estoque (RH/Admin)',
+      'ACCESS_INVENTORY_ADMIN_VIEW': 'Estoque Administrativo: Visualizar',
+      'ACCESS_INVENTORY_ADMIN_MANAGE': 'Estoque Administrativo: Gerenciar',
       'ACCESS_INVENTORY_IT': 'Ativos de TI',
+      'ACCESS_INVENTORY_IT_VIEW': 'Ativos de TI: Visualizar',
+      'ACCESS_INVENTORY_IT_MANAGE': 'Ativos de TI: Gerenciar',
       'ACCESS_HELPDESK': 'Atendimento Helpdesk',
+      'ACCESS_HELPDESK_VIEW': 'Helpdesk: Visualizar fila',
+      'ACCESS_HELPDESK_MANAGE': 'Helpdesk: Atender chamados',
+      'ACCESS_HELPDESK_CATEGORIES_MANAGE': 'Helpdesk: Gerenciar categorias',
       'ACCESS_USERS': 'Gestão de Usuários',
+      'ACCESS_USERS_VIEW': 'Usuários: Visualizar',
+      'ACCESS_USERS_MANAGE': 'Usuários: Gerenciar',
+      'ACCESS_ROLES_MANAGE': 'Cargos e permissões: Gerenciar',
       'ACCESS_DASHBOARD': 'Visualizar Dashboard',
       'ACCESS_ANNOUNCEMENTS_MANAGE': 'Gerenciar Comunicados',
       'ACCESS_HR': 'Recursos Humanos',
+      'ACCESS_HR_VIEW': 'Recursos Humanos: Visualizar',
+      'ACCESS_HR_MANAGE': 'Recursos Humanos: Gerenciar',
       'ACCESS_FISCAL': 'Fiscal',
       'ACCESS_PURCHASES': 'Compras'
     }
@@ -93,40 +116,58 @@ export function Configuracoes() {
   // Busca inicial dos dados
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem("token")
-      
-      // Busca os Cargos (Roles)
-      const resRoles = await fetch('/roles', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (resRoles.ok) setRoles(await resRoles.json())
-
-      // Busca as Permissões cadastradas no banco
-      const resPerms = await fetch('/roles/permissions', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (resPerms.ok) setAvailablePermissions(await resPerms.json())
-
+      const [rolesData, permissionsData] = await Promise.all([
+        apiFetch<any[]>('/roles'),
+        apiFetch<any[]>('/roles/permissions'),
+      ])
+      setRoles(rolesData)
+      setAvailablePermissions(permissionsData)
     } catch (error) {
       console.error("Erro ao buscar dados de configuração:", error)
     }
   }
 
   useEffect(() => {
-    if (isAdmin) {
+    if (canManageSystemAccess) {
       fetchData()
+    }
+    if (canManageHelpdeskCategories) {
       fetchCategories()
     }
-  }, [isAdmin])
+    if (isAdmin) {
+      fetchAuditLogs()
+    }
+  }, [isAdmin, canManageSystemAccess, canManageHelpdeskCategories])
+
+  useEffect(() => {
+    if (isAdmin) fetchAuditLogs()
+  }, [isAdmin, auditPage, auditModule])
+
+  const fetchAuditLogs = async () => {
+    setIsLoadingAudit(true)
+    try {
+      const params = new URLSearchParams({
+        page: String(Math.max(0, auditPage - 1)),
+        size: "20",
+        sort: "occurredAt,desc",
+      })
+      if (auditSearch.trim()) params.set("search", auditSearch.trim().slice(0, 100))
+      if (auditModule !== "ALL") params.set("module", auditModule)
+      const data = await apiFetch<any>(`/audit/logs?${params}`)
+      setAuditLogs(data.content || [])
+      setAuditTotalPages(Math.max(1, data.totalPages || 1))
+      setAuditTotalItems(data.totalElements || 0)
+    } catch (error) {
+      console.error("Erro ao buscar auditoria:", error)
+    } finally {
+      setIsLoadingAudit(false)
+    }
+  }
 
   const fetchCategories = async () => {
     setIsLoadingCategories(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch('/helpdesk/categories/all', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (res.ok) setCategories(await res.json())
+      setCategories(await apiFetch<any[]>('/helpdesk/categories/all'))
     } catch (error) {
       console.error("Erro ao buscar categorias:", error)
     } finally {
@@ -138,22 +179,19 @@ export function Configuracoes() {
     e.preventDefault()
     setIsSavingCategory(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch('/helpdesk/categories', {
+      await apiFetch('/helpdesk/categories', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name: catName, description: catDescription, priority: catPriority, department: catDepartment, active: catActive })
+        body: { name: catName, description: catDescription, priority: catPriority, department: catDepartment, active: catActive }
       })
-      if (res.ok) {
-        setIsCreateCategoryOpen(false)
-        resetCatForm()
-        fetchCategories()
-        toast.success("Categoria criada!", "A nova categoria já está disponível no Helpdesk.")
-      } else {
-        toast.error("Erro ao criar categoria", "Verifique se já existe uma categoria com esse nome.")
-      }
+      setIsCreateCategoryOpen(false)
+      resetCatForm()
+      fetchCategories()
+      toast.success("Categoria criada!", "A nova categoria já está disponível no Helpdesk.")
     } catch (error) {
-      toast.error("Erro de conexão", "Tente novamente.")
+      toast.error(
+        error instanceof ApiError ? "Erro ao criar categoria" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Tente novamente."
+      )
     } finally {
       setIsSavingCategory(false)
     }
@@ -164,23 +202,20 @@ export function Configuracoes() {
     if (!editingCategory) return
     setIsSavingCategory(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`/helpdesk/categories/${editingCategory.id}`, {
+      await apiFetch(`/helpdesk/categories/${editingCategory.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name: catName, description: catDescription, priority: catPriority, department: catDepartment, active: catActive })
+        body: { name: catName, description: catDescription, priority: catPriority, department: catDepartment, active: catActive }
       })
-      if (res.ok) {
-        setIsEditCategoryOpen(false)
-        setEditingCategory(null)
-        resetCatForm()
-        fetchCategories()
-        toast.success("Categoria atualizada!", "As alterações foram salvas.")
-      } else {
-        toast.error("Erro ao atualizar categoria", "Tente novamente.")
-      }
+      setIsEditCategoryOpen(false)
+      setEditingCategory(null)
+      resetCatForm()
+      fetchCategories()
+      toast.success("Categoria atualizada!", "As alterações foram salvas.")
     } catch (error) {
-      toast.error("Erro de conexão", "Tente novamente.")
+      toast.error(
+        error instanceof ApiError ? "Erro ao atualizar categoria" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Tente novamente."
+      )
     } finally {
       setIsSavingCategory(false)
     }
@@ -188,19 +223,16 @@ export function Configuracoes() {
 
   const handleDeleteCategory = async (id: string) => {
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch(`/helpdesk/categories/${id}`, {
+      await apiFetch(`/helpdesk/categories/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
       })
-      if (res.ok) {
-        fetchCategories()
-        toast.success("Categoria removida!", "A categoria foi excluída do sistema.")
-      } else {
-        toast.error("Erro ao remover categoria", "Tente novamente.")
-      }
+      fetchCategories()
+      toast.success("Categoria removida!", "A categoria foi excluída do sistema.")
     } catch (error) {
-      toast.error("Erro de conexão", "Tente novamente.")
+      toast.error(
+        error instanceof ApiError ? "Erro ao remover categoria" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Tente novamente."
+      )
     }
   }
 
@@ -249,29 +281,24 @@ export function Configuracoes() {
   const handleCreateRole = async (e: React.FormEvent) => {e.preventDefault()
     setIsCreatingRole(true)
     try {
-      const token = localStorage.getItem("token")
       const finalRoleName = formatRoleName(newRoleName)
 
-      const response = await fetch('/roles', {
+      await apiFetch('/roles', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ name: finalRoleName, permissions: newRolePermissions })
+        body: { name: finalRoleName, permissions: newRolePermissions }
       })
 
-      if (response.ok) {
-        setIsCreateModalOpen(false)
-        setNewRoleName("")
-        setNewRolePermissions([])
-        fetchData()
-        toast.success("Cargo criado!", "O novo cargo foi adicionado ao sistema.")
-      } else {
-        toast.error("Erro ao criar cargo", "Este cargo já pode existir.")
-      }
+      setIsCreateModalOpen(false)
+      setNewRoleName("")
+      setNewRolePermissions([])
+      fetchData()
+      toast.success("Cargo criado!", "O novo cargo foi adicionado ao sistema.")
     } catch (error) {
       console.error("Erro de conexão:", error)
+      toast.error(
+        error instanceof ApiError ? "Erro ao criar cargo" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Tente novamente."
+      )
     } finally {
       setIsCreatingRole(false)
     }
@@ -294,31 +321,26 @@ export function Configuracoes() {
 
     setIsUpdatingRole(true)
     try {
-      const token = localStorage.getItem("token")
       const isProtectedDefaultRole = !canRenameRole(editingRole)
-      const response = await fetch(isProtectedDefaultRole ? `/roles/${editingRole.id}/permissions` : `/roles/${editingRole.id}`, {
+      await apiFetch(isProtectedDefaultRole ? `/roles/${editingRole.id}/permissions` : `/roles/${editingRole.id}`, {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify(isProtectedDefaultRole ? editingPermissions : {
+        body: isProtectedDefaultRole ? editingPermissions : {
           name: formatRoleName(editingRoleName),
           permissions: editingPermissions
-        })
+        }
       })
 
-      if (response.ok) {
-        setIsEditModalOpen(false)
-        setEditingRole(null)
-        setEditingRoleName("")
-        fetchData()
-        toast.success("Cargo atualizado!", "O nome e os acessos do cargo foram salvos.")
-      } else {
-        toast.error("Erro ao atualizar cargo", "Verifique se já existe um cargo com esse nome.")
-      }
+      setIsEditModalOpen(false)
+      setEditingRole(null)
+      setEditingRoleName("")
+      fetchData()
+      toast.success("Cargo atualizado!", "O nome e os acessos do cargo foram salvos.")
     } catch (error) {
       console.error("Erro de conexão:", error)
+      toast.error(
+        error instanceof ApiError ? "Erro ao atualizar cargo" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Tente novamente."
+      )
     } finally {
       setIsUpdatingRole(false)
     }
@@ -329,21 +351,19 @@ export function Configuracoes() {
 
     setIsDeletingRole(true)
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`/roles/${roleToDelete.id}`, {
+      await apiFetch(`/roles/${roleToDelete.id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
       })
 
-      if (response.ok) {
-        setRoleToDelete(null)
-        fetchData()
-        toast.success("Cargo excluído!", "O cargo foi removido do sistema.")
-      } else {
-        toast.error("Erro ao excluir cargo", "Este cargo pode estar protegido pelo sistema.")
-      }
+      setRoleToDelete(null)
+      fetchData()
+      toast.success("Cargo excluído!", "O cargo foi removido do sistema.")
     } catch (error) {
       console.error("Erro de conexão:", error)
+      toast.error(
+        error instanceof ApiError ? "Erro ao excluir cargo" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Este cargo pode estar protegido pelo sistema."
+      )
     } finally {
       setIsDeletingRole(false)
     }
@@ -371,30 +391,20 @@ export function Configuracoes() {
 
     setIsUploading(true)
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch('/users/me/avatar', {
+      const updatedUserData = await apiFetch<any>('/users/me/avatar', {
         method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}` 
-          // ⚠️ ATENÇÃO: NÃO coloque 'Content-Type': 'multipart/form-data' aqui!
-          // O navegador precisa gerar o cabeçalho sozinho com o "boundary" correto do arquivo.
-        },
         body: formData
       })
 
-      if (response.ok) {
-        // O back-end devolve os dados do usuário atualizados (com a nova avatarUrl)
-        const updatedUserData = await response.json() 
-        
-        // Injetamos a URL da foto direto no contexto do React (atualiza o cabeçalho e o perfil na hora!)
-        updateUser({ avatarUrl: updatedUserData.avatarUrl })
-        toast.success("Foto atualizada!", "Sua foto de perfil foi atualizada.")
-        
-      } else {
-        toast.error("Erro no upload", "Não foi possível enviar a foto. Tente novamente.")
-      }
+      // Injetamos a URL da foto direto no contexto do React (atualiza o cabeçalho e o perfil na hora!)
+      updateUser({ avatarUrl: updatedUserData.avatarUrl })
+      toast.success("Foto atualizada!", "Sua foto de perfil foi atualizada.")
     } catch (error) {
       console.error("Erro no upload:", error)
+      toast.error(
+        error instanceof ApiError ? "Erro no upload" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Não foi possível enviar a foto. Tente novamente."
+      )
     } finally {
       setIsUploading(false)
     }
@@ -410,29 +420,22 @@ export function Configuracoes() {
 
     setIsChangingPassword(true)
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch('/users/me/password', {
+      await apiFetch('/users/me/password', {
         method: 'PUT',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ currentPassword, newPassword })
+        body: { currentPassword, newPassword }
       })
 
-      if (response.ok) {
-        toast.success("Senha alterada!", "Sua senha foi atualizada com sucesso.")
-        // Limpa os campos após o sucesso
-        setCurrentPassword("")
-        setNewPassword("")
-        setConfirmPassword("")
-      } else {
-        const errorMsg = await response.text()
-        toast.error("Erro ao alterar senha", errorMsg)
-      }
+      toast.success("Senha alterada!", "Sua senha foi atualizada com sucesso.")
+      // Limpa os campos após o sucesso
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
     } catch (error) {
       console.error("Erro ao alterar senha:", error)
-      toast.error("Erro de conexão", "Verifique sua rede e tente novamente.")
+      toast.error(
+        error instanceof ApiError ? "Erro ao alterar senha" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Verifique sua rede e tente novamente."
+      )
     } finally {
       setIsChangingPassword(false)
     }
@@ -448,18 +451,23 @@ export function Configuracoes() {
 
       <div className="p-4 md:p-6">
       <Tabs defaultValue="perfil" className="w-full">
-        <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-3 max-w-[600px] mb-4 h-auto gap-1 sm:gap-0">
+        <TabsList className="flex flex-col sm:grid w-full sm:grid-cols-4 max-w-[760px] mb-4 h-auto gap-1 sm:gap-0">
           <TabsTrigger value="perfil" className="gap-2 w-full">
             <UserCog className="h-4 w-4" /> Meu Perfil
           </TabsTrigger>
-          {isAdmin && (
+          {canManageSystemAccess && (
             <TabsTrigger value="sistema" className="gap-2 w-full">
               <Settings className="h-4 w-4" /> Sistema & Acessos
             </TabsTrigger>
           )}
-          {isAdmin && (
+          {canManageHelpdeskCategories && (
             <TabsTrigger value="helpdesk" className="gap-2 w-full">
               <Tag className="h-4 w-4" /> Helpdesk
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="auditoria" className="gap-2 w-full">
+              <History className="h-4 w-4" /> Auditoria
             </TabsTrigger>
           )}
         </TabsList>
@@ -582,7 +590,7 @@ export function Configuracoes() {
         </TabsContent>
 
         {/* ABA: SISTEMA & ACESSOS (RBAC DINÂMICO) */}
-        {isAdmin && (
+        {canManageSystemAccess && (
           <TabsContent value="sistema" className="mt-4 space-y-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-foreground">Cargos e Permissões (RBAC)</h3>
@@ -787,7 +795,7 @@ export function Configuracoes() {
           </TabsContent>
         )}
 
-        {isAdmin && (
+        {canManageHelpdeskCategories && (
           <TabsContent value="helpdesk" className="mt-4">
             <div className="rounded-md border border-border bg-card shadow-sm">
               <div className="flex items-center justify-between p-4 border-b border-border">
@@ -971,8 +979,108 @@ export function Configuracoes() {
             </div>
           </TabsContent>
         )}
+
+        {isAdmin && (
+          <TabsContent value="auditoria" className="mt-4 space-y-4">
+            <div className="rounded-md border border-border bg-card shadow-sm">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 border-b border-border">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Trilha de Auditoria</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Acompanhe ações administrativas e operacionais registradas no sistema.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input className="pl-8 w-full sm:w-[260px]" placeholder="Buscar ação, usuário ou detalhe..." value={auditSearch} onChange={(e) => setAuditSearch(e.target.value)} />
+                  </div>
+                  <Select value={auditModule} onValueChange={(value) => { setAuditModule(value); setAuditPage(1) }}>
+                    <SelectTrigger className="w-full sm:w-[160px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Todos</SelectItem>
+                      <SelectItem value="AUTH">Acessos</SelectItem>
+                      <SelectItem value="INVENTORY">Inventário</SelectItem>
+                      <SelectItem value="HR">RH</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" onClick={() => { setAuditPage(1); fetchAuditLogs() }}>Filtrar</Button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <Table aria-label="Trilha de Auditoria">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Módulo</TableHead>
+                      <TableHead>Ação</TableHead>
+                      <TableHead>Resumo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingAudit ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Carregando auditoria...</TableCell></TableRow>
+                    ) : auditLogs.length === 0 ? (
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum evento de auditoria encontrado.</TableCell></TableRow>
+                    ) : (
+                      auditLogs.map(log => (
+                        <TableRow key={log.id}>
+                          <TableCell className="whitespace-nowrap">{formatAuditDate(log.occurredAt)}</TableCell>
+                          <TableCell>{log.actorName || "system"}</TableCell>
+                          <TableCell><Badge variant="outline">{auditModuleLabel(log.module)}</Badge></TableCell>
+                          <TableCell className="font-medium">{auditActionLabel(log.action)}</TableCell>
+                          <TableCell>
+                            <p className="text-sm">{log.summary || "-"}</p>
+                            {log.details && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{log.details}</p>}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="p-4 border-t border-border">
+                <Pagination currentPage={auditPage} totalPages={auditTotalPages} totalItems={auditTotalItems} itemsPerPage={20} onPageChange={setAuditPage} />
+              </div>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
       </div>
     </div>
   )
+}
+
+function formatAuditDate(value?: string) {
+  if (!value) return "-"
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value))
+}
+
+function auditModuleLabel(module?: string) {
+  return ({ AUTH: "Acessos", INVENTORY: "Inventário", HR: "RH" } as Record<string, string>)[module || ""] || module || "-"
+}
+
+function auditActionLabel(action?: string) {
+  return ({
+    CREATE_USER: "Criou usuário",
+    UPDATE_USER: "Atualizou usuário",
+    UPDATE_USER_ROLES: "Alterou cargos",
+    DEACTIVATE_USER: "Desativou usuário",
+    CREATE_ROLE: "Criou cargo",
+    UPDATE_ROLE: "Atualizou cargo",
+    UPDATE_ROLE_PERMISSIONS: "Alterou permissões",
+    DELETE_ROLE: "Removeu cargo",
+    CREATE_STOCK_ITEM: "Criou item",
+    UPDATE_STOCK_ITEM: "Atualizou item",
+    DELETE_STOCK_ITEM: "Removeu item",
+    ADD_STOCK: "Entrada de estoque",
+    ADD_STOCK_FROM_FISCAL: "Entrada fiscal",
+    REMOVE_STOCK: "Saída de estoque",
+    CREATE_STOCK_CATEGORY: "Criou categoria",
+    UPDATE_STOCK_CATEGORY: "Atualizou categoria",
+    DEACTIVATE_STOCK_CATEGORY: "Desativou categoria",
+    CREATE_EMPLOYEE: "Criou colaborador",
+    UPDATE_EMPLOYEE: "Atualizou colaborador",
+    DELETE_EMPLOYEE: "Removeu colaborador",
+  } as Record<string, string>)[action || ""] || action || "-"
 }

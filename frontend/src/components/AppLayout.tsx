@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "../contexts/AuthContext"
 import { getAuthorities } from "../lib/auth"
+import { apiFetch, ApiError } from "@/lib/api"
 
 // Navigation item type
 interface NavItem {
@@ -34,23 +35,23 @@ const navGroups = [
   {
     label: "Operacional",
     items: [
-      { label: "Helpdesk", path: "/helpdesk", icon: <Ticket className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HELPDESK", "ROLE_TI", "ROLE_RH", "ROLE_USER"] },
-      { label: "Inventário", path: "/inventario", icon: <Package className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_INVENTORY_IT", "ACCESS_INVENTORY_ADMIN", "ROLE_TI", "ROLE_RH"] },
+      { label: "Helpdesk", path: "/helpdesk", icon: <Ticket className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HELPDESK", "ACCESS_HELPDESK_VIEW", "ACCESS_HELPDESK_MANAGE", "ROLE_TI", "ROLE_RH", "ROLE_USER"] },
+      { label: "Inventário", path: "/inventario", icon: <Package className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_INVENTORY_IT", "ACCESS_INVENTORY_IT_VIEW", "ACCESS_INVENTORY_IT_MANAGE", "ACCESS_INVENTORY_ADMIN", "ACCESS_INVENTORY_ADMIN_VIEW", "ACCESS_INVENTORY_ADMIN_MANAGE", "ROLE_TI", "ROLE_RH"] },
       { label: "Fiscal", path: "/fiscal", icon: <ReceiptText className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_FISCAL"] },
       { label: "Compras", path: "/compras", icon: <ShoppingCart className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_PURCHASES"] },
-      { label: "Recursos Humanos", path: "/recursoshumanos", icon: <Briefcase className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HR"] },
+      { label: "Recursos Humanos", path: "/recursoshumanos", icon: <Briefcase className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HR", "ACCESS_HR_VIEW", "ACCESS_HR_MANAGE"] },
     ],
   },
   {
     label: "Administração",
     items: [
-      { label: "Usuários", path: "/usuarios", icon: <Users className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_USERS"] },
+      { label: "Usuários", path: "/usuarios", icon: <Users className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_USERS", "ACCESS_USERS_VIEW", "ACCESS_USERS_MANAGE"] },
     ],
   },
 ]
 
 export function AppLayout() {
-  const { user, mustChangePassword, setMustChangePassword } = useAuth()
+  const { user, mustChangePassword, setMustChangePassword, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const { setTheme } = useTheme()
@@ -65,8 +66,7 @@ export function AppLayout() {
   const [fcpError, setFcpError] = useState("")
 
   const handleLogout = () => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("mustChangePassword")
+    logout()
     navigate("/login")
   }
 
@@ -83,21 +83,18 @@ export function AppLayout() {
     }
     setFcpLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const res = await fetch("/users/me/first-login-password", {
+      await apiFetch("/users/me/first-login-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ newPassword: fcpPassword }),
+        body: { newPassword: fcpPassword },
       })
-      if (res.ok) {
-        setMustChangePassword(false)
-        setFcpPassword("")
-        setFcpConfirm("")
-      } else {
-        const msg = await res.text()
-        setFcpError(msg || "Erro ao alterar a senha. Tente novamente.")
+      setMustChangePassword(false)
+      setFcpPassword("")
+      setFcpConfirm("")
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setFcpError(error.message || "Erro ao alterar a senha. Tente novamente.")
+        return
       }
-    } catch {
       setFcpError("Erro de conexão. Verifique sua rede.")
     } finally {
       setFcpLoading(false)
@@ -117,11 +114,7 @@ export function AppLayout() {
 
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch('/notifications', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) setNotifications(await response.json())
+      setNotifications(await apiFetch<any[]>('/notifications'))
     } catch (error) { console.error("Erro ao buscar notificações:", error) }
   }
 
@@ -133,10 +126,8 @@ export function AppLayout() {
 
   const markAsRead = async (id: string) => {
     try {
-      const token = localStorage.getItem("token")
-      await fetch(`/notifications/${id}/read`, {
+      await apiFetch(`/notifications/${id}/read`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
       })
       setNotifications(prev => prev.filter(n => n.id !== id))
     } catch (error) { console.error("Erro ao marcar como lida:", error) }

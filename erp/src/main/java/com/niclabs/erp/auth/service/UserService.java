@@ -5,6 +5,7 @@ import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.auth.dto.RegisterDTO;
 import com.niclabs.erp.auth.dto.UpdateUserAdminDTO;
 import com.niclabs.erp.auth.dto.UserResponseDTO;
+import com.niclabs.erp.audit.service.IAuditService;
 import com.niclabs.erp.auth.dto.ChangePasswordDTO;
 import com.niclabs.erp.auth.dto.FirstLoginPasswordDTO;
 import com.niclabs.erp.auth.repository.RoleRepository;
@@ -47,6 +48,7 @@ public class UserService implements IUserService {
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetTokenRepository tokenRepository;
     private final IEmailService emailService;
+    private final IAuditService auditService;
 
     /**
      * Registers a new user with the default {@code ROLE_USER} role.
@@ -73,7 +75,9 @@ public class UserService implements IUserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cargo ROLE_USER não encontrado no banco."));
         newUser.setRoles(new HashSet<>(List.of(defaultRole)));
 
-        return userRepository.save(newUser);
+        User saved = userRepository.save(newUser);
+        auditService.record("CREATE_USER", "AUTH", "User", saved.getId(), "Usuário criado", "email=" + saved.getEmail());
+        return saved;
     }
 
     // --- NOVOS MÉTODOS DE GESTÃO ---
@@ -117,6 +121,7 @@ public class UserService implements IUserService {
 
         user.setRoles(newRoles);
         userRepository.save(user);
+        auditService.record("UPDATE_USER_ROLES", "AUTH", "User", user.getId(), "Cargos do usuário atualizados", "roles=" + roleNames);
 
         return mapToDTO(user);
     }
@@ -269,7 +274,9 @@ public class UserService implements IUserService {
         user.setName(dto.name());
         user.setEmail(dto.email());
 
-        return mapToDTO(userRepository.save(user));
+        User saved = userRepository.save(user);
+        auditService.record("UPDATE_USER", "AUTH", "User", saved.getId(), "Usuário atualizado", "email=" + saved.getEmail());
+        return mapToDTO(saved);
     }
 
     /**
@@ -284,6 +291,7 @@ public class UserService implements IUserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
         user.setActive(false);
         userRepository.save(user);
+        auditService.record("DEACTIVATE_USER", "AUTH", "User", user.getId(), "Usuário desativado", "email=" + user.getEmail());
     }
 
     /**

@@ -36,7 +36,8 @@ export function RecursosHumanos() {
   const { user } = useAuth()
   const toast = useToast()
   const authorities = getAuthorities(user)
-  const isRHOrAdmin = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_HR')
+  const canAccessHR = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_HR') || authorities.includes('ACCESS_HR_VIEW') || authorities.includes('ACCESS_HR_MANAGE')
+  const canManageHR = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_HR') || authorities.includes('ACCESS_HR_MANAGE')
 
   // --- ESTADOS: DIRETÓRIO ---
   const [employees, setEmployees] = useState<any[]>([])
@@ -79,7 +80,7 @@ export function RecursosHumanos() {
   const [absenceData, setAbsenceData] = useState(initialAbsenceState)
 
   // --- BARREIRA DE ACESSO NEGADO ---
-  if (!isRHOrAdmin) {
+  if (!canAccessHR) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] text-center space-y-4 animate-in fade-in duration-500">
         <AlertTriangle className="h-16 w-16 text-yellow-500" />
@@ -300,9 +301,11 @@ export function RecursosHumanos() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input type="text" placeholder="Buscar colaborador..." className="pl-8" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setEmployeePage(1) }} />
             </div>
-            <Button onClick={openCreateModal} className="gap-2">
-              <PlusCircle className="h-4 w-4" /> Registrar Admissão
-            </Button>
+            {canManageHR && (
+              <Button onClick={openCreateModal} className="gap-2">
+                <PlusCircle className="h-4 w-4" /> Registrar Admissão
+              </Button>
+            )}
           </div>
 
           <div className="rounded-md border border-border bg-card shadow-sm w-full overflow-x-auto">
@@ -322,13 +325,13 @@ export function RecursosHumanos() {
                   <TableHead>Matrícula</TableHead>
                   <TableHead>Admissão</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  {canManageHR && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedEmployees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-16 text-center">
+                    <TableCell colSpan={canManageHR ? 6 : 5} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <InboxIcon className="h-10 w-10 opacity-30" />
                         <p className="text-sm font-medium">Nenhum colaborador encontrado</p>
@@ -351,18 +354,20 @@ export function RecursosHumanos() {
                         {emp.admissionDate ? format(parseISO(emp.admissionDate), "dd/MM/yyyy") : '-'}
                       </TableCell>
                       <TableCell>{getStatusBadge(emp.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted" aria-label="Mais opções"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48 bg-popover text-popover-foreground border-border">
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => openEditModal(emp)}>
-                              <Edit className="h-4 w-4 mr-2" /> Editar Ficha
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                      {canManageHR && (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted" aria-label="Mais opções"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 bg-popover text-popover-foreground border-border">
+                              <DropdownMenuItem className="cursor-pointer" onClick={() => openEditModal(emp)}>
+                                <Edit className="h-4 w-4 mr-2" /> Editar Ficha
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
@@ -376,9 +381,11 @@ export function RecursosHumanos() {
         <TabsContent value="ausencias" className="mt-4 space-y-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <h2 className="text-lg font-medium text-foreground">Histórico e Lançamentos</h2>
-            <Button onClick={() => { setAbsenceData(initialAbsenceState); setEditingAbsenceId(null); setIsAbsenceModalOpen(true); }} className="gap-2">
-              <CalendarDays className="h-4 w-4" /> Nova Ausência
-            </Button>
+            {canManageHR && (
+              <Button onClick={() => { setAbsenceData(initialAbsenceState); setEditingAbsenceId(null); setIsAbsenceModalOpen(true); }} className="gap-2">
+                <CalendarDays className="h-4 w-4" /> Nova Ausência
+              </Button>
+            )}
           </div>
 
           <div className="rounded-md border border-border bg-card shadow-sm w-full overflow-x-auto">
@@ -390,13 +397,13 @@ export function RecursosHumanos() {
                   <TableHead>Data de Início</TableHead>
                   <TableHead>Data de Fim</TableHead>
                   <TableHead>Detalhes</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  {canManageHR && <TableHead className="text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedAbsences.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-16 text-center">
+                    <TableCell colSpan={canManageHR ? 6 : 5} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <InboxIcon className="h-10 w-10 opacity-30" />
                         <p className="text-sm font-medium">Nenhuma ausência registrada</p>
@@ -414,23 +421,25 @@ export function RecursosHumanos() {
                         {abs.description || '-'}
                       </TableCell>
                       
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted" aria-label="Mais opções">
-                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48 bg-popover border-border">
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => openEditAbsenceModal(abs)}>
-                              <Edit className="h-4 w-4 mr-2" /> Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-500/10" onClick={() => handleDeleteAbsence(abs.id)}>
-                              <UserX className="h-4 w-4 mr-2" /> Cancelar Ausência
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                      {canManageHR && (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted" aria-label="Mais opções">
+                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 bg-popover border-border">
+                              <DropdownMenuItem className="cursor-pointer" onClick={() => openEditAbsenceModal(abs)}>
+                                <Edit className="h-4 w-4 mr-2" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-500/10" onClick={() => handleDeleteAbsence(abs.id)}>
+                                <UserX className="h-4 w-4 mr-2" /> Cancelar Ausência
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 )}
@@ -442,7 +451,7 @@ export function RecursosHumanos() {
       </Tabs>
 
       {/* MODAL DO DIRETÓRIO */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      {canManageHR && <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-4xl w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
           <DialogHeader>
             <DialogTitle>{editingEmployeeId ? "Editar Ficha do Colaborador" : "Nova Admissão"}</DialogTitle>
@@ -533,10 +542,10 @@ export function RecursosHumanos() {
             </DialogFooter>
           </form>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
 
       {/* MODAL DE REGISTRAR AUSÊNCIA */}
-      <Dialog open={isAbsenceModalOpen} onOpenChange={setIsAbsenceModalOpen}>
+      {canManageHR && <Dialog open={isAbsenceModalOpen} onOpenChange={setIsAbsenceModalOpen}>
         <DialogContent className="sm:max-w-[500px] w-[95%] bg-background border-border text-foreground">
           <DialogHeader>
             <DialogTitle>Registrar Nova Ausência</DialogTitle>
@@ -587,11 +596,11 @@ export function RecursosHumanos() {
             </DialogFooter>
           </form>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
       </div>
 
       {/* Dialog de confirmação de exclusão de ausência */}
-      <ConfirmDialog
+      {canManageHR && <ConfirmDialog
         isOpen={confirmDelete.isOpen}
         onClose={() => setConfirmDelete({ isOpen: false, absenceId: null })}
         onConfirm={doDeleteAbsence}
@@ -599,7 +608,7 @@ export function RecursosHumanos() {
         description="Tem certeza que deseja cancelar esta ausência? Esta ação não pode ser desfeita."
         confirmLabel="Cancelar Ausência"
         isDestructive
-      />
+      />}
     </div>
   )
 }

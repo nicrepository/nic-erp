@@ -4,6 +4,7 @@ import com.niclabs.erp.auth.domain.Permission;
 import com.niclabs.erp.auth.domain.Role;
 import com.niclabs.erp.auth.dto.RoleRequestDTO;
 import com.niclabs.erp.auth.dto.RoleResponseDTO;
+import com.niclabs.erp.audit.service.IAuditService;
 import com.niclabs.erp.auth.repository.PermissionRepository;
 import com.niclabs.erp.auth.repository.RoleRepository;
 import com.niclabs.erp.exception.BusinessException;
@@ -31,6 +32,7 @@ public class RoleService implements IRoleService {
 
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
+    private final IAuditService auditService;
     private static final Set<String> PROTECTED_ROLES = Set.of("ROLE_ADMIN", "ROLE_USER");
 
     /**
@@ -74,7 +76,9 @@ public class RoleService implements IRoleService {
         role.setName(roleName);
         role.setPermissions(getPermissionsFromNames(dto.permissions()));
 
-        return mapToDTO(roleRepository.save(role));
+        Role saved = roleRepository.save(role);
+        auditService.record("CREATE_ROLE", "AUTH", "Role", saved.getId(), "Cargo criado", "role=" + saved.getName());
+        return mapToDTO(saved);
     }
 
     /**
@@ -100,7 +104,9 @@ public class RoleService implements IRoleService {
 
         role.setName(roleName);
         role.setPermissions(getPermissionsFromNames(dto.permissions()));
-        return mapToDTO(roleRepository.save(role));
+        Role saved = roleRepository.save(role);
+        auditService.record("UPDATE_ROLE", "AUTH", "Role", saved.getId(), "Cargo atualizado", "role=" + saved.getName() + "; permissions=" + dto.permissions());
+        return mapToDTO(saved);
     }
 
     /**
@@ -117,7 +123,9 @@ public class RoleService implements IRoleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cargo não encontrado."));
 
         role.setPermissions(getPermissionsFromNames(permissions));
-        return mapToDTO(roleRepository.save(role));
+        Role saved = roleRepository.save(role);
+        auditService.record("UPDATE_ROLE_PERMISSIONS", "AUTH", "Role", saved.getId(), "Permissões do cargo atualizadas", "role=" + saved.getName() + "; permissions=" + permissions);
+        return mapToDTO(saved);
     }
 
     /**
@@ -132,6 +140,7 @@ public class RoleService implements IRoleService {
 
         ensureRoleCanBeRenamedOrDeleted(role);
         roleRepository.delete(role);
+        auditService.record("DELETE_ROLE", "AUTH", "Role", role.getId(), "Cargo removido", "role=" + role.getName());
     }
 
     // --- MÉTODOS AUXILIARES ---

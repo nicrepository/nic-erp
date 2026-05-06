@@ -48,7 +48,7 @@ public class InventoryController {
     private final IStockItemService stockItemService;
     private final IITAssetService itAssetService;
 
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_VIEW') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/categories")
     public ResponseEntity<List<StockCategoryResponseDTO>> getStockCategories(
             @RequestParam(defaultValue = "false") boolean activeOnly) {
@@ -57,13 +57,13 @@ public class InventoryController {
                 : stockItemService.findAllCategories());
     }
 
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PostMapping("/administrative/categories")
     public ResponseEntity<StockCategoryResponseDTO> createStockCategory(@Valid @RequestBody StockCategoryDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(stockItemService.createCategory(dto));
     }
 
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/administrative/categories/{id}")
     public ResponseEntity<StockCategoryResponseDTO> updateStockCategory(
             @PathVariable UUID id,
@@ -71,7 +71,7 @@ public class InventoryController {
         return ResponseEntity.ok(stockItemService.updateCategory(id, dto));
     }
 
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @DeleteMapping("/administrative/categories/{id}")
     public ResponseEntity<Void> deleteStockCategory(@PathVariable UUID id) {
         stockItemService.deleteCategory(id);
@@ -84,7 +84,7 @@ public class InventoryController {
      * @param dto item creation payload including name, unit, and minimum stock threshold
      * @return 201 Created with the persisted {@link StockItemResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PostMapping("/administrative/items")
     public ResponseEntity<StockItemResponseDTO> createStockItem(@Valid @RequestBody StockItemDTO dto) {
         StockItemResponseDTO created = stockItemService.createItem(dto);
@@ -98,7 +98,7 @@ public class InventoryController {
      * @param quantity positive quantity to add to the current stock
      * @return 200 OK with a confirmation message
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PostMapping("/administrative/items/{id}/add")
     public ResponseEntity<String> addStock(@PathVariable UUID id, @RequestParam Integer quantity) {
         stockItemService.addStock(id, quantity);
@@ -112,7 +112,7 @@ public class InventoryController {
      * @param quantity positive quantity to remove from the current stock
      * @return 200 OK with a confirmation message
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PostMapping("/administrative/items/{id}/remove")
     public ResponseEntity<String> removeStock(@PathVariable UUID id, @RequestParam Integer quantity) {
         stockItemService.removeStock(id, quantity);
@@ -125,7 +125,7 @@ public class InventoryController {
      * @param pageable pagination and sort parameters (default: page 0, size 20, sorted by name)
      * @return 200 OK with a page of {@link StockItemResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_VIEW') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/items")
     public ResponseEntity<Page<StockItemResponseDTO>> getAllStockItems(
             @RequestParam(required = false) String search,
@@ -142,7 +142,7 @@ public class InventoryController {
      * @param dto updated item payload
      * @return 200 OK with the updated {@link StockItemResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/administrative/items/{id}")
     public ResponseEntity<StockItemResponseDTO> updateStockItem(
             @PathVariable UUID id,
@@ -162,7 +162,7 @@ public class InventoryController {
      * @param dto asset creation payload including serial number, model, brand, and type
      * @return 201 Created with the persisted {@link ITAssetResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ACCESS_INVENTORY_IT_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PostMapping("/it/assets")
     public ResponseEntity<ITAssetResponseDTO> registerITAsset(@Valid @RequestBody ITAssetDTO dto) {
         ITAssetResponseDTO created = itAssetService.registerAsset(dto);
@@ -174,7 +174,7 @@ public class InventoryController {
      *
      * @return 200 OK with a page of {@link ITAssetResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ACCESS_INVENTORY_IT_VIEW') or hasAuthority('ACCESS_INVENTORY_IT_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/it/assets")
     public ResponseEntity<Page<ITAssetResponseDTO>> getAllITAssets(
             @RequestParam(required = false) String search,
@@ -189,7 +189,7 @@ public class InventoryController {
      * @param userId identifier of the user receiving the asset
      * @return 200 OK with the updated {@link ITAssetResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ACCESS_INVENTORY_IT_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/it/assets/{id}/assign")
     public ResponseEntity<ITAssetResponseDTO> assignAsset(
             @PathVariable UUID id,
@@ -205,7 +205,7 @@ public class InventoryController {
      * @param id target asset identifier
      * @return 200 OK with the updated {@link ITAssetResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ACCESS_INVENTORY_IT_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/it/assets/{id}/unassign")
     public ResponseEntity<ITAssetResponseDTO> unassignAsset(@PathVariable UUID id) {
         ITAssetResponseDTO updatedAsset = itAssetService.unassignAsset(id);
@@ -219,7 +219,7 @@ public class InventoryController {
      * @param dto updated asset payload
      * @return 200 OK with the updated {@link ITAssetResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ACCESS_INVENTORY_IT_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @PutMapping("/it/assets/{id}")
     public ResponseEntity<ITAssetResponseDTO> updateITAsset(
             @PathVariable UUID id,
@@ -234,7 +234,7 @@ public class InventoryController {
      * @param id target asset identifier
      * @return 200 OK with the list of {@link ITAssetHistoryResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ACCESS_INVENTORY_IT_VIEW') or hasAuthority('ACCESS_INVENTORY_IT_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/it/assets/{id}/history")
     public ResponseEntity<List<ITAssetHistoryResponseDTO>> getAssetHistory(@PathVariable UUID id) {
         return ResponseEntity.ok(itAssetService.getAssetHistory(id));
@@ -248,7 +248,7 @@ public class InventoryController {
      * @return 200 OK when the asset has been written off
      */
     @PutMapping("/it/assets/{id}/write-off")
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ACCESS_INVENTORY_IT_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> writeOffITAsset(@PathVariable UUID id, @RequestBody java.util.Map<String, String> payload) {
         String reason = payload.get("reason");
         itAssetService.writeOffAsset(id, reason);
@@ -264,7 +264,7 @@ public class InventoryController {
      * @param id target item identifier
      * @return 204 No Content on success
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @DeleteMapping("/administrative/items/{id}")
     public ResponseEntity<Void> deleteStockItem(@PathVariable UUID id) {
         stockItemService.deleteItem(id);
@@ -278,7 +278,7 @@ public class InventoryController {
      * @param pageable pagination parameters
      * @return 200 OK with a page of low-stock {@link StockItemResponseDTO}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_VIEW') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/items/low-stock")
     public ResponseEntity<Page<StockItemResponseDTO>> getLowStockItems(@PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(stockItemService.findLowStockItems(sanitizePageable(pageable, STOCK_SORT_FIELDS, "quantity")));
@@ -290,7 +290,7 @@ public class InventoryController {
      * @param pageable pagination and sort parameters (default: page 0, size 20, sorted by createdAt DESC)
      * @return 200 OK with a page of {@link InventoryMovement}
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_VIEW') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/movements")
     public ResponseEntity<Page<InventoryMovement>> getStockMovements(
             @RequestParam(required = false) String search,
@@ -305,7 +305,7 @@ public class InventoryController {
      * @param pageable pagination and sort parameters (default: page 0, size 20, sorted by createdAt DESC)
      * @return 200 OK with a page of {@link InventoryMovement} for the item
      */
-    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_INVENTORY_ADMIN') or hasAuthority('ACCESS_INVENTORY_ADMIN_VIEW') or hasAuthority('ACCESS_INVENTORY_ADMIN_MANAGE') or hasAuthority('ROLE_ADMIN')")
     @GetMapping("/administrative/items/{id}/movements")
     public ResponseEntity<Page<InventoryMovement>> getMovementsByItem(
             @PathVariable UUID id,

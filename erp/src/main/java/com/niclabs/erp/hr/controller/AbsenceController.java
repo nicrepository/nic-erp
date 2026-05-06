@@ -40,7 +40,7 @@ public class AbsenceController {
      * @return 201 Created with the persisted {@link AbsenceResponseDTO}
      */
     @PostMapping
-    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<AbsenceResponseDTO> createAbsence(@Valid @RequestBody AbsenceRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(absenceService.createAbsence(dto));
     }
@@ -52,7 +52,7 @@ public class AbsenceController {
      * @return 200 OK with a page of {@link AbsenceResponseDTO}
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_VIEW') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Page<AbsenceResponseDTO>> getAllAbsences(@PageableDefault(size = 20, sort = "startDate", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(absenceService.getAllAbsences(pageable));
     }
@@ -64,7 +64,7 @@ public class AbsenceController {
      * @return 200 OK with the list of {@link AbsenceResponseDTO} for that employee
      */
     @GetMapping("/employee/{employeeId}")
-    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_VIEW') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<List<AbsenceResponseDTO>> getAbsencesByEmployee(@PathVariable UUID employeeId) {
         return ResponseEntity.ok(absenceService.getAbsencesByEmployee(employeeId));
     }
@@ -77,7 +77,7 @@ public class AbsenceController {
      * @return 200 OK with the updated {@link AbsenceResponseDTO}
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<AbsenceResponseDTO> updateAbsence(@PathVariable UUID id, @Valid @RequestBody AbsenceRequestDTO dto) {
         return ResponseEntity.ok(absenceService.updateAbsence(id, dto));
     }
@@ -89,7 +89,7 @@ public class AbsenceController {
      * @return 204 No Content on success
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteAbsence(@PathVariable UUID id) {
         absenceService.deleteAbsence(id);
         return ResponseEntity.noContent().build();

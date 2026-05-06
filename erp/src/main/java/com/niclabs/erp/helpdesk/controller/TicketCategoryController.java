@@ -27,20 +27,20 @@ public class TicketCategoryController {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK_CATEGORIES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public List<TicketCategoryResponseDTO> listAll() {
         return ticketCategoryService.listAll();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK_CATEGORIES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public TicketCategoryResponseDTO create(@Valid @RequestBody TicketCategoryRequestDTO dto) {
         return ticketCategoryService.create(dto);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK_CATEGORIES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public TicketCategoryResponseDTO update(@PathVariable UUID id,
                                             @Valid @RequestBody TicketCategoryRequestDTO dto) {
         return ticketCategoryService.update(id, dto);
@@ -48,7 +48,7 @@ public class TicketCategoryController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_HELPDESK_CATEGORIES_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public void delete(@PathVariable UUID id) {
         ticketCategoryService.delete(id);
     }

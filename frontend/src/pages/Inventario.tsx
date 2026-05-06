@@ -39,8 +39,10 @@ export function Inventario() {
 
   const authorities = getAuthorities(user)
   const isAdmin = authorities.includes('ROLE_ADMIN')
-  const canAccessITInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_IT') || authorities.includes('ROLE_TI')
-  const canAccessAdministrativeInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_ADMIN') || authorities.includes('ROLE_RH')
+  const canManageITInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_IT') || authorities.includes('ACCESS_INVENTORY_IT_MANAGE') || authorities.includes('ROLE_TI')
+  const canAccessITInventory = canManageITInventory || authorities.includes('ACCESS_INVENTORY_IT_VIEW')
+  const canManageAdministrativeInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_ADMIN') || authorities.includes('ACCESS_INVENTORY_ADMIN_MANAGE') || authorities.includes('ROLE_RH')
+  const canAccessAdministrativeInventory = canManageAdministrativeInventory || authorities.includes('ACCESS_INVENTORY_ADMIN_VIEW')
   const canAccessInventory = canAccessITInventory || canAccessAdministrativeInventory
 
   // --- ESTADOS: ATIVOS DE TI ---
@@ -222,6 +224,7 @@ export function Inventario() {
 
   const handleCreateAsset = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canManageITInventory) return
     setIsCreatingAsset(true)
     try {
       const token = localStorage.getItem("token")
@@ -254,6 +257,7 @@ export function Inventario() {
   }
 
   const handleUnassignAsset = async () => {
+    if (!canManageITInventory) return
     if (!selectedAsset) return
     try {
       const token = localStorage.getItem("token")
@@ -274,6 +278,7 @@ export function Inventario() {
   }
 
   const handleAssignAsset = async () => {
+    if (!canManageITInventory) return
     if (!selectedAsset || !selectedUserId) return
     try {
       const token = localStorage.getItem("token")
@@ -295,6 +300,7 @@ export function Inventario() {
   }
 
   const handleWriteOffAsset = async () => {
+    if (!canManageITInventory) return
     if (!writeOffReason.trim()) {
       toast.warning("Motivo obrigatório", "Informe o motivo antes de confirmar a baixa.")
       return;
@@ -331,6 +337,7 @@ export function Inventario() {
   }
 
   const handleUpdateAsset = async () => {
+    if (!canManageITInventory) return
     try {
       const token = localStorage.getItem("token")
       const response = await fetch(`/inventory/it/assets/${selectedAsset.id}`, {
@@ -509,8 +516,8 @@ export function Inventario() {
   }, [canAccessITInventory, fetchITAssets])
 
   useEffect(() => {
-    if (canAccessITInventory) fetchUsers()
-  }, [canAccessITInventory])
+    if (canManageITInventory) fetchUsers()
+  }, [canManageITInventory])
 
   useEffect(() => {
     if (!canAccessAdministrativeInventory) return
@@ -540,6 +547,7 @@ export function Inventario() {
 
   const handleCreateStockItem = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canManageAdministrativeInventory) return
     if (!itemCategory) {
       toast.warning("Categoria obrigatória", "Cadastre e selecione uma categoria para o material.")
       return
@@ -578,6 +586,7 @@ export function Inventario() {
   }
 
   const handleUpdateStockItem = async () => {
+    if (!canManageAdministrativeInventory) return
     try {
       const token = localStorage.getItem("token")
       const response = await fetch(`/inventory/administrative/items/${selectedStockItem.id}`, {
@@ -609,6 +618,7 @@ export function Inventario() {
 
   const handleCreateStockCategory = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canManageAdministrativeInventory) return
     if (!newCategoryName.trim()) return
 
     try {
@@ -636,6 +646,7 @@ export function Inventario() {
   }
 
   const handleUpdateStockCategory = async (category: any, changes: Partial<any>) => {
+    if (!canManageAdministrativeInventory) return
     try {
       const token = localStorage.getItem("token")
       const response = await fetch(`/inventory/administrative/categories/${category.id}`, {
@@ -665,6 +676,7 @@ export function Inventario() {
   }
 
   const handleDisableStockCategory = async (category: any) => {
+    if (!canManageAdministrativeInventory) return
     try {
       const token = localStorage.getItem("token")
       const response = await fetch(`/inventory/administrative/categories/${category.id}`, {
@@ -684,6 +696,7 @@ export function Inventario() {
   }
 
   const handleStockMovement = async (type: 'add' | 'remove') => {
+    if (!canManageAdministrativeInventory) return
     if (!movementQuantity || Number(movementQuantity) <= 0) {
       toast.warning("Quantidade inválida", "Digite um valor maior que zero.")
       return
@@ -781,7 +794,7 @@ export function Inventario() {
                   />
                 </div>
 
-                <Dialog open={isAssetModalOpen} onOpenChange={setIsAssetModalOpen}>
+                {canManageITInventory && <Dialog open={isAssetModalOpen} onOpenChange={setIsAssetModalOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2 w-full sm:w-auto">
                       <PlusCircle className="h-4 w-4" /> Cadastrar Equipamento
@@ -833,7 +846,7 @@ export function Inventario() {
                       </DialogFooter>
                     </form>
                   </DialogContent>
-                </Dialog>
+                </Dialog>}
               </div>
             </div>
 
@@ -926,7 +939,7 @@ export function Inventario() {
             </div>
             <Pagination currentPage={itAssetPage} totalPages={itAssetTotalPages} totalItems={itAssetTotalItems} itemsPerPage={ITEMS_PER_PAGE} onPageChange={setItAssetPage} />
 
-            <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
+            {canManageITInventory && <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
               <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
                 <DialogHeader>
                   <DialogTitle>Atribuir Equipamento</DialogTitle>
@@ -958,7 +971,7 @@ export function Inventario() {
                   </Button>
                 </DialogFooter>
               </DialogContent>
-            </Dialog>
+            </Dialog>}
 
             <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
               <DialogContent className="sm:max-w-[680px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
@@ -1119,6 +1132,8 @@ export function Inventario() {
                       <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsEditingAsset(false)}>Cancelar</Button>
                       <Button className="w-full sm:w-auto" onClick={handleUpdateAsset}>Salvar Alterações</Button>
                     </div>
+                  ) : !canManageITInventory ? (
+                    <Button variant="outline" className="w-full sm:w-auto ml-auto" onClick={() => setIsDetailModalOpen(false)}>Fechar</Button>
                   ) : (
                     <>
                       <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
@@ -1167,7 +1182,7 @@ export function Inventario() {
             </Dialog>
 
             {/* MODAL DE BAIXA DE EQUIPAMENTO (Double Opt-in) */}
-            <Dialog open={isWriteOffModalOpen} onOpenChange={setIsWriteOffModalOpen}>
+            {canManageITInventory && <Dialog open={isWriteOffModalOpen} onOpenChange={setIsWriteOffModalOpen}>
               <DialogContent className="sm:max-w-[425px] w-[95%] bg-background border-border text-foreground">
                 <DialogHeader>
                   <DialogTitle className="text-orange-600 dark:text-orange-400 flex items-center gap-2">
@@ -1219,7 +1234,7 @@ export function Inventario() {
                   </Button>
                 </DialogFooter>
               </DialogContent>
-            </Dialog>
+            </Dialog>}
           </TabsContent>
         )}
         
@@ -1243,11 +1258,11 @@ export function Inventario() {
                   />
                 </div>
 
-                <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={() => setIsCategoryModalOpen(true)}>
+                {canManageAdministrativeInventory && <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={() => setIsCategoryModalOpen(true)}>
                   <Tag className="h-4 w-4" /> Categorias
-                </Button>
+                </Button>}
 
-                <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
+                {canManageAdministrativeInventory && <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2 w-full sm:w-auto">
                       <PlusCircle className="h-4 w-4" /> Novo Item
@@ -1295,9 +1310,9 @@ export function Inventario() {
                       </DialogFooter>
                     </form>
                   </DialogContent>
-                </Dialog>
+                </Dialog>}
 
-                <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+                {canManageAdministrativeInventory && <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
                   <DialogContent className="sm:max-w-[520px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
                     <DialogHeader>
                       <DialogTitle>Categorias do Estoque</DialogTitle>
@@ -1367,7 +1382,7 @@ export function Inventario() {
                       )}
                     </div>
                   </DialogContent>
-                </Dialog>
+                </Dialog>}
               </div>
             </div>
 
@@ -1453,7 +1468,8 @@ export function Inventario() {
                                   setIsManageStockModalOpen(true)
                                 }}
                               >
-                                <Settings className="h-4 w-4 mr-2" /> Gerenciar
+                                {canManageAdministrativeInventory ? <Settings className="h-4 w-4 mr-2" /> : <Info className="h-4 w-4 mr-2" />}
+                                {canManageAdministrativeInventory ? "Gerenciar" : "Detalhes"}
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -1471,7 +1487,9 @@ export function Inventario() {
                 <DialogHeader>
                   <DialogTitle>Gerenciar Material</DialogTitle>
                   <DialogDescription>
-                    Edite os dados do item ou registre entradas e saídas no estoque.
+                    {canManageAdministrativeInventory
+                      ? "Edite os dados do item ou registre entradas e saídas no estoque."
+                      : "Consulte os dados do item e seu saldo atual."}
                   </DialogDescription>
                 </DialogHeader>
 
@@ -1482,12 +1500,12 @@ export function Inventario() {
                       <div className="grid gap-4">
                         <div className="grid gap-2">
                           <Label>Nome do Item</Label>
-                          <Input value={editStockData.name} onChange={(e) => setEditStockData({...editStockData, name: e.target.value})} />
+                          <Input value={editStockData.name} disabled={!canManageAdministrativeInventory} onChange={(e) => setEditStockData({...editStockData, name: e.target.value})} />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="grid gap-2">
                             <Label>Categoria</Label>
-                            <Select value={editStockData.category || ""} onValueChange={(value) => setEditStockData({...editStockData, category: value})}>
+                            <Select value={editStockData.category || ""} disabled={!canManageAdministrativeInventory} onValueChange={(value) => setEditStockData({...editStockData, category: value})}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione" />
                               </SelectTrigger>
@@ -1500,20 +1518,20 @@ export function Inventario() {
                           </div>
                           <div className="grid gap-2">
                             <Label>Estoque Mínimo</Label>
-                            <Input type="number" min="0" value={editStockData.minimumStock} onChange={(e) => setEditStockData({...editStockData, minimumStock: Number(e.target.value)})} />
+                            <Input type="number" min="0" value={editStockData.minimumStock} disabled={!canManageAdministrativeInventory} onChange={(e) => setEditStockData({...editStockData, minimumStock: Number(e.target.value)})} />
                           </div>
                         </div>
                         <div className="grid gap-2">
                           <Label>Valor Unitário</Label>
-                          <Input type="number" min="0" step="0.01" value={editStockData.unitValue ?? 0} onChange={(e) => setEditStockData({...editStockData, unitValue: Number(e.target.value)})} />
+                          <Input type="number" min="0" step="0.01" value={editStockData.unitValue ?? 0} disabled={!canManageAdministrativeInventory} onChange={(e) => setEditStockData({...editStockData, unitValue: Number(e.target.value)})} />
                         </div>
-                        <Button variant="secondary" className="w-full mt-2" onClick={handleUpdateStockItem}>
+                        {canManageAdministrativeInventory && <Button variant="secondary" className="w-full mt-2" onClick={handleUpdateStockItem}>
                           Salvar Alterações
-                        </Button>
+                        </Button>}
                       </div>
                     </div>
 
-                    <div className="space-y-4 p-4 rounded-lg border border-border">
+                    {canManageAdministrativeInventory && <div className="space-y-4 p-4 rounded-lg border border-border">
                       <div className="flex justify-between items-center">
                         <h4 className="text-sm font-semibold text-foreground">Movimentação de Estoque</h4>
                         <div className="text-sm text-muted-foreground">
@@ -1550,12 +1568,12 @@ export function Inventario() {
                           Registrar Entrada (+)
                         </Button>
                       </div>
-                    </div>
+                    </div>}
 
                   </div>
                 )}
               </DialogContent>
-            </Dialog>
+                </Dialog>
           </TabsContent>
         )}
         

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { jwtDecode } from "jwt-decode";
+import { apiFetch } from "@/lib/api";
 
 interface DecodedToken {
   sub: string;
@@ -73,17 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     const refreshCurrentUser = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
       try {
-        const response = await fetch("/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!response.ok) return;
-
-        const currentUser = await response.json() as CurrentUserResponse;
+        const currentUser = await apiFetch<CurrentUserResponse>("/users/me");
         setUser(prev => prev ? {
           ...prev,
           name: currentUser.name ?? prev.name,

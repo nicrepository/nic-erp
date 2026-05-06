@@ -1,6 +1,7 @@
 package com.niclabs.erp.hr.service;
 
 import java.util.UUID;
+import com.niclabs.erp.audit.service.IAuditService;
 import com.niclabs.erp.auth.domain.User;
 import com.niclabs.erp.auth.repository.UserRepository;
 import com.niclabs.erp.exception.BusinessException;
@@ -33,6 +34,7 @@ public class EmployeeService implements IEmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final UserRepository userRepository; // Injetamos para poder vincular o login da pessoa
+    private final IAuditService auditService;
 
     /**
      * Hires a new employee, optionally linking an existing system user account.
@@ -60,7 +62,9 @@ public class EmployeeService implements IEmployeeService {
 
         applyDtoToEmployee(employee, dto);
 
-        return mapToDTO(employeeRepository.save(employee));
+        Employee saved = employeeRepository.save(employee);
+        auditService.record("CREATE_EMPLOYEE", "HR", "Employee", saved.getId(), "Colaborador criado", "name=" + saved.getFullName() + "; registration=" + saved.getRegistrationNumber());
+        return mapToDTO(saved);
     }
 
     /**
@@ -95,7 +99,9 @@ public class EmployeeService implements IEmployeeService {
 
         applyDtoToEmployee(employee, dto);
 
-        return mapToDTO(employeeRepository.save(employee));
+        Employee saved = employeeRepository.save(employee);
+        auditService.record("UPDATE_EMPLOYEE", "HR", "Employee", saved.getId(), "Colaborador atualizado", "name=" + saved.getFullName() + "; status=" + saved.getStatus());
+        return mapToDTO(saved);
     }
 
     /**
@@ -109,6 +115,7 @@ public class EmployeeService implements IEmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Colaborador não encontrado."));
         employeeRepository.delete(employee);
+        auditService.record("DELETE_EMPLOYEE", "HR", "Employee", employee.getId(), "Colaborador removido", "name=" + employee.getFullName());
     }
 
     /**

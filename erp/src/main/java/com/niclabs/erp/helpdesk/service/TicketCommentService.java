@@ -81,7 +81,9 @@ public class TicketCommentService implements ITicketCommentService {
                 .anyMatch(authority ->
                         authority.equals(AppConstants.ROLE_ADMIN) ||
                         authority.equals(AppConstants.ROLE_TI) ||
-                        authority.equals(AppConstants.PERM_ACCESS_HELPDESK));
+                        authority.equals(AppConstants.PERM_ACCESS_HELPDESK) ||
+                        authority.equals(AppConstants.PERM_ACCESS_HELPDESK_VIEW) ||
+                        authority.equals(AppConstants.PERM_ACCESS_HELPDESK_MANAGE));
 
         if (!isRequester && !isAssignee && !isHelpdeskAgent) {
             throw new AccessDeniedException("Você não tem permissão para acessar este chamado.");

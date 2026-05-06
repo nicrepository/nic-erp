@@ -1,5 +1,6 @@
 package com.niclabs.erp.inventory.service;
 
+import com.niclabs.erp.audit.service.IAuditService;
 import com.niclabs.erp.exception.BusinessException;
 import com.niclabs.erp.exception.ResourceNotFoundException;
 import com.niclabs.erp.inventory.domain.StockItem;
@@ -30,6 +31,7 @@ class StockItemServiceTest {
     @Mock StockItemRepository itemRepository;
     @Mock InventoryMovementRepository movementRepository;
     @Mock StockCategoryRepository categoryRepository;
+    @Mock IAuditService auditService;
 
     @InjectMocks StockItemService stockItemService;
 

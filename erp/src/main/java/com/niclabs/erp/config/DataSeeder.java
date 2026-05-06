@@ -58,11 +58,24 @@ public class DataSeeder implements CommandLineRunner {
     private void seedPermissions() {
         List<String> systemPermissions = List.of(
                 "ACCESS_INVENTORY_ADMIN",
+                "ACCESS_INVENTORY_ADMIN_VIEW",
+                "ACCESS_INVENTORY_ADMIN_MANAGE",
                 "ACCESS_INVENTORY_IT",
+                "ACCESS_INVENTORY_IT_VIEW",
+                "ACCESS_INVENTORY_IT_MANAGE",
                 "ACCESS_HELPDESK",
+                "ACCESS_HELPDESK_VIEW",
+                "ACCESS_HELPDESK_MANAGE",
+                "ACCESS_HELPDESK_CATEGORIES_MANAGE",
                 "ACCESS_USERS",
+                "ACCESS_USERS_VIEW",
+                "ACCESS_USERS_MANAGE",
+                "ACCESS_ROLES_MANAGE",
                 "ACCESS_DASHBOARD",
                 "ACCESS_ANNOUNCEMENTS_MANAGE",
+                "ACCESS_HR",
+                "ACCESS_HR_VIEW",
+                "ACCESS_HR_MANAGE",
                 "ACCESS_FISCAL",
                 "ACCESS_PURCHASES"
         );
@@ -86,6 +99,11 @@ public class DataSeeder implements CommandLineRunner {
             Role adminRole = new Role();
             adminRole.setId(UUID.randomUUID());
             adminRole.setName("ROLE_ADMIN");
+            adminRole.setPermissions(new HashSet<>(permissionRepository.findAll()));
+            roleRepository.save(adminRole);
+        } else {
+            Role adminRole = roleRepository.findByName("ROLE_ADMIN")
+                    .orElseThrow(() -> new IllegalStateException("ROLE_ADMIN não encontrada após seed"));
             adminRole.setPermissions(new HashSet<>(permissionRepository.findAll()));
             roleRepository.save(adminRole);
         }

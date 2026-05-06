@@ -78,7 +78,10 @@ public class AbsenceNotifierJob {
         List<User> targetUsers = userRepository.findAll().stream()
                 .filter(u -> u.getRoles().stream().anyMatch(role ->
                         role.getName().equals("ROLE_ADMIN") ||
-                                role.getPermissions().stream().anyMatch(p -> p.getName().equals("ACCESS_HR"))
+                                role.getPermissions().stream().anyMatch(p ->
+                                        p.getName().equals("ACCESS_HR")
+                                                || p.getName().equals("ACCESS_HR_VIEW")
+                                                || p.getName().equals("ACCESS_HR_MANAGE"))
                 ))
                 .toList();
 

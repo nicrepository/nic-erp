@@ -7,6 +7,7 @@ import com.niclabs.erp.auth.dto.RegisterDTO;
 import com.niclabs.erp.auth.repository.PasswordResetTokenRepository;
 import com.niclabs.erp.auth.repository.RoleRepository;
 import com.niclabs.erp.auth.repository.UserRepository;
+import com.niclabs.erp.audit.service.IAuditService;
 import com.niclabs.erp.exception.BusinessException;
 import com.niclabs.erp.exception.DuplicateResourceException;
 import com.niclabs.erp.exception.ResourceNotFoundException;
@@ -40,6 +41,7 @@ class UserServiceTest {
     @Mock PasswordEncoder passwordEncoder;
     @Mock PasswordResetTokenRepository tokenRepository;
     @Mock EmailService emailService;
+    @Mock IAuditService auditService;
 
     @InjectMocks UserService userService;
 

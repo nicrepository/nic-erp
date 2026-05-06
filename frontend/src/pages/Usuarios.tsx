@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import { getAuthorities } from "../lib/auth"
+import { apiFetch, ApiError } from "@/lib/api"
 import { useToast } from "../contexts/ToastContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,7 +35,8 @@ export function Usuarios() {
   const { user } = useAuth()
   const { success: showSuccess, error: showError } = useToast()
   const authorities = getAuthorities(user)
-  const canManageUsers = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_USERS')
+  const canViewUsers = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_USERS') || authorities.includes('ACCESS_USERS_VIEW') || authorities.includes('ACCESS_USERS_MANAGE')
+  const canManageUsers = authorities.includes('ROLE_ADMIN') || authorities.includes('ACCESS_USERS') || authorities.includes('ACCESS_USERS_MANAGE')
 
   const [usersList, setUsersList] = useState<any[]>([])
   const [availableRoles, setAvailableRoles] = useState<any[]>([])
@@ -71,12 +73,10 @@ export function Usuarios() {
   const [isSaving, setIsSaving] = useState(false)
 
   const fetchUsers = useCallback(async (signal?: AbortSignal) => {
-    if (!canManageUsers) return
+    if (!canViewUsers) return
 
     try {
       setIsLoadingUsers(true)
-      const token = localStorage.getItem("token")
-
       const params = new URLSearchParams({
         page: String(Math.max(0, currentPage - 1)),
         size: String(ITEMS_PER_PAGE),
@@ -85,42 +85,33 @@ export function Usuarios() {
       const normalizedSearch = debouncedSearch.trim()
       if (normalizedSearch) params.set("search", normalizedSearch.slice(0, 100))
 
-      const response = await fetch(`/users?${params.toString()}`, {
+      const data = await apiFetch<any>(`/users?${params.toString()}`, {
         signal,
-        headers: { 'Authorization': `Bearer ${token}` }
       })
-      if (response.ok) {
-        const data = await response.json()
-        setUsersList(data.content || [])
-        setTotalPages(Math.max(1, data.totalPages || 1))
-        setTotalItems(data.totalElements || 0)
 
-        if (data.totalPages > 0 && currentPage > data.totalPages) {
-          setCurrentPage(data.totalPages)
-        }
-      } else {
-        showError("Erro ao carregar usuários", `Servidor retornou ${response.status}. Verifique suas permissões.`)
+      setUsersList(data.content || [])
+      setTotalPages(Math.max(1, data.totalPages || 1))
+      setTotalItems(data.totalElements || 0)
+
+      if (data.totalPages > 0 && currentPage > data.totalPages) {
+        setCurrentPage(data.totalPages)
       }
     } catch (error) {
       if ((error as Error).name === "AbortError") return
       console.error("Erro ao buscar usuários:", error)
-      showError("Erro de conexão", "Não foi possível carregar a lista de usuários.")
+      const message = error instanceof ApiError
+        ? `${error.message} Verifique suas permissões.`
+        : "Não foi possível carregar a lista de usuários."
+      showError(error instanceof ApiError ? "Erro ao carregar usuários" : "Erro de conexão", message)
     } finally {
       setIsLoadingUsers(false)
     }
-  }, [canManageUsers, currentPage, debouncedSearch, showError, sortDir, sortField])
+  }, [canViewUsers, currentPage, debouncedSearch, showError, sortDir, sortField])
 
   // <-- NOVA FUNÇÃO PARA BUSCAR OS CARGOS REAIS DO BANCO
   const fetchRoles = async () => {
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch('/roles', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setAvailableRoles(data)
-      }
+      setAvailableRoles(await apiFetch<any[]>('/roles'))
     } catch (error) {
       console.error("Erro ao buscar cargos:", error)
     }
@@ -135,13 +126,13 @@ export function Usuarios() {
   }, [searchUser])
 
   useEffect(() => {
-    if (!canManageUsers) return
+    if (!canViewUsers) return
 
     const controller = new AbortController()
     fetchUsers(controller.signal)
 
     return () => controller.abort()
-  }, [canManageUsers, fetchUsers])
+  }, [canViewUsers, fetchUsers])
 
   useEffect(() => {
     if (canManageUsers) fetchRoles()
@@ -151,33 +142,26 @@ export function Usuarios() {
     e.preventDefault()
     setIsCreating(true)
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch('/auth/register', {
+      await apiFetch('/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: newUserName, email: newUserEmail, password: newUserPassword })
+        body: { name: newUserName, email: newUserEmail, password: newUserPassword }
       })
 
-      if (response.ok) {
-        setIsModalOpen(false)
-        setNewUserName("")
-        setNewUserEmail("")
-        setNewUserPassword("")
-        setSearchUser("")
-        setDebouncedSearch("")
-        setCurrentPage(1)
-        fetchUsers()
-        showSuccess("Colaborador criado!", "A conta foi criada com sucesso.")
-      } else {
-        const errorMsg = await response.text()
-        showError("Erro ao criar usuário", errorMsg)
-      }
+      setIsModalOpen(false)
+      setNewUserName("")
+      setNewUserEmail("")
+      setNewUserPassword("")
+      setSearchUser("")
+      setDebouncedSearch("")
+      setCurrentPage(1)
+      fetchUsers()
+      showSuccess("Colaborador criado!", "A conta foi criada com sucesso.")
     } catch (error) {
       console.error("Erro de conexão:", error)
-      showError("Erro de conexão", "Verifique sua rede e tente novamente.")
+      showError(
+        error instanceof ApiError ? "Erro ao criar usuário" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Verifique sua rede e tente novamente."
+      )
     } finally {
       setIsCreating(false)
     }
@@ -186,7 +170,6 @@ export function Usuarios() {
   const handleToggleRole = async (userId: string, currentRoles: string[], toggledRole: string, isChecked: boolean) => {
     setSavingRoleForUserId(userId)
     try {
-      const token = localStorage.getItem("token")
       let updatedRoles = [...currentRoles]
       
       if (isChecked) {
@@ -197,19 +180,18 @@ export function Usuarios() {
 
       if (updatedRoles.length === 0) updatedRoles.push("ROLE_USER")
 
-      const response = await fetch(`/users/${userId}/roles`, {
+      await apiFetch(`/users/${userId}/roles`, {
         method: 'PUT',
-        headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify(updatedRoles)
+        body: updatedRoles
       })
 
-      if (response.ok) fetchUsers()
-      else showError("Erro ao alterar permissões", "Tente novamente.")
+      fetchUsers()
     } catch (error) {
       console.error("Erro de conexão:", error)
+      showError(
+        "Erro ao alterar permissões",
+        error instanceof ApiError ? error.message : "Tente novamente."
+      )
     } finally {
       setSavingRoleForUserId(null)
     }
@@ -262,27 +244,20 @@ export function Usuarios() {
     if (!editingUser) return
     setIsSaving(true)
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(`/users/${editingUser.id}`, {
+      await apiFetch(`/users/${editingUser.id}`, {
         method: 'PUT',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify({ name: editUserName, email: editUserEmail })
+        body: { name: editUserName, email: editUserEmail }
       })
 
-      if (response.ok) {
-        setIsEditModalOpen(false)
-        fetchUsers()
-        showSuccess("Dados atualizados!", "As informações do colaborador foram salvas.")
-      } else {
-        const errorMsg = await response.text()
-        showError("Erro ao editar", errorMsg)
-      }
+      setIsEditModalOpen(false)
+      fetchUsers()
+      showSuccess("Dados atualizados!", "As informações do colaborador foram salvas.")
     } catch (error) {
       console.error("Erro na edição:", error)
-      showError("Erro de conexão", "Verifique sua rede e tente novamente.")
+      showError(
+        error instanceof ApiError ? "Erro ao editar" : "Erro de conexão",
+        error instanceof ApiError ? error.message : "Verifique sua rede e tente novamente."
+      )
     } finally {
       setIsSaving(false)
     }
@@ -297,7 +272,7 @@ export function Usuarios() {
   }
 
   // --- BARREIRA DE ACESSO NEGADO ---
-  if (!canManageUsers) {
+  if (!canViewUsers) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] text-center space-y-4 animate-in fade-in duration-500">
         <AlertTriangle className="h-16 w-16 text-yellow-500" />

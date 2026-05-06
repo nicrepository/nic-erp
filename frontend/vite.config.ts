@@ -53,6 +53,10 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/audit': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       '/fiscal': {
         target: 'http://localhost:8080',
         changeOrigin: true,

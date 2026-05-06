@@ -42,11 +42,23 @@ public final class AppConstants {
     // ── Permissions ──────────────────────────────────────────────────────────
 
     public static final String PERM_ACCESS_HR = "ACCESS_HR";
+    public static final String PERM_ACCESS_HR_VIEW = "ACCESS_HR_VIEW";
+    public static final String PERM_ACCESS_HR_MANAGE = "ACCESS_HR_MANAGE";
     public static final String PERM_ACCESS_USERS = "ACCESS_USERS";
+    public static final String PERM_ACCESS_USERS_VIEW = "ACCESS_USERS_VIEW";
+    public static final String PERM_ACCESS_USERS_MANAGE = "ACCESS_USERS_MANAGE";
+    public static final String PERM_ACCESS_ROLES_MANAGE = "ACCESS_ROLES_MANAGE";
     public static final String PERM_ACCESS_HELPDESK = "ACCESS_HELPDESK";
+    public static final String PERM_ACCESS_HELPDESK_VIEW = "ACCESS_HELPDESK_VIEW";
+    public static final String PERM_ACCESS_HELPDESK_MANAGE = "ACCESS_HELPDESK_MANAGE";
+    public static final String PERM_ACCESS_HELPDESK_CATEGORIES_MANAGE = "ACCESS_HELPDESK_CATEGORIES_MANAGE";
     public static final String PERM_ACCESS_DASHBOARD = "ACCESS_DASHBOARD";
     public static final String PERM_ACCESS_INVENTORY_ADMIN = "ACCESS_INVENTORY_ADMIN";
+    public static final String PERM_ACCESS_INVENTORY_ADMIN_VIEW = "ACCESS_INVENTORY_ADMIN_VIEW";
+    public static final String PERM_ACCESS_INVENTORY_ADMIN_MANAGE = "ACCESS_INVENTORY_ADMIN_MANAGE";
     public static final String PERM_ACCESS_INVENTORY_IT = "ACCESS_INVENTORY_IT";
+    public static final String PERM_ACCESS_INVENTORY_IT_VIEW = "ACCESS_INVENTORY_IT_VIEW";
+    public static final String PERM_ACCESS_INVENTORY_IT_MANAGE = "ACCESS_INVENTORY_IT_MANAGE";
     public static final String PERM_ACCESS_ANNOUNCEMENTS_MANAGE = "ACCESS_ANNOUNCEMENTS_MANAGE";
     public static final String PERM_ACCESS_FISCAL = "ACCESS_FISCAL";
     public static final String PERM_ACCESS_PURCHASES = "ACCESS_PURCHASES";

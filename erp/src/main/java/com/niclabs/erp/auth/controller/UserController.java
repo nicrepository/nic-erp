@@ -65,7 +65,7 @@ public class UserController {
      * @return 200 OK with a page of {@link UserResponseDTO}
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI') or hasAuthority('ROLE_RH')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ACCESS_USERS_VIEW') or hasAuthority('ACCESS_USERS_MANAGE') or hasAuthority('ACCESS_INVENTORY_IT') or hasAuthority('ACCESS_INVENTORY_IT_VIEW') or hasAuthority('ACCESS_INVENTORY_IT_MANAGE') or hasAuthority('ACCESS_HR') or hasAuthority('ACCESS_HR_VIEW') or hasAuthority('ACCESS_HR_MANAGE') or hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_TI') or hasAuthority('ROLE_RH')")
     public ResponseEntity<Page<UserResponseDTO>> getAllUsers(
             @RequestParam(required = false) String search,
             @PageableDefault(size = 10, sort = "name") Pageable pageable) {
@@ -104,7 +104,7 @@ public class UserController {
      * @return 200 OK with the updated {@link UserResponseDTO}
      */
     @PutMapping("/{id}/roles")
-    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ACCESS_USERS_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<UserResponseDTO> updateRoles(
             @PathVariable UUID id,
             @RequestBody List<String> roleNames) {
@@ -170,7 +170,7 @@ public class UserController {
      * @return 204 No Content on success
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ACCESS_USERS_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Void> deactivateUser(@PathVariable UUID id) {
         userService.deactivateUser(id);
         return ResponseEntity.noContent().build();
@@ -184,7 +184,7 @@ public class UserController {
      * @return 200 OK with the updated {@link UserResponseDTO}
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('ACCESS_USERS') or hasAuthority('ACCESS_USERS_MANAGE') or hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<UserResponseDTO> updateUserDetails(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateUserAdminDTO dto) {
