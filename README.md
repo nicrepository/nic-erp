@@ -27,7 +27,10 @@ O N-HUB ERP centraliza rotinas administrativas e operacionais:
 
 - Controle de acesso por cargos e permissões.
 - Gestão de usuários e senha inicial obrigatória.
+<<<<<<< HEAD
 - Trilha de auditoria administrativa e operacional.
+=======
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 - Dashboard com visão consolidada.
 - Helpdesk com categorias, chamados, comentários e anexos.
 - Inventário administrativo com categorias, valores, movimentações e balanço patrimonial.
@@ -67,7 +70,10 @@ O N-HUB ERP centraliza rotinas administrativas e operacionais:
 - Lucide React
 - Recharts
 - jwt-decode
+<<<<<<< HEAD
 - `apiFetch` interno para requisições autenticadas e tratamento padronizado de erros
+=======
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 
 ### Infraestrutura
 
@@ -110,7 +116,10 @@ O backend segue uma divisão por domínio:
 - `purchasing`: solicitações, pedidos e recebimento de compras.
 - `storage`: persistência e entrega de arquivos.
 - `notification`: notificações e e-mail.
+<<<<<<< HEAD
 - `audit`: trilha de ações administrativas e operacionais.
+=======
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 
 O frontend possui páginas por módulo em `frontend/src/pages` e usa rotas privadas dentro do layout principal.
 
@@ -309,6 +318,7 @@ Funcionalidades:
 - Marcação de notificação como lida.
 - Uso por rotinas internas, como RH.
 
+<<<<<<< HEAD
 ### Auditoria
 
 Funcionalidades:
@@ -329,6 +339,8 @@ Permissão:
 
 - `ROLE_ADMIN`
 
+=======
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 ## Segurança
 
 ### Autenticação
@@ -339,8 +351,11 @@ O sistema usa autenticação stateless com JWT.
 - O frontend armazena o token no `localStorage`.
 - Requisições autenticadas enviam `Authorization: Bearer <token>`.
 - A API valida o token em filtro de segurança antes dos controllers.
+<<<<<<< HEAD
 - O frontend limpa a sessão e redireciona para login quando a API retorna `401`.
 - O frontend exibe aviso amigável quando a API retorna `403`.
+=======
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 
 ### Autorização
 
@@ -349,11 +364,16 @@ O controle de acesso combina:
 - Cargos, como `ROLE_ADMIN`, `ROLE_USER`, `ROLE_TI`.
 - Permissões granulares, como `ACCESS_FISCAL`, `ACCESS_PURCHASES`, `ACCESS_HR`.
 
+<<<<<<< HEAD
 As permissões são aplicadas no backend com `@PreAuthorize` e no frontend para exibição de menus e redirecionamento inicial. As permissões legadas continuam válidas para compatibilidade, enquanto permissões granulares permitem separar visualização e gestão por módulo.
+=======
+As permissões são aplicadas no backend com `@PreAuthorize` e no frontend para exibição de menus e redirecionamento inicial.
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 
 Permissões cadastradas no seed:
 
 - `ACCESS_INVENTORY_ADMIN`
+<<<<<<< HEAD
 - `ACCESS_INVENTORY_ADMIN_VIEW`
 - `ACCESS_INVENTORY_ADMIN_MANAGE`
 - `ACCESS_INVENTORY_IT`
@@ -367,13 +387,21 @@ Permissões cadastradas no seed:
 - `ACCESS_USERS_VIEW`
 - `ACCESS_USERS_MANAGE`
 - `ACCESS_ROLES_MANAGE`
+=======
+- `ACCESS_INVENTORY_IT`
+- `ACCESS_HELPDESK`
+- `ACCESS_USERS`
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 - `ACCESS_DASHBOARD`
 - `ACCESS_ANNOUNCEMENTS_MANAGE`
 - `ACCESS_FISCAL`
 - `ACCESS_PURCHASES`
 - `ACCESS_HR`
+<<<<<<< HEAD
 - `ACCESS_HR_VIEW`
 - `ACCESS_HR_MANAGE`
+=======
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 
 ### Senhas
 
@@ -420,7 +448,10 @@ O serviço de storage aplica controles de segurança:
 - Usar HTTPS obrigatoriamente.
 - Restringir acesso direto ao backend e banco.
 - Fazer backup dos volumes de banco e uploads.
+<<<<<<< HEAD
 - Monitorar a trilha de auditoria em alterações administrativas sensíveis.
+=======
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 - Não commitar `.env` ou arquivos reais de segredo.
 
 ## Banco de Dados e Migrações
@@ -449,9 +480,14 @@ Principais schemas/domínios:
 - `hr`: colaboradores e afastamentos.
 - `fiscal`: fornecedores, notas, itens e anexos fiscais.
 - `purchasing`: solicitações, pedidos e recebimento.
+<<<<<<< HEAD
 - `audit`: eventos de auditoria.
 
 Migrações atuais vão de `V1` a `V29`.
+=======
+
+Migrações atuais vão de `V1` a `V26`.
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 
 ## Configuração de Ambiente
 
@@ -487,7 +523,11 @@ FILE_UPLOAD_DIR=./uploads
 APP_FRONTEND_URL=http://localhost:5173
 ```
 
+<<<<<<< HEAD
 Use `NIC_ERP_JWT_SECRET` com um valor forte e aleatório em qualquer ambiente fora de desenvolvimento local.
+=======
+Observação: o arquivo `.env.example` usa `JWT_SECRET`, mas a aplicação espera `NIC_ERP_JWT_SECRET`. Use `NIC_ERP_JWT_SECRET` no ambiente real.
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 
 ## Execução Local
 
@@ -612,7 +652,10 @@ Executar testes específicos:
 Testes existentes cobrem:
 
 - Usuários e autenticação.
+<<<<<<< HEAD
 - Autorização granular por permissões de visualização e gestão.
+=======
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 - Estoque administrativo.
 - RH.
 - Fiscal.
@@ -693,9 +736,12 @@ Cargos protegidos:
 Boas práticas:
 
 - Use `ROLE_ADMIN` apenas para administradores reais.
+<<<<<<< HEAD
 - Use permissões `*_VIEW` para cargos que precisam apenas consultar dados.
 - Use permissões `*_MANAGE` para cargos que podem criar, editar, excluir, movimentar ou alterar status.
 - Prefira permissões granulares em novos cargos; mantenha permissões legadas apenas para compatibilidade com cargos já existentes.
+=======
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 - Crie cargos específicos para áreas:
   - Fiscal.
   - Compras.
@@ -1089,7 +1135,11 @@ Possíveis causas:
 Última validação realizada:
 
 - Backend: `.\mvnw test`
+<<<<<<< HEAD
 - Resultado: 42 testes, 0 falhas.
+=======
+- Resultado: 35 testes, 0 falhas.
+>>>>>>> f5356748fb4672785d8f97043802a4b4de5a76a3
 - Frontend: `npm run build`
 - Resultado: build concluído com sucesso.
 
