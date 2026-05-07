@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import { getAuthorities } from "../lib/auth"
 import { useToast } from "../contexts/ToastContext"
 import { Pagination } from "@/components/ui/pagination"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search, History, ArrowDownRight, ArrowUpRight, Loader2, InboxIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { Laptop, Package, PlusCircle, UserPlus, Info, Edit2, AlertTriangle, Settings, Search, History, ArrowDownRight, ArrowUpRight, Loader2, InboxIcon, ArrowUpDown, ArrowUp, ArrowDown, Tag, Trash2 } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select"
 
 const ITEMS_PER_PAGE = 10
+const currencyFormatter = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })
 
 type AssetSortField = "brand" | "model" | "serialNumber" | "assetTag"
 type SortDir = "asc" | "desc"
@@ -35,7 +37,7 @@ export function Inventario() {
   const { user } = useAuth()
   const toast = useToast()
 
-  const authorities = user?.roles || []
+  const authorities = getAuthorities(user)
   const isAdmin = authorities.includes('ROLE_ADMIN')
   const canAccessITInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_IT') || authorities.includes('ROLE_TI')
   const canAccessAdministrativeInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_ADMIN') || authorities.includes('ROLE_RH')
@@ -69,8 +71,10 @@ export function Inventario() {
   // --- ESTADOS: ESTOQUE ADMINISTRATIVO ---
   const [stockItems, setStockItems] = useState<any[]>([])
   const [stockItemLookup, setStockItemLookup] = useState<any[]>([])
+  const [stockCategories, setStockCategories] = useState<any[]>([])
   const [isStockModalOpen, setIsStockModalOpen] = useState(false)
   const [isManageStockModalOpen, setIsManageStockModalOpen] = useState(false)
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [selectedStockItem, setSelectedStockItem] = useState<any>(null)
   const [editStockData, setEditStockData] = useState<any>({})
   const [movementQuantity, setMovementQuantity] = useState<number | "">("")
@@ -78,6 +82,10 @@ export function Inventario() {
   const [itemName, setItemName] = useState("")
   const [itemCategory, setItemCategory] = useState("")
   const [itemMinStock, setItemMinStock] = useState<number | "">("")
+  const [itemUnitValue, setItemUnitValue] = useState<number | "">("")
+  const [newCategoryName, setNewCategoryName] = useState("")
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
+  const [editingCategoryName, setEditingCategoryName] = useState("")
 
   // ESTADOS: FILTROS DE BUSCA ---
   const [searchItAsset, setSearchItAsset] = useState("")
@@ -114,6 +122,12 @@ export function Inventario() {
   const [isLoadingAssets, setIsLoadingAssets] = useState(false)
   const [isLoadingStock, setIsLoadingStock] = useState(false)
   const [isLoadingMovements, setIsLoadingMovements] = useState(false)
+
+  const activeStockCategories = stockCategories.filter(category => category.active)
+  const stockPatrimonialTotal = useMemo(
+    () => stockItems.reduce((total, item) => total + Number(item.totalValue ?? (item.quantity || 0) * (item.unitValue || 0)), 0),
+    [stockItems]
+  )
 
   // BUSCA O HISTÓRICO QUANDO O MODAL ABRE ---
   useEffect(() => {
@@ -411,6 +425,20 @@ export function Inventario() {
     }
   }
 
+  const fetchStockCategories = async () => {
+    if (!canAccessAdministrativeInventory) return
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/inventory/administrative/categories', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (response.ok) setStockCategories(await response.json())
+    } catch (error) {
+      console.error("Erro ao buscar categorias de estoque:", error)
+    }
+  }
+
   const fetchMovements = useCallback(async (signal?: AbortSignal) => {
     if (!canAccessAdministrativeInventory) return
 
@@ -498,6 +526,10 @@ export function Inventario() {
   }, [canAccessAdministrativeInventory])
 
   useEffect(() => {
+    if (canAccessAdministrativeInventory) fetchStockCategories()
+  }, [canAccessAdministrativeInventory])
+
+  useEffect(() => {
     if (!canAccessAdministrativeInventory) return
 
     const controller = new AbortController()
@@ -508,6 +540,10 @@ export function Inventario() {
 
   const handleCreateStockItem = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!itemCategory) {
+      toast.warning("Categoria obrigatória", "Cadastre e selecione uma categoria para o material.")
+      return
+    }
     try {
       const token = localStorage.getItem("token")
       const response = await fetch('/inventory/administrative/items', {
@@ -519,7 +555,8 @@ export function Inventario() {
         body: JSON.stringify({ 
           name: itemName, 
           category: itemCategory, 
-          minimumStock: Number(itemMinStock) 
+          minimumStock: Number(itemMinStock),
+          unitValue: Number(itemUnitValue || 0)
         })
       })
 
@@ -527,6 +564,7 @@ export function Inventario() {
         setItemName("")
         setItemCategory("")
         setItemMinStock("")
+        setItemUnitValue("")
         setIsStockModalOpen(false)
         fetchStockItems()
         fetchStockItemLookup()
@@ -551,7 +589,8 @@ export function Inventario() {
         body: JSON.stringify({
           name: editStockData.name,
           category: editStockData.category,
-          minimumStock: Number(editStockData.minimumStock)
+          minimumStock: Number(editStockData.minimumStock),
+          unitValue: Number(editStockData.unitValue || 0)
         })
       })
 
@@ -562,6 +601,82 @@ export function Inventario() {
         toast.success("Material atualizado!")
       } else {
         toast.error("Erro ao atualizar material", "Tente novamente.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  const handleCreateStockCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCategoryName.trim()) return
+
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch('/inventory/administrative/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newCategoryName.trim(), active: true })
+      })
+
+      if (response.ok) {
+        setNewCategoryName("")
+        fetchStockCategories()
+        toast.success("Categoria cadastrada!")
+      } else {
+        const errorMsg = await response.text()
+        toast.error("Erro ao cadastrar categoria", errorMsg || "Verifique os dados e tente novamente.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  const handleUpdateStockCategory = async (category: any, changes: Partial<any>) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/inventory/administrative/categories/${category.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: changes.name ?? category.name,
+          active: changes.active ?? category.active
+        })
+      })
+
+      if (response.ok) {
+        setEditingCategoryId(null)
+        setEditingCategoryName("")
+        fetchStockCategories()
+        toast.success("Categoria atualizada!")
+      } else {
+        const errorMsg = await response.text()
+        toast.error("Erro ao atualizar categoria", errorMsg || "Verifique os dados e tente novamente.")
+      }
+    } catch (error) {
+      console.error("Erro de conexão:", error)
+    }
+  }
+
+  const handleDisableStockCategory = async (category: any) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`/inventory/administrative/categories/${category.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (response.ok) {
+        fetchStockCategories()
+        toast.success("Categoria desativada!")
+      } else {
+        toast.error("Erro ao desativar categoria", "Tente novamente.")
       }
     } catch (error) {
       console.error("Erro de conexão:", error)
@@ -1128,6 +1243,10 @@ export function Inventario() {
                   />
                 </div>
 
+                <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={() => setIsCategoryModalOpen(true)}>
+                  <Tag className="h-4 w-4" /> Categorias
+                </Button>
+
                 <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
                   <DialogTrigger asChild>
                     <Button className="gap-2 w-full sm:w-auto">
@@ -1149,12 +1268,25 @@ export function Inventario() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="grid gap-2">
                             <Label htmlFor="itemCategory">Categoria</Label>
-                            <Input id="itemCategory" placeholder="Ex: Impressão" value={itemCategory} onChange={(e) => setItemCategory(e.target.value)} required />
+                            <Select value={itemCategory} onValueChange={setItemCategory}>
+                              <SelectTrigger id="itemCategory">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {activeStockCategories.map(category => (
+                                  <SelectItem key={category.id} value={category.name}>{category.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="itemMinStock">Estoque Mínimo</Label>
                             <Input id="itemMinStock" type="number" min="0" placeholder="Ex: 5" value={itemMinStock} onChange={(e) => setItemMinStock(Number(e.target.value))} required />
                           </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="itemUnitValue">Valor Unitário</Label>
+                          <Input id="itemUnitValue" type="number" min="0" step="0.01" placeholder="Ex: 12.90" value={itemUnitValue} onChange={(e) => setItemUnitValue(e.target.value === "" ? "" : Number(e.target.value))} required />
                         </div>
                       </div>
                       <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -1164,6 +1296,93 @@ export function Inventario() {
                     </form>
                   </DialogContent>
                 </Dialog>
+
+                <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+                  <DialogContent className="sm:max-w-[520px] w-[95%] max-h-[90vh] overflow-y-auto bg-background border-border text-foreground">
+                    <DialogHeader>
+                      <DialogTitle>Categorias do Estoque</DialogTitle>
+                      <DialogDescription>Cadastre as categorias disponíveis para os materiais administrativos.</DialogDescription>
+                    </DialogHeader>
+
+                    <form onSubmit={handleCreateStockCategory} className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        placeholder="Ex: Impressão"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        maxLength={100}
+                      />
+                      <Button type="submit" className="gap-2">
+                        <PlusCircle className="h-4 w-4" /> Adicionar
+                      </Button>
+                    </form>
+
+                    <div className="space-y-2 pt-2">
+                      {stockCategories.length === 0 ? (
+                        <div className="text-sm text-muted-foreground text-center py-8">Nenhuma categoria cadastrada.</div>
+                      ) : (
+                        stockCategories.map(category => (
+                          <div key={category.id} className="flex items-center gap-2 rounded-md border border-border p-2">
+                            {editingCategoryId === category.id ? (
+                              <Input
+                                value={editingCategoryName}
+                                onChange={(e) => setEditingCategoryName(e.target.value)}
+                                className="h-9"
+                                autoFocus
+                              />
+                            ) : (
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate">{category.name}</p>
+                                <p className="text-xs text-muted-foreground">{category.active ? "Ativa" : "Inativa"}</p>
+                              </div>
+                            )}
+
+                            {editingCategoryId === category.id ? (
+                              <Button size="sm" onClick={() => handleUpdateStockCategory(category, { name: editingCategoryName.trim() })}>
+                                Salvar
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingCategoryId(category.id)
+                                  setEditingCategoryName(category.name)
+                                }}
+                              >
+                                Editar
+                              </Button>
+                            )}
+
+                            {category.active ? (
+                              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-600" onClick={() => handleDisableStockCategory(category)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => handleUpdateStockCategory(category, { active: true })}>
+                                Reativar
+                              </Button>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-md border border-border bg-card px-4 py-3">
+                <p className="text-xs text-muted-foreground">Valor Patrimonial</p>
+                <p className="text-xl font-semibold text-foreground">{currencyFormatter.format(stockPatrimonialTotal)}</p>
+              </div>
+              <div className="rounded-md border border-border bg-card px-4 py-3">
+                <p className="text-xs text-muted-foreground">Materiais Listados</p>
+                <p className="text-xl font-semibold text-foreground">{stockTotalItems}</p>
+              </div>
+              <div className="rounded-md border border-border bg-card px-4 py-3">
+                <p className="text-xs text-muted-foreground">Categorias Ativas</p>
+                <p className="text-xl font-semibold text-foreground">{activeStockCategories.length}</p>
               </div>
             </div>
 
@@ -1176,6 +1395,8 @@ export function Inventario() {
                       <TableHead className="text-muted-foreground min-w-[150px]">Categoria</TableHead>
                       <TableHead className="text-center text-muted-foreground min-w-[100px]">Qtd. Atual</TableHead>
                       <TableHead className="text-center text-muted-foreground min-w-[120px]">Estoque Mínimo</TableHead>
+                      <TableHead className="text-right text-muted-foreground min-w-[120px]">Valor Unit.</TableHead>
+                      <TableHead className="text-right text-muted-foreground min-w-[130px]">Total</TableHead>
                       <TableHead className="text-muted-foreground min-w-[130px]">Status</TableHead>
                       <TableHead className="text-right text-muted-foreground min-w-[120px]">Movimentação</TableHead>
                     </TableRow>
@@ -1183,14 +1404,14 @@ export function Inventario() {
                   <TableBody>
                     {isLoadingStock ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-16 text-center text-muted-foreground">
+                        <TableCell colSpan={8} className="py-16 text-center text-muted-foreground">
                           <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
                           Carregando materiais...
                         </TableCell>
                       </TableRow>
                     ) : stockItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-16 text-center">
+                        <TableCell colSpan={8} className="py-16 text-center">
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <InboxIcon className="h-10 w-10 opacity-30" />
                             <p className="text-sm font-medium">Nenhum material encontrado</p>
@@ -1207,6 +1428,8 @@ export function Inventario() {
                             <TableCell className="text-muted-foreground whitespace-nowrap">{item.category}</TableCell>
                             <TableCell className="text-center font-semibold text-foreground whitespace-nowrap">{item.quantity || 0}</TableCell>
                             <TableCell className="text-center text-muted-foreground whitespace-nowrap">{item.minimumStock}</TableCell>
+                            <TableCell className="text-right text-muted-foreground whitespace-nowrap">{currencyFormatter.format(Number(item.unitValue || 0))}</TableCell>
+                            <TableCell className="text-right font-medium text-foreground whitespace-nowrap">{currencyFormatter.format(Number(item.totalValue ?? (item.quantity || 0) * (item.unitValue || 0)))}</TableCell>
                             <TableCell className="whitespace-nowrap">
                               {isLowStock ? (
                                 <Badge variant="destructive" className="gap-1 bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30 hover:bg-red-500/25">
@@ -1264,12 +1487,25 @@ export function Inventario() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="grid gap-2">
                             <Label>Categoria</Label>
-                            <Input value={editStockData.category} onChange={(e) => setEditStockData({...editStockData, category: e.target.value})} />
+                            <Select value={editStockData.category || ""} onValueChange={(value) => setEditStockData({...editStockData, category: value})}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {activeStockCategories.map(category => (
+                                  <SelectItem key={category.id} value={category.name}>{category.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="grid gap-2">
                             <Label>Estoque Mínimo</Label>
                             <Input type="number" min="0" value={editStockData.minimumStock} onChange={(e) => setEditStockData({...editStockData, minimumStock: Number(e.target.value)})} />
                           </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Valor Unitário</Label>
+                          <Input type="number" min="0" step="0.01" value={editStockData.unitValue ?? 0} onChange={(e) => setEditStockData({...editStockData, unitValue: Number(e.target.value)})} />
                         </div>
                         <Button variant="secondary" className="w-full mt-2" onClick={handleUpdateStockItem}>
                           Salvar Alterações
@@ -1282,6 +1518,8 @@ export function Inventario() {
                         <h4 className="text-sm font-semibold text-foreground">Movimentação de Estoque</h4>
                         <div className="text-sm text-muted-foreground">
                           Qtd. Atual: <span className="font-bold text-foreground">{selectedStockItem.quantity || 0}</span>
+                          <span className="mx-2">-</span>
+                          Valor: <span className="font-bold text-foreground">{currencyFormatter.format(Number(selectedStockItem.unitValue || 0))}</span>
                         </div>
                       </div>
                       
@@ -1349,20 +1587,22 @@ export function Inventario() {
                       <TableHead className="text-muted-foreground min-w-[180px]">Material</TableHead>
                       <TableHead className="text-muted-foreground min-w-[120px]">Tipo de Ação</TableHead>
                       <TableHead className="text-center text-muted-foreground min-w-[100px]">Quantidade</TableHead>
+                      <TableHead className="text-right text-muted-foreground min-w-[120px]">Valor Unit.</TableHead>
+                      <TableHead className="text-right text-muted-foreground min-w-[120px]">Valor Total</TableHead>
                       <TableHead className="text-muted-foreground min-w-[150px]">Usuário Responsável</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoadingMovements ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
                           Carregando movimentações...
                         </TableCell>
                       </TableRow>
                     ) : movements.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           Nenhuma movimentação registrada no sistema ainda.
                         </TableCell>
                       </TableRow>
@@ -1394,6 +1634,12 @@ export function Inventario() {
                             </TableCell>
                             <TableCell className="text-center font-bold text-foreground whitespace-nowrap">
                               {isEntry ? '+' : '-'}{mov.quantity}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground whitespace-nowrap">
+                              {currencyFormatter.format(Number(mov.unitValue || 0))}
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
+                              {currencyFormatter.format(Number(mov.totalValue || 0))}
                             </TableCell>
                             <TableCell className="text-muted-foreground font-medium whitespace-nowrap">
                               {userName}

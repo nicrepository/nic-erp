@@ -15,6 +15,7 @@ const Inventario   = lazy(() => import("./pages/Inventario").then(m => ({ defaul
 const Usuarios     = lazy(() => import("./pages/Usuarios").then(m => ({ default: m.Usuarios })))
 const Configuracoes = lazy(() => import("./pages/Configuracoes").then(m => ({ default: m.Configuracoes })))
 const RecursosHumanos = lazy(() => import("./pages/RecursosHumanos").then(m => ({ default: m.RecursosHumanos })))
+const StatusReport = lazy(() => import("./pages/StatusReport").then(m => ({ default: m.StatusReport })))
 
 function PageLoader() {
   return (
@@ -53,6 +54,7 @@ function App() {
                 <Route path="/inventario"       element={<ErrorBoundary><Inventario /></ErrorBoundary>} />
                 <Route path="/configuracoes"    element={<ErrorBoundary><Configuracoes /></ErrorBoundary>} />
                 <Route path="/recursoshumanos"  element={<ErrorBoundary><RecursosHumanos /></ErrorBoundary>} />
+                <Route path="/status-report"    element={<ErrorBoundary><StatusReport /></ErrorBoundary>} />
               </Route>
             </Route>
           </Routes>

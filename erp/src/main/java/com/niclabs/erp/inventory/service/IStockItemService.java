@@ -1,11 +1,14 @@
 package com.niclabs.erp.inventory.service;
 
 import com.niclabs.erp.inventory.domain.InventoryMovement;
+import com.niclabs.erp.inventory.dto.StockCategoryDTO;
+import com.niclabs.erp.inventory.dto.StockCategoryResponseDTO;
 import com.niclabs.erp.inventory.dto.StockItemDTO;
 import com.niclabs.erp.inventory.dto.StockItemResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -96,4 +99,14 @@ public interface IStockItemService {
      * @return page of all movements
      */
     Page<InventoryMovement> findAllMovements(String search, Pageable pageable);
+
+    List<StockCategoryResponseDTO> findAllCategories();
+
+    List<StockCategoryResponseDTO> findActiveCategories();
+
+    StockCategoryResponseDTO createCategory(StockCategoryDTO dto);
+
+    StockCategoryResponseDTO updateCategory(UUID categoryId, StockCategoryDTO dto);
+
+    void deleteCategory(UUID categoryId);
 }

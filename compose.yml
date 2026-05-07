@@ -22,7 +22,7 @@ services:
   erp_backend:
     build:
       context: /opt/nic-labs/core/n-hub/erp
-      dockerfile: Dockerfile
+      dockerfile: compose.local
     container_name: erp_backend
     restart: always
     environment:
@@ -50,7 +50,7 @@ services:
   erp_frontend:
     build:
       context: /opt/nic-labs/core/n-hub/frontend
-      dockerfile: Dockerfile
+      dockerfile: compose.local
     container_name: erp_frontend
     restart: always
     networks:

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Sun, Moon, Menu, Ticket, Briefcase, ChevronRight, KeyRound, Eye, EyeOff } from "lucide-react"
+import { LayoutDashboard, Users, Package, Settings, LogOut, Bell, Sun, Moon, Menu, Ticket, Briefcase, ChevronRight, KeyRound, Eye, EyeOff, ClipboardList } from "lucide-react"
 import { useTheme } from "../contexts/ThemeProvider"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "../contexts/AuthContext"
+import { getAuthorities } from "../lib/auth"
 
 // Navigation item type
 interface NavItem {
@@ -36,6 +37,7 @@ const navGroups = [
       { label: "Helpdesk", path: "/helpdesk", icon: <Ticket className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HELPDESK", "ROLE_TI", "ROLE_RH", "ROLE_USER"] },
       { label: "Inventário", path: "/inventario", icon: <Package className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_INVENTORY_IT", "ACCESS_INVENTORY_ADMIN", "ROLE_TI", "ROLE_RH"] },
       { label: "Recursos Humanos", path: "/recursoshumanos", icon: <Briefcase className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_HR"] },
+      { label: "Status Report", path: "/status-report", icon: <ClipboardList className="h-4 w-4" />, access: ["ROLE_ADMIN", "ACCESS_DASHBOARD", "ROLE_TI", "ROLE_RH", "ROLE_USER"] },
     ],
   },
   {
@@ -102,7 +104,7 @@ export function AppLayout() {
   }
 
   const isActive = (path: string) => location.pathname === path
-  const authorities = user?.roles || []
+  const authorities = getAuthorities(user)
   const canAccessItem = (item: NavItem) => !item.access || item.access.some(access => authorities.includes(access))
 
   // Page title from current route

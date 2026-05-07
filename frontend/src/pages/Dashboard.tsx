@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import { getAuthorities } from "../lib/auth"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Ticket, Laptop, AlertTriangle, CheckCircle2, ArrowRight } from "lucide-react"
@@ -15,7 +16,7 @@ export function Dashboard() {
   const [isLoadingAssets, setIsLoadingAssets] = useState(true)
   const [isLoadingStock, setIsLoadingStock] = useState(true)
 
-  const authorities = user?.roles || []
+  const authorities = getAuthorities(user)
   const isAdmin = authorities.includes('ROLE_ADMIN')
   const canAccessDashboard = isAdmin || authorities.includes('ACCESS_DASHBOARD')
   const canAccessITInventory = isAdmin || authorities.includes('ACCESS_INVENTORY_IT') || authorities.includes('ROLE_TI')
@@ -43,7 +44,7 @@ export function Dashboard() {
         })
         if (response.ok) {
           const data = await response.json()
-          setTickets(data.content || [])
+          setTickets(toArray(data))
         }
       } catch (error) {
         console.error("Erro ao buscar chamados no dashboard:", error)
@@ -61,7 +62,7 @@ export function Dashboard() {
         })
         if (response.ok) {
           const data = await response.json()
-          setItAssets(data)
+          setItAssets(toArray(data))
         }
       } catch (error) {
         console.error("Erro ao buscar ativos:", error)
@@ -79,7 +80,7 @@ export function Dashboard() {
         })
         if (response.ok) {
           const data = await response.json()
-          setStockItems(data.content || [])
+          setStockItems(toArray(data))
         }
       } catch (error) {
         console.error("Erro ao buscar estoque:", error)
@@ -393,4 +394,12 @@ export function Dashboard() {
       </div>
     </div>
   )
+}
+
+function toArray(data: any) {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.content)) return data.content
+  if (Array.isArray(data?.items)) return data.items
+  if (Array.isArray(data?.data)) return data.data
+  return []
 }

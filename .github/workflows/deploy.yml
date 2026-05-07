@@ -3,7 +3,7 @@ name: Deploy NIC-ERP no Servidor
 on:
   push:
     branches:
-      - main
+      - test
 
 jobs:
   deploy:

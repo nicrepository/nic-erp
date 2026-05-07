@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
+import { getAuthorities } from "../lib/auth"
 import { useToast } from "../contexts/ToastContext"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,7 +28,7 @@ const ITEMS_PER_PAGE = 10
 export function Helpdesk() {
   const { user } = useAuth()
   const toast = useToast()
-  const authorities = user?.roles || []
+  const authorities = getAuthorities(user)
   const canManageHelpdesk = authorities.includes('ROLE_ADMIN') || authorities.includes('ROLE_TI') || authorities.includes('ACCESS_HELPDESK')
 
   const [isModalOpen, setIsModalOpen] = useState(false)
